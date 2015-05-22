@@ -1,0 +1,51 @@
+#!/usr/bin/perl -w
+
+use strict;
+#use lib '/net/fantasia/home/hmkang/bin/utils';
+use FindBin;
+use lib $FindBin::Bin;
+use wGetOptions qw(wpod2usage wGetOptions);    
+use hyunlib qw(makeMake forkExecWait);
+
+my @cmds = ();
+my $listf = "";
+my $numjobs = 1;
+my $mosixopt = ""; #"-E/tmp -j\`/net/fantasia/home/gjun/bin/pick_mainnode\`";
+my $restart = "";
+my $out = "";
+
+wGetOptions(
+    "-Run Make -- Submit jobs on cluster using MOSIX & GNU Make",
+    "--Key Options",
+    "list=s" => [\$listf, "Input VCF file"],
+    "cmd=s" => [\@cmds, "Additional Command line to run"],
+    "numjobs=s" => [\$numjobs, "Number of jobs to run concurrently"],
+    "--Additional Options",
+    "out=s" => [\$out, "Output prefix"],
+    "mosixopt=s" => [\$mosixopt, "MOSIX opitions"],
+    "restart",[\$restart, "Ignore previous runs and restart the jobs"],
+    ) || wpod2usage(2);
+
+unless ( $listf ) {
+    print STDERR "--list option is required\n";
+    wpod2usage();
+}
+
+if ( $listf ) {
+    open(IN,$listf) || die "Cannot open file $listf\n";
+    while(<IN>) {
+	chomp;
+	push(@cmds,$_);
+    }
+    close IN;
+}
+
+unless ($out) {
+    $out = "$listf.runmake";
+}
+
+&makeMake($out,$mosixopt,@cmds);
+
+if ( $numjobs > 0 ) {
+    &forkExecWait("make -f $out.Makefile -j $numjobs".($restart ? " -B" : ""));
+}

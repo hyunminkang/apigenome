@@ -26,3 +26,13 @@
 *.exe
 *.out
 *.app
+
+# Automake related
+autom4te.cache
+autom4te.cache/*
+src/.deps/
+
+# Binaries
+src/vcfast
+src/bgzip
+src/tabix
