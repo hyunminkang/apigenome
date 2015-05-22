@@ -65,7 +65,7 @@ while(<VCF>) {
 		$cdb =~ s/chr1/chr$chr/g;
 	    }
 
-	    open(DBF,"tabix $cdb $chr:0|") || die "Cannot open file\n";
+	    open(DBF,"$bintabix $cdb $chr:0|") || die "Cannot open file\n";
 	    @G = split(/[\t\r\n]/,<DBF>);
 	}
 	while ( ( defined($G[1]) ) && ( $G[1] < $F[1] ) ) {
@@ -97,6 +97,6 @@ while(<VCF>) {
 close OUT;
 
 if ( $out =~ /\.gz$/ ) { 
-    my $cmd = "tabix -pvcf $out";
+    my $cmd = "$bintabix -pvcf $out";
     print "$cmd\n"; print `$cmd`;
 }
