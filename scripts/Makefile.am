@@ -5,5 +5,6 @@ dist_bin_SCRIPTS = bed-diff \
 	vcf-resolve-chrX-hets \
 	hyunlib.pm wGetOptions.pm \
 	vcf-add-rsid \
-	vcf-summary
+	vcf-lookup-rsid \
+	vcf-summary \
 	epstopdf

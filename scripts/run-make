@@ -19,7 +19,7 @@ my $autosomes = "";
 wGetOptions(
     "-Run Make -- Submit jobs on cluster using MOSIX & GNU Make",
     "--Key Options",
-    "list=s" => [\$listf, "Input VCF file"],
+    "list=s" => [\$listf, "Input file containing a list of commands to run at each line"],
     "cmd=s" => [\@cmds, "Additional Command line to run"],
     "numjobs=s" => [\$numjobs, "Number of jobs to run concurrently"],
     "--Additional Options",
