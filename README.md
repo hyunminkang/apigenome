@@ -9,6 +9,7 @@ List of urrently provided utilities:
 * draw-afs              - Draw allele frequency spectrum
 * mift                  - Mendelian-inheritance filtering based on likelihoods
 * run-make              - Run multiple jobs simultaneously and fault-tolerantly
+* vcf-add-rsid          - Add rsID onto VCF
 * vcf-resolve-chrX-hets - Resolve chrX heterozygosity based on likelihoods
 * vcf-summary           - Summarize SNPs in VCF files
 * vcfast                - Fast analytic tools for processing VCF files (C++)

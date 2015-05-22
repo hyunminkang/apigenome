@@ -1,0 +1,98 @@
+#!/usr/bin/perl -w
+
+use strict;
+use lib "/net/fantasia/home/hmkang/bin/utils/";
+use hyunlib qw(initRef getCpGs);
+use wGetOptions qw(wGetOptions wpod2usage);
+
+my $vcf = "";
+my $dbSNPf = ""; #"/net/fantasia/home/hmkang/data/dbSNP/b137/00-All.vcf.gz";
+my $out = "";
+my $key = "";
+my $sepchr = "";
+my $keep = "";
+
+wGetOptions(
+    "-Add rsID into VCF",
+    "--Required Options",
+    "vcf=s",[\$vcf,"Input VCF file"],
+    "--Additional Options",
+    "db=s",[\$dbSNPf,"VCF file containing dbSNP or Other files"."VCF file containing dbSNP resources or other external file\nFor example, if you want to use ESP6900 data, use /net/1000g/hmkang/data/EVS/ESP6500SI.chr1.snps_indels.vcf.gz instead with --sepchr turned on"],
+    "sepchr",[\$sepchr,"VCF is separated by chromosome"],
+    "key=s",[\$key,"Instead of modifying rsID in the output VCF, Add INFO field with specific KEY field with 0 and 1 variable to indicate existence in the database"],
+    "out=s",[\$out,"Output file. STDOUT if unspecified"],
+    "keep",[\$keep,"Keep the existing SNP ID column. Even if rsID does not exist in the database"],
+    ) || wpod2usage(2);
+
+
+wpod2usage(2) unless ( $vcf );
+
+if ( $vcf =~ /\.gz$/ ) { open(VCF,"zcat $vcf|") || die "Cannot open file\n"; }
+else { open(VCF,$vcf) || die "Cannot open file\n"; }
+
+die "Cannot open $dbSNPf\n" unless ( -s $dbSNPf );
+die "$dbSNPf is not indexed and tabixed\n" unless ( $dbSNPf =~ /\.vcf.gz$/ );
+
+if ( $out =~ /\.gz$/ ) { open(OUT,"| bgzip -c > $out") || die "Cannot open file\n"; }
+elsif ( $out ) { open(OUT,">$out") || die "Cannot open file\n"; }
+else { *OUT = *STDOUT; }
+
+if ( ( $keep ) && ( $key ) ) {
+    print STDERR "ERROR: --key and --keep cannot be used together\n";
+    wpod2usage(2);
+}
+
+my $chr = "";
+my $pos = 0;
+my @G = ();
+while(<VCF>) {
+    if ( /^#/ ) {
+	print OUT $_;
+    }
+    else {
+	my @F = split(/[\t\r\n]/);
+	if ( ( $F[0] ne $chr ) || ( $pos - $F[1] > 50000 ) ) {
+	    close DBF if ( defined(fileno DBF) );
+	    $chr = $F[0];
+	    print STDERR "Processing chr$chr..\n";
+
+	    my $cdb = $dbSNPf;
+	    if ( $sepchr ) {
+		$cdb =~ s/chr1/chr$chr/g;
+	    }
+
+	    open(DBF,"tabix $cdb $chr:0|") || die "Cannot open file\n";
+	    @G = split(/[\t\r\n]/,<DBF>);
+	}
+	while ( ( defined($G[1]) ) && ( $G[1] < $F[1] ) ) {
+	    @G = split(/[\t\r\n]/,<DBF>);	    
+	}
+
+	if ( defined($G[1]) && ( $G[1] == $F[1] ) && ( $G[3] eq $F[3] ) && ( $G[4] eq $F[4] ) ) {
+	    if ( $key ) {
+		$F[7] .= ";$key=1";
+	    }
+	    else {
+		$F[2] = $G[2];
+	    }
+	}
+	else {
+	    if ( $key ) {
+		$F[7] .= ";$key=0";
+	    }
+	    else {
+		$F[2] = "." unless ( $keep );
+	    }
+	}
+
+	print OUT join("\t",@F);
+	print OUT "\n";
+	$pos = $F[1];
+    }
+}
+close OUT;
+
+if ( $out =~ /\.gz$/ ) { 
+    my $cmd = "tabix -pvcf $out";
+    print "$cmd\n"; print `$cmd`;
+}
