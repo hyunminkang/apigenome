@@ -13,6 +13,8 @@ my $out = "";
 my $key = "";
 my $sepchr = "";
 my $keep = "";
+my $binbgzip = "$FindBin::Bin/bgzip";
+my $bintabix = "$FindBin::Bin/tabix";
 
 wGetOptions(
     "-Add rsID into VCF",
@@ -35,7 +37,7 @@ else { open(VCF,$vcf) || die "Cannot open file\n"; }
 die "Cannot open $dbSNPf\n" unless ( -s $dbSNPf );
 die "$dbSNPf is not indexed and tabixed\n" unless ( $dbSNPf =~ /\.vcf.gz$/ );
 
-if ( $out =~ /\.gz$/ ) { open(OUT,"| bgzip -c > $out") || die "Cannot open file\n"; }
+if ( $out =~ /\.gz$/ ) { open(OUT,"| $binbgzip -c > $out") || die "Cannot open file\n"; }
 elsif ( $out ) { open(OUT,">$out") || die "Cannot open file\n"; }
 else { *OUT = *STDOUT; }
 

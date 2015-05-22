@@ -44,7 +44,9 @@ my $useMAC = "";
 my $b38 = "";
 #my $nocpg = "";
 
-my $tabix = "tabix";
+#my $tabix = "tabix";
+my $binbgzip = "$FindBin::Bin/bgzip";
+my $bintabix = "$FindBin::Bin/tabix";
 
 wGetOptions(
     "-Summarize SNPs in VCF Files",
@@ -59,7 +61,7 @@ wGetOptions(
     "mono" => [\$monoFlag, "Count monomorphic variants"],
     "auto" => [\$auto, "Focus on autosomal chromosomes only"],
     "acbreaks=s" => [\$acbr, "Bin allele counts based on comma-separated intervals"],
-    "tabix=s" => [\$tabix, "Location of tabix binary"],
+    "tabix=s" => [\$bintabix, "Location of tabix binary"],
     "ref=s" => [\$ref, "Location to the reference genome"],
     "use-mac" => [\$useMAC, "Use minor allele frequency"],
     "target=s" => [\$target, "Use specific target BED to focus on"],
@@ -123,8 +125,8 @@ if ( $target ) {
 	die "Cannot open $target\n" unless ( -s $target );
 	
 	unless ( ( -s $target_dbSNPf ) && ( -s "$target_dbSNPf.tbi" ) ) {
-	    &forkExecWait("tabix -h -B $dbSNPf $target | bgzip -c > $target_dbSNPf");
-	    &forkExecWait("tabix -pvcf $target_dbSNPf");	
+	    &forkExecWait("$bintabix -h -B $dbSNPf $target | $binbgzip -c > $target_dbSNPf");
+	    &forkExecWait("$bintabix -pvcf $target_dbSNPf");	
 	}
 	$dbSNPf = $target_dbSNPf;
     }
@@ -140,8 +142,8 @@ if ( $target ) {
 	die "Cannot open $target\n" unless ( -s $target );
 
 	unless ( ( -s $target_FNRvcf ) && ( -s "$target_FNRvcf.tbi" ) ) {	
-	    &forkExecWait("tabix -h -B $FNRvcf $target | bgzip -c > $target_FNRvcf");
-	    &forkExecWait("tabix -pvcf $target_FNRvcf");
+	    &forkExecWait("$bintabix -h -B $FNRvcf $target | $binbgzip -c > $target_FNRvcf");
+	    &forkExecWait("$bintabix -pvcf $target_FNRvcf");
 	}
 
 	$FNRvcf = $target_FNRvcf;	
@@ -156,7 +158,7 @@ if ( $dbSNPf ) {
 	if ( $dbSNPf =~ /.vcf.gz$/ ) {
 	    if ( $chr ) {
                 die "Can't read $dbSNPf.tbi" unless ( -f "$dbSNPf.tbi" and -r "$dbSNPf.tbi");
-		open(DBSNP,"$tabix $dbSNPf $chr:0 |") || die "Cannot open file\n";
+		open(DBSNP,"$bintabix $dbSNPf $chr:0 |") || die "Cannot open file\n";
 	    }
 	    else {
                 die "Can't read $dbSNPf" unless( -f $dbSNPf and -r $dbSNPf);
@@ -235,7 +237,7 @@ elsif ( $FNRvcf ) {
     if ( $FNRvcf =~ /\.gz$/ ) {
 	if ( ($chr) && ( -s "$FNRvcf.tbi" ) ) {
             die "Can't read $FNRvcf.tbi" unless( -f "$FNRvcf.tbi" and -r "$FNRvcf.tbi");
-	    open(IN,"$tabix -h $FNRvcf $chr:0 |") || die "Cannot open file\n";
+	    open(IN,"$bintabix -h $FNRvcf $chr:0 |") || die "Cannot open file\n";
 	}
 	else {
             die "Can't read $FNRvcf" unless( -f $FNRvcf and -r $FNRvcf);
