@@ -1,0 +1,273 @@
+#!/usr/bin/perl -w
+
+use strict;
+use POSIX qw(strftime);
+use FindBin;
+use lib $FindBin::Bin;
+#use lib '/net/fantasia/home/hmkang/bin/utils';
+use wGetOptions qw(wpod2usage wGetOptions);
+use hyunlib qw(makeMake forkExecWait);
+
+my $dir = "";
+my $subdirname = "QCFiles";
+my $extSelfSM = "genoCheck.selfSM";
+my $extQplotStats = "qplot.stats";
+my $extQplotR = "qplot.R";
+my $out = "";
+
+wGetOptions(
+    "-Scan the gotCloud QC output directories, and summarize statistics",
+    "--Required Options",
+    "dir=s" => [\$dir, "Directory to scan"],
+    "out=s" => [\$out, "Output directory"],
+    "--Additional Options",
+    "subdirname=s" => [\$subdirname, "Sub-directory name to search for"],
+    "extSelfSM=s" => [\$extSelfSM, "Suffix (or file extension) for verifyBamID's .selfSM file per sample"],
+    "extQplotStats=s" => [\$extQplotStats, "Suffix (or file extension) for QPLOT's .stats file per sample"],
+    "extQplotR=s" => [\$extQplotR, "Suffix (or file extension) for QPLOT's .R file per sample"],    
+    ) || wpod2usage(2);
+
+unless ( ( $dir ) && ( $out ) ) {
+    print STDERR "ERROR: Missing required option\n";
+    wpod2usage(2);
+}
+
+print STDERR "Scanning $dir to find $subdirname\n";
+
+my @qcdirs = ();
+open(IN,"find $dir -name $subdirname|") || die "Cannot open file\n";
+while(<IN>) {
+    chomp;
+    push(@qcdirs,$_);
+}
+close IN;
+
+print STDERR "Finished identifying ".($#qcdirs+1)." directories..\n";
+
+my %hfiles = ();
+foreach my $qcdir (@qcdirs) {
+    open(IN,"ls $qcdir|") || die "Cannot open file\n";
+    while(<IN>) {
+	chomp;
+	if ( /^(\S+)\.($extSelfSM|$extQplotStats|$extQplotR)$/ ) {	     
+	#if ( /^(\S+)\.(genoCheck|qplot)\.(R|selfSM|stats)$/ ) {
+	    my ($id,$ext) = ($1,$2);
+	    $hfiles{$id} = [0,0,0,$qcdir] unless ( defined($hfiles{$id}) );
+	    if ( $ext eq $extSelfSM ) {
+		$hfiles{$id}->[0] = 1;
+	    }
+	    elsif ( $ext eq $extQplotStats ) {
+		$hfiles{$id}->[1] = 1;		
+	    }
+	    elsif ( $ext eq $extQplotR ) {
+		$hfiles{$id}->[2] = 1;		
+	    }	    
+	}
+    }
+    close IN;
+}
+
+my $cnts = 0;
+foreach my $f (keys %hfiles) {
+    my $r = $hfiles{$f};
+    if ( $r->[0] + $r->[1] + $r->[2] < 3 ) {
+	print STDERR "WARNING: Individual $f in ".($r->[3])." does have missing files.. Skipping..\n";
+	print STDERR join(",",@{$r})."\n";
+	delete $hfiles{$f};
+    }
+    ++$cnts;
+}
+
+print STDERR "Finished reading QC files for $cnts samples..\n";
+
+
+open(OUT,">$out") || die "Cannot open file $out for writing\n";
+my @hdrs = qw(ID GROUP DATE FREEMIX N_READS_M PCT_MAPPED PCT_MQ0 PCT_PAIRED PCT_PROP_PAIR MAPPED_Gb Q20_Gb PCT_Q20_BASE MEAN_DEPTH PCT_GENOME_COV ISIZE_MODE ISIZE_MEDIAN PCT_DUPS PCT_GENOME_DP5 PCT_GENOME_DP10 PCT_GENOME_DP20 PCT_GENOME_DP30 VMR_DEPTH DEPTH_Q10 DEPTH_Q20 DEPTH_Q30 RAW_BASE_Gb PCT_OVERLAP_READS PCT_OVERLAP_BASES);
+print OUT join("\t",@hdrs)."\n";
+foreach my $f (sort keys %hfiles) {
+    my $r = $hfiles{$f};
+    print STDERR "Processing sample $f..\n";
+    my @metrics = &parseQCFiles($r->[3]."/$f.$extSelfSM",$r->[3]."/$f.$extQplotStats",$r->[3]."/$f.$extQplotR");
+    print OUT join("\t",$f,@metrics)."\n";
+}
+close OUT;
+
+print STDERR "Finished writing  QC metrics for $cnts samples to $out\n";
+
+sub parseRVector {
+    my $line = shift;
+    chomp($line);
+    if ( /c\((\S+)\)/ ) {
+	my @F = split(/,/,$1);
+	return @F;
+    }
+    else {
+	die "Cannot parse R vector in $line\n";
+    }
+}
+
+# Extract the following stats
+# 0 - FREEMIX              FREEMIX value from verifyBamID
+# 1 - 2. N_READS_M         Total # reads in millions
+# 2 - 3. PCT_MAPPED        % Mapped reads
+# 3 - 6. PCT_MQ0           % MQ0 reads
+# 4 - 8. PCT_PAIRED        % Paired reads
+# 5 - 9. PCT_PROP_PAIR     % Properly paired reads
+# 6 - 10. MAPPED_Gb        Total # of mapped bases in billions
+# 7 - 11. Q20_Gb           Total # of >Q20 bases in billuons
+# 8 - 12. PCT_Q20          % Q20 bases
+# 9 - 13. MEAN_DEPTH       Mean Depth (Mapped)
+# 10 - 14. PCT_GENOME_COV   % Genome covered
+# 11 - 18. ISIZE_MODE       Mode of insert size
+# 12 - 19. ISIZE_MEDIAN     Median of insert size
+# 13 - 21. PCT_DUPS         % of Duplicate reads
+# 14 - PCT_GENOME_DP5       % Genome covered with DP>=5
+# 15 - PCT_GENOME_DP10      % Genome covered with DP>=10
+# 16 - PCT_GENOME_DP20      % Genome covered with DP>=20
+# 17 - PCT_GENOME_DP30      % Genome covered with DP>=30
+# 18 - VMR_DEPTH            % Variant-to-mean Ratio for depth
+# 19 - DEPTH_Q10            Mean depth with Q10
+# 20 - DEPTH_Q20            Mean depth with Q20
+# 21 - DEPTH_Q30            Mean depth with Q30
+# 22 - RAW_BASE_Gb          Raw depth : N_READS_M * MAX_CYCLE
+# 23 - PCT_OVERLAP_READS    Percentage of overlapping fragments
+# 24 - PCT_OVERLAP_BASES    Percentage of overlapping bases
+sub parseQCFiles {
+    my ($genocheckfile,$statfile,$rfile) = @_;
+    my @metrics = ();    
+
+    open(IN,$genocheckfile) || die "Cannot open $genocheckfile for reading\n";
+    my $line = <IN>;
+    $line = <IN>;
+    close IN;
+    
+    my @F = split(/\s+/,$line);
+    push(@metrics,sprintf("%.1lf",$F[6]*100));
+
+    my @flags = (0,1,1,0,0,1,0,1,1,1,1,1,1,1,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+    open(IN,$statfile) || die "Cannot open $statfile for reading\n";    
+    for(my $i=0; <IN>; ++$i) {
+	if ( $flags[$i] == 1 ) {
+	    my ($name,$val) = split;
+	    push(@metrics,$val);
+	}
+    }
+    close IN;
+
+    my $meanDepth = $metrics[9];
+    my $pctGenomeCov = $metrics[10];
+    
+    open(IN,$rfile) || die "Cannot open $rfile for reading\n";
+    my @phredX = ();
+    my @phredZ = ();
+    my @cycleX = ();
+    my @cycleZ = ();
+    my @gcbiasX = ();
+    my @gcbiasY = ();
+    my @gcbiasZ = ();
+    my @isizeX = ();
+    my @isizeY = ();
+    my @depthX = ();
+    my @depthY = ();
+    for(my $i=0; <IN>; ++$i) {
+	if ( $i == 11 ) {
+	    @phredX = &parseRVector($_);
+	}
+	elsif ( $i == 15 ) {
+	    @phredZ = &parseRVector($_);
+	}
+	elsif ( $i == 42 ) {
+	    @cycleX = &parseRVector($_);
+	}
+	elsif ( $i == 46 ) {
+	    @cycleZ = &parseRVector($_);
+	}
+	elsif ( $i == 67 ) {
+	    @gcbiasZ = &parseRVector($_);
+	}
+	elsif ( $i == 68 ) {
+	    @gcbiasX = &parseRVector($_);
+	}
+	elsif ( $i == 69 ) {
+	    @gcbiasY = &parseRVector($_);
+	}
+	elsif ( $i == 94 ) {
+	    @isizeX = &parseRVector($_);
+	}
+	elsif ( $i == 95 ) {
+	    @isizeY = &parseRVector($_);	    
+	}
+	elsif ( $i == 133 ) {
+	    @depthX = &parseRVector($_);
+	}
+	elsif ( $i == 134 ) {
+	    @depthY = &parseRVector($_);
+	}
+    }
+
+    ## calculate % DP5, DP10, DP20, DP30 (among DP>0)
+    ## also calculate VMR
+    my @cumDPs = (0) x ($#depthX+1);
+    $cumDPs[$#depthX] = $depthY[$#depthX];
+    my $cntDP = 0;
+    my $sumDP = 0;
+    my $sumsqDP = 0;
+    for(my $i= $#depthX-1; $i >=0; --$i) {
+	$cumDPs[$i] += $cumDPs[$i+1] + $depthY[$i];
+	$cntDP += $depthY[$i];
+	$sumDP += ( $depthX[$i] * $depthY[$i]);
+	$sumsqDP += ($depthX[$i] * $depthX[$i] * $depthY[$i]);
+    }
+    $cntDP /= ($pctGenomeCov/100);
+    my $meanDP = $sumDP / $cntDP;
+    my $varDP = $sumsqDP / $cntDP - $meanDP * $meanDP;
+    my $VMR = $varDP / $meanDP;
+    
+    my $pctGenomeDP5 = $pctGenomeCov * $cumDPs[4] / $cumDPs[0];
+    my $pctGenomeDP10 = $pctGenomeCov * $cumDPs[9] / $cumDPs[0];
+    my $pctGenomeDP20 = $pctGenomeCov * $cumDPs[19] / $cumDPs[0];    
+    my $pctGenomeDP30 = $pctGenomeCov * $cumDPs[29] / $cumDPs[0];
+
+    ## calculate %Q10, Q20, Q30 bases
+    my ($q0, $q10, $q20, $q30) = (0,0,0,0);
+    for(my $i=0; $i < @phredX; ++$i) {
+	$q0 += $phredZ[$i];
+	if ( $phredX[$i] >= 10 ) {
+	    $q10 += $phredZ[$i];
+	    if ( $phredX[$i] >= 20 ) {
+		$q20 += $phredZ[$i];
+		if ( $phredX[$i] >= 30 ) {
+		    $q30 += $phredZ[$i];		    
+		}
+	    }
+	}
+    }
+    my $q10DP = $meanDepth * $q10 / $q0;
+    my $q20DP = $meanDepth * $q20 / $q0;
+    my $q30DP = $meanDepth * $q30 / $q0;
+    my $maxCycle = $cycleX[$#cycleX];
+
+    my $rawBases = $metrics[1] * $maxCycle / 1000;
+
+    ## fraction of pairs with too small insert sizes
+    my ($totalPairs,$overlappingPairs,$overlappingFracPairs) = (0,0,0);
+    for(my $i=0; $i < @isizeX; ++$i) {
+	$totalPairs += $isizeY[$i];
+	if ( $isizeX[$i] <= $maxCycle ) {
+	    $overlappingPairs += $isizeY[$i] ;
+	    $overlappingFracPairs += ($isizeY[$i] * ($maxCycle - $isizeX[$i]) / $maxCycle);
+	}
+    }
+    my $pctOverlapReads = $overlappingPairs/$totalPairs*100;
+    my $pctOverlapBases = $overlappingFracPairs/$totalPairs*100;
+
+    #my $group = "DACHS_BATCH".int(rand(3));
+    my $group = ( $genocheckfile =~ /\/([^\/]+)\/$subdirname\// ) ? $1 : "UNKNOWN";
+    my $mindate = (stat($genocheckfile))[9];
+    $mindate = (stat($rfile))[9] if ( (stat($rfile))[9] < $mindate );
+    $mindate = (stat($statfile))[9] if ( (stat($statfile))[9] < $mindate );
+    #$mindate = sprintf(strftime("%m/%d/%Y", localtime( $mindate )));
+    $mindate = sprintf(strftime("%Y/%m/%d", localtime( $mindate )));    
+
+    return ($group,$mindate,@metrics,sprintf("%.2lf",$pctGenomeDP5),sprintf("%.2lf",$pctGenomeDP10),sprintf("%.2lf",$pctGenomeDP20),sprintf("%.2lf",$pctGenomeDP30),sprintf("%.2lf",$VMR),sprintf("%.2lf",$q10DP),sprintf("%.2lf",$q20DP),sprintf("%.2lf",$q30DP),sprintf("%.2lf",$rawBases),sprintf("%.2lf",$pctOverlapReads),sprintf("%.2lf",$pctOverlapBases));
+}

@@ -1,10 +1,12 @@
 dist_bin_SCRIPTS = bed-diff \
 	draw-afs \
-	run-make \
 	mift \
+	now-seq-scan \
+	run-make \
 	vcf-resolve-chrX-hets \
-	hyunlib.pm wGetOptions.pm \
 	vcf-add-rsid \
+	vcf-issac-summary \
 	vcf-lookup-rsid \
 	vcf-summary \
-	epstopdf
+	epstopdf \
+	hyunlib.pm wGetOptions.pm 
