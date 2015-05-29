@@ -31,25 +31,25 @@ unless ( ( $vcf ) && ( $out ) ) {
     wpod2usage(2);
 }
 
-my $fh = zopen($vcf,$region);
-my %h = ();
+my $fh = zopen($vcf,$region);  ## zopen() handles both compressed and uncompressed files, and opens specific regions for files compressed/indexed with bgzip/tabix if region is provided.  
+my %h = (); 
 
 while(<$fh>) {
     next if ( /^#/ );
     my ($chr,$pos,$id,$ref,$alt,$qual,$filt,$info,$format,$geno) = split;
-    next if ( ( $auto ) && ( $chr =~ /[MXY]$/ ) );
+    next if ( ( $auto ) && ( $chr =~ /[MXY]$/ ) );   ## If the user set --autosomes option, they want to consider only autosomal chromosomes, so if --autosomes are set, ignore chrX, chrY, chrM, or (X, Y, MT) 
     
     my $multi = 0;
     my $indel = 0;
-    if ( $alt =~ /,/ ) {
+    if ( $alt =~ /,/ ) {  ## multi-allelic variants
 	$multi = 1;
 	my @alts = split(/,/,$alt);
-	$indel = 1 if ( length($ref) > 1 );
-	foreach my $a (@alts) {
+	$indel = 1 if ( length($ref) > 1 );    ## if any of the length of allele is greater than 1, it is not a SNP. (indel means that it is not a SNP) 
+ 	foreach my $a (@alts) {
 	    $indel = 1 if ( length($a) > 1 );	    
 	}
     }
-    else {
+    else {  ## most command cases
 	$indel = 1 if ( ( length($ref) > 1  ) || ( length($alt) > 1 )	 );
     }
     my $dbsnp = ( $info =~ /dbSNP138_ID=/ ) ? 1 : 0;
@@ -60,7 +60,6 @@ while(<$fh>) {
     my $lof = 0;
     my $ts = ( ( $indel == 0 ) &&  ( "$ref$alt" =~ /^(AG|GA|CT|TC)$/ ) ) ? 1 : 0;
     my $tv = ( ( $indel == 0 ) &&  ( "$ref$alt" =~ /^(AC|AT|CA|CG|GC|GT|TA|TG)$/ ) ) ? 1 : 0;
-    
     if ( defined($eff) ) {
 	if ( $eff =~ /(frameshift_variant|start_lost|stop_gained|splice_acceptor_variant|splice_donor_variant)/ ) {
 	    $lof = 1;
@@ -82,7 +81,7 @@ while(<$fh>) {
     my $g = ($sep eq ":") ? ( ($g1 == 0) ? 0 : 2 ) : ( ( ($g1 == 0) ? 0 : 1 ) + ( ($g2 == 0) ? 0 : 1 ) );
 
     my $key = join("",$indel,$multi,$dbsnp,$kg,$coding,$nsyn,$lof);
-    $h{$key} = [0,0,0,0,0] unless ( defined($h{$key}) );
+    $h{$key} = [0,0,0,0,0] unless ( defined($h{$key}) );   ## $h{$key} contains a REFERENCE to an array containing [#REFs,#HETs,#HOMALTs,#Ts,#Tv] 
     ++($h{$key}->[$g]);
     ++($h{$key}->[3]) if ( $ts == 1 );
     ++($h{$key}->[4]) if ( $tv == 1 );    
@@ -92,9 +91,9 @@ open(OUT,">$out") || die "Cannot open file\n";
 my @hdrs = qw(KEY INDEL MULTI DBSNP 1000G CODING NONSYNONYMPUS LoF REFs HETs ALTs HETHOM TsTv);
 print OUT join("\t",@hdrs)."\n";
 my @k = (0,0,0,0,0,0,0);
-for(my $i=0; $i < 2187; ++$i) {
+for(my $i=0; $i < 2187; ++$i) {  # 2187 = 3^7
     for(my $j=0; $j < 7; ++$j) {
-	$k[$j] = int($i/pow(3,$j)) % 3
+	$k[$j] = int($i/pow(3,$j)) % 3; ## converting the number into 7 digits (0-2) numbers
     }
     my @val0 = &calcKey(join("",@k));
     my $sum = 0;
@@ -106,7 +105,6 @@ for(my $i=0; $i < 2187; ++$i) {
     }
 }
 close OUT;
-
 
 sub calcKey {
     my $key = $_[0];

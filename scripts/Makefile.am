@@ -1,4 +1,5 @@
 dist_bin_SCRIPTS = bed-diff \
+	bed-tss-match \
 	draw-afs \
 	mift \
 	now-seq-scan \

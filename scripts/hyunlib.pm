@@ -243,7 +243,7 @@ sub writeGTF {
 	}
     }
     close OUT;
-    &runCmd("tabix -pvcf $outf.genes.gz");
+    &runCmd("$bintabix -pvcf $outf.genes.gz");
 
     ## sort by the starting points
     my @tkeys = sort { &compareChrPos($a,$b,$rht) } keys (%ht);
@@ -269,7 +269,7 @@ sub writeGTF {
 	print OUT "\n";
     }
     close OUT;
-    &runCmd("tabix -pvcf $outf.transcripts.gz");
+    &runCmd("$bintabix -pvcf $outf.transcripts.gz");
 }
 
 sub loadGTF {
@@ -563,7 +563,7 @@ sub zopen {
 	if ( defined($reg) && ( $reg ) ) {
 	    die "Cannot parse $reg\n" unless ( $reg =~ /^\S+:\d+(-\d+)?/ );
 	    die "Cannot open file $fn.tbi\n" unless ( -s "$fn.tbi" );
-	    open($fh,"tabix -h $fn $reg |");
+	    open($fh,"$bintabix -h $fn $reg |");
 	}
 	else {
 	    open($fh,"zcat $fn|");
@@ -586,7 +586,7 @@ sub wopen {
     my $fn = shift;
     my $fh = FileHandle->new;
     if ( $fn =~ /\.gz$/ ) {
-	open($fh,"| bgzip -c > $fn");
+	open($fh,"| $binbgzip -c > $fn");
     }
     else {
 	if ( $fn eq "-" ) {

@@ -215,15 +215,18 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 dist_bin_SCRIPTS = bed-diff \
+	bed-tss-match \
 	draw-afs \
-	run-make \
 	mift \
+	now-seq-scan \
+	run-make \
 	vcf-resolve-chrX-hets \
-	hyunlib.pm wGetOptions.pm \
 	vcf-add-rsid \
+	vcf-issac-summary \
 	vcf-lookup-rsid \
 	vcf-summary \
-	epstopdf
+	epstopdf \
+	hyunlib.pm wGetOptions.pm 
 
 all: all-am
 

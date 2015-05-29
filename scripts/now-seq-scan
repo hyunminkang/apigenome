@@ -15,6 +15,36 @@ my $extQplotStats = "qplot.stats";
 my $extQplotR = "qplot.R";
 my $out = "";
 
+## Create the following summary statistics
+##  1. ID                - sample ID
+##  2. GROUP             - subdirectory name, often same to the pool name
+##  3. DATE              - date of QC assessment
+##  4. PCT_FREEMIX       - % contamination estimated from verifyBamID
+##  5. N_READS_M         - Number of total reads in millions
+##  6. PCT_MAPPED        - % of mapped reads
+##  7. PCT_MQ0           - % of mapped reads with zero mapping quality
+##  8. PCT_PAIRED        - % of paired reads
+##  9. PCT_PROP_PAIRED   - % of properly paired reads
+## 10. MAPPED_Gb         - Total gigabases of mapped reads, excluding (1) QC-failed (2) secondary, (3) duplicated reads, or (4) 'N' bases in the reference genome.
+## 11. Q20_Gb            - Total gigabases of mapped, excluding (1)-(4) above
+## 12. PCT_Q20_BASE      - % of Q20 bases among all mapped bases
+## 13. MEAN_DEPTH        - Average mapped depth dividing by non-'N' bases, excluding (1)-(4) above.
+## 14. PCT_GENOME_COV    - % of genome covered, excluding the regions with 'N' bases
+## 15. ISIZE_MODE        - Mode of insert size
+## 16. ISIZE_MEDIAN      - Median insert size
+## 17. PCT_DUPS          - Percentage of duplicated reads among mapped reads
+## 18. PCT_GENOME_DP5    - % of genome coverged at depth 5 or greater, excluding the regions with 'N' bases
+## 19. PCT_GENOME_DP10   - % of genome coverged at depth 10 or greater, excluding the regions with 'N' bases
+## 20. PCT_GENOME_DP20   - % of genome coverged at depth 20 or greater, excluding the regions with 'N' bases
+## 21. PCT_GENOME_DP30   - % of genome coverged at depth 30 or greater, excluding the regions with 'N' bases
+## 22. VMR_DEPTH         - Variance-to-mean ratio of depth, as an indicator of over-disperson of depth (e.g. due to GC bias)
+## 23. DEPTH_Q10         - Average mapped depth for Q10 bases, excluding (1)-(4) above, dividing by non-'N' bases.
+## 24. DEPTH_Q20         - Average mapped depth for Q20 bases, excluding (1)-(4) above, dividing by non-'N' bases.
+## 25. DEPTH_Q30         - Average mapped depth for Q30 bases, excluding (1)-(4) above, dividing by non-'N' bases.
+## 26. RAW_BASE_Gb       - (Approximate) Total number of sequenced gigabases (N_READS_M x MAX_CYCLE)
+## 27. PCT_OVERLAP_READS - % of overlapping reads where insert size is equal or smaller than the cycle.
+## 28. PCT_OVERLAP_BASES - % of overlapping bases, counting only overlapping fraction of reads based on insert size
+
 wGetOptions(
     "-Scan the gotCloud QC output directories, and summarize statistics",
     "--Required Options",
@@ -50,7 +80,6 @@ foreach my $qcdir (@qcdirs) {
     while(<IN>) {
 	chomp;
 	if ( /^(\S+)\.($extSelfSM|$extQplotStats|$extQplotR)$/ ) {	     
-	#if ( /^(\S+)\.(genoCheck|qplot)\.(R|selfSM|stats)$/ ) {
 	    my ($id,$ext) = ($1,$2);
 	    $hfiles{$id} = [0,0,0,$qcdir] unless ( defined($hfiles{$id}) );
 	    if ( $ext eq $extSelfSM ) {
@@ -82,7 +111,7 @@ print STDERR "Finished reading QC files for $cnts samples..\n";
 
 
 open(OUT,">$out") || die "Cannot open file $out for writing\n";
-my @hdrs = qw(ID GROUP DATE FREEMIX N_READS_M PCT_MAPPED PCT_MQ0 PCT_PAIRED PCT_PROP_PAIR MAPPED_Gb Q20_Gb PCT_Q20_BASE MEAN_DEPTH PCT_GENOME_COV ISIZE_MODE ISIZE_MEDIAN PCT_DUPS PCT_GENOME_DP5 PCT_GENOME_DP10 PCT_GENOME_DP20 PCT_GENOME_DP30 VMR_DEPTH DEPTH_Q10 DEPTH_Q20 DEPTH_Q30 RAW_BASE_Gb PCT_OVERLAP_READS PCT_OVERLAP_BASES);
+my @hdrs = qw(ID GROUP DATE PCT_FREEMIX N_READS_M PCT_MAPPED PCT_MQ0 PCT_PAIRED PCT_PROP_PAIR MAPPED_Gb Q20_Gb PCT_Q20_BASE MEAN_DEPTH PCT_GENOME_COV ISIZE_MODE ISIZE_MEDIAN PCT_DUPS PCT_GENOME_DP5 PCT_GENOME_DP10 PCT_GENOME_DP20 PCT_GENOME_DP30 VMR_DEPTH DEPTH_Q10 DEPTH_Q20 DEPTH_Q30 RAW_BASE_Gb PCT_OVERLAP_READS PCT_OVERLAP_BASES);
 print OUT join("\t",@hdrs)."\n";
 foreach my $f (sort keys %hfiles) {
     my $r = $hfiles{$f};
