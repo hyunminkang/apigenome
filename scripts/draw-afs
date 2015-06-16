@@ -61,6 +61,10 @@ my @aACs = (); ## contains the reference of file-specific hashes
 my @nSNPs = ();
 my @nAlleles = ();
 
+my @vtypes = ();
+my @valleles = ();
+
+
 unless ( $skipFlag ) {
     foreach my $in (@ins) {
 	my @F = split(/,/,$in);
@@ -73,6 +77,11 @@ unless ( $skipFlag ) {
 	    my @G = split(/\//,$F[0]);
 	    push(@titles,$G[$#G]);
 	}
+	
+	if ( $#F > 2 ) {
+	    split(//,$F[3])
+	}
+	
 	if ( $#F > 1 ) {
 	    if ( $F[2] eq "filter" ) {
 		push(@filtkeys,"PASS");

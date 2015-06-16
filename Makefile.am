@@ -5,3 +5,16 @@
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src data scripts
+
+YAML = YAML-LibYAML-0.59
+JSON = JSON-2.90
+
+install-exec-hook:
+	cd $(datadir)
+	tar xzvf $(YAML).tar.gz
+	cd $(YAML)
+	perl Makefile.PL INSTALL_BASE=$(prefix)/perl
+	make
+	mkdir --p $(libdir)
+	R CMD INSTALL -l $(libdir) $(datadir)/${PACKAGE}/epactsR_3.3.1.tar.gz
+	R CMD INSTALL -l $(libdir) $(datadir)/${PACKAGE}/mmSKAT_0.95.tar.zg

@@ -44,6 +44,16 @@ my $out = "";
 ## 26. RAW_BASE_Gb       - (Approximate) Total number of sequenced gigabases (N_READS_M x MAX_CYCLE)
 ## 27. PCT_OVERLAP_READS - % of overlapping reads where insert size is equal or smaller than the cycle.
 ## 28. PCT_OVERLAP_BASES - % of overlapping bases, counting only overlapping fraction of reads based on insert size
+## 29. ISIZE_IQR         - Inter-quartile range of insert size
+## 30. ISIZE_STDEV       - Standard deviation of insert size (capped at 10kb).
+## 31. GC_DEPTH_0_1      - GC-normalized depth for top 1 percentile
+## 32. GC_DEPTH_1_5      - GC-normalized depth for top 1-5 percentile
+## 33. GC_DEPTH_5_25     - GC-normalized depth for top 5-25 percentile
+## 34. GC_DEPTH_25_75    - GC-normalized depth for top 25-75 percentile
+## 35. GC_DEPTH_75_95    - GC-normalized depth for top 75-95 percentile
+## 35. GC_DEPTH_95_99    - GC-normalized depth for top 95-99 percentile
+## 36. GC_DEPTH_99_100   - GC-normalized depth for top 99-100 percentile
+## 37. LIBRARY_SIZE_M    - Library size (# of reads in library in million) = (TOTAL_READS) / (0-log(1-PCT_DUPS/100))
 
 wGetOptions(
     "-Scan the gotCloud QC output directories, and summarize statistics",
@@ -62,15 +72,28 @@ unless ( ( $dir ) && ( $out ) ) {
     wpod2usage(2);
 }
 
+$dir =~ s/\/$//g;       ## remove trailing slashes
+$subdirname =~ s/\/$//g; ## remove trailing slashes
+
 print STDERR "Scanning $dir to find $subdirname\n";
 
 my @qcdirs = ();
-open(IN,"find $dir -name $subdirname|") || die "Cannot open file\n";
-while(<IN>) {
-    chomp;
-    push(@qcdirs,$_);
+if ( $subdirname ) {
+    open(IN,"find $dir -name $subdirname|") || die "Cannot open file\n";
+    while(<IN>) {
+	chomp;
+	push(@qcdirs,$_);
+    }
+    close IN;
 }
-close IN;
+else {
+    open(IN,"ls -d $dir/*/ |") || die "Cannot open file\n";
+    while(<IN>) {
+	chomp;
+	push(@qcdirs,$_);
+    }
+    close IN;    
+}
 
 print STDERR "Finished identifying ".($#qcdirs+1)." directories..\n";
 
@@ -104,14 +127,24 @@ foreach my $f (keys %hfiles) {
 	print STDERR join(",",@{$r})."\n";
 	delete $hfiles{$f};
     }
-    ++$cnts;
+    else {
+	my $dir = $r->[3];
+	unless ( ( -s "$dir/$f.$extSelfSM" ) && ( -s "$dir/$f.$extQplotStats" ) &&  ( -s "$dir/$f.$extQplotR" ) ) {
+	    print STDERR "WARNING: Individual $f in ".($r->[3])." does have empty files.. such as $dir/$f.$extSelfSM. Skipping..\n";
+	    print STDERR join(",",@{$r})."\n";
+	    delete $hfiles{$f};	    
+	}
+	else {
+	    ++$cnts;
+	}
+    }
 }
 
 print STDERR "Finished reading QC files for $cnts samples..\n";
 
 
 open(OUT,">$out") || die "Cannot open file $out for writing\n";
-my @hdrs = qw(ID GROUP DATE PCT_FREEMIX N_READS_M PCT_MAPPED PCT_MQ0 PCT_PAIRED PCT_PROP_PAIR MAPPED_Gb Q20_Gb PCT_Q20_BASE MEAN_DEPTH PCT_GENOME_COV ISIZE_MODE ISIZE_MEDIAN PCT_DUPS PCT_GENOME_DP5 PCT_GENOME_DP10 PCT_GENOME_DP20 PCT_GENOME_DP30 VMR_DEPTH DEPTH_Q10 DEPTH_Q20 DEPTH_Q30 RAW_BASE_Gb PCT_OVERLAP_READS PCT_OVERLAP_BASES);
+my @hdrs = qw(ID GROUP DATE PCT_FREEMIX N_READS_M PCT_MAPPED PCT_MQ0 PCT_PAIRED PCT_PROP_PAIR MAPPED_Gb Q20_Gb PCT_Q20_BASE MEAN_DEPTH PCT_GENOME_COV ISIZE_MODE ISIZE_MEDIAN PCT_DUPS PCT_GENOME_DP5 PCT_GENOME_DP10 PCT_GENOME_DP20 PCT_GENOME_DP30 VMR_DEPTH DEPTH_Q10 DEPTH_Q20 DEPTH_Q30 RAW_BASE_Gb PCT_OVERLAP_READS PCT_OVERLAP_BASES ISIZE_IQR ISIZE_STDEV GC_DEPTH_0_1 GC_DEPTH_1_5 GC_DEPTH_5_25 GC_DEPTH_25_75 GC_DEPTH_75_95 GC_DEPTH_95_99 GC_DEPTH_99_100 LIBRARY_SIZE_M);
 print OUT join("\t",@hdrs)."\n";
 foreach my $f (sort keys %hfiles) {
     my $r = $hfiles{$f};
@@ -183,8 +216,10 @@ sub parseQCFiles {
     }
     close IN;
 
+    my $nReadsM = $metrics[1];
     my $meanDepth = $metrics[9];
     my $pctGenomeCov = $metrics[10];
+    my $pctDups = $metrics[13];
     
     open(IN,$rfile) || die "Cannot open $rfile for reading\n";
     my @phredX = ();
@@ -290,6 +325,57 @@ sub parseQCFiles {
     my $pctOverlapReads = $overlappingPairs/$totalPairs*100;
     my $pctOverlapBases = $overlappingFracPairs/$totalPairs*100;
 
+    ## when calculating SE, cap insert size to 1kb
+    my $maxIS = 1000;
+    my ($cntIS,$sumIS,$sqSumIS) = (0,0);
+    my ($q1IS,$q3IS) = (0,0);
+    for(my $i=0; $i < @isizeX; ++$i) {
+	$cntIS += $isizeY[$i];
+	my $x = ($isizeX[$i] > $maxIS) ? $maxIS : $isizeX[$i];
+	$sumIS += ($x * $isizeY[$i]);
+	$sqSumIS += ( $x * $x * $isizeY[$i] );
+	$q1IS = $isizeX[$i] if ( $cntIS < 0.25 * $totalPairs );
+	$q3IS = $isizeX[$i] if ( $cntIS < 0.75 * $totalPairs );	
+    }
+
+    my $gcTotal = 0;
+    my @gcCutOffs = (0,0.01,0.05,0.25,0.75,0.95,0.99,1);
+    my @gcDepthNum =  (0,0,0,0,0,0,0);
+    my @gcDepthDen =  (0,0,0,0,0,0,0);    
+    for(my $i=0; $i < @gcbiasX; ++$i) {
+	$gcTotal += $gcbiasZ[$i];
+    }
+    my $gcSum = 0;
+    for(my $i=0; $i < @gcbiasX; ++$i) {  
+	for(my $j=0; $j < $#gcCutOffs; ++$j) {  ## [gcSum, gcSum + gcbiasZ[i]]
+	    ## not included at all
+	    if ( $gcSum + $gcbiasZ[$i] < $gcCutOffs[$j] * $gcTotal ) { }   ## no overlap, do nothing
+	    elsif ( $gcSum >= $gcCutOffs[$j+1] * $gcTotal) {}              ## no overlap, do nothing
+	    elsif ( $gcSum >= $gcCutOffs[$j] * $gcTotal) {
+		if ( $gcSum + $gcbiasZ[$i] < $gcCutOffs[$j+1] * $gcTotal ) {  ## completely contained
+		    $gcDepthDen[$j] += $gcbiasZ[$i];
+		    $gcDepthNum[$j] += ( $gcbiasY[$i] * $gcbiasZ[$i] );
+		}
+		else {  ## partially contained - cut at the right side
+		    my $frac = ($gcCutOffs[$j+1]*$gcTotal - $gcSum)/($gcbiasZ[$i]);
+		    $gcDepthDen[$j] += ( $frac * $gcbiasZ[$i] );
+		    $gcDepthNum[$j] += ( $frac * $gcbiasY[$i] * $gcbiasZ[$i] );
+		    ##$gcDepthDen[$j+1] += ( ( 1-$frac ) * $gcbiasZ[$i] );
+		    ##$gcDepthNum[$j+1] += ( ( 1-$frac ) * $gcbiasY[$i] * $gcbiasZ[$i] );		    
+		}
+	    }
+	    else {  ## gcSum < $gcCutOffs[$j] < $gcSum + gcbiasZ[$j]
+		my $frac = ($gcbiasZ[$i]+$gcSum - $gcCutOffs[$j]*$gcTotal)/($gcbiasZ[$i]);
+		$gcDepthDen[$j] += ( $frac * $gcbiasZ[$i] );
+		$gcDepthNum[$j] += ( $frac * $gcbiasY[$i] * $gcbiasZ[$i] );
+		##$gcDepthDen[$j+1] += ( ( 1-$frac ) * $gcbiasZ[$i] );
+		##$gcDepthNum[$j+1] += ( ( 1-$frac ) * $gcbiasY[$i] * $gcbiasZ[$i] );		    		
+	    }
+	}
+	$gcSum += $gcbiasZ[$i];
+    }
+	
+
     #my $group = "DACHS_BATCH".int(rand(3));
     my $group = ( $genocheckfile =~ /\/([^\/]+)\/$subdirname\// ) ? $1 : "UNKNOWN";
     my $mindate = (stat($genocheckfile))[9];
@@ -298,5 +384,26 @@ sub parseQCFiles {
     #$mindate = sprintf(strftime("%m/%d/%Y", localtime( $mindate )));
     $mindate = sprintf(strftime("%Y/%m/%d", localtime( $mindate )));    
 
-    return ($group,$mindate,@metrics,sprintf("%.2lf",$pctGenomeDP5),sprintf("%.2lf",$pctGenomeDP10),sprintf("%.2lf",$pctGenomeDP20),sprintf("%.2lf",$pctGenomeDP30),sprintf("%.2lf",$VMR),sprintf("%.2lf",$q10DP),sprintf("%.2lf",$q20DP),sprintf("%.2lf",$q30DP),sprintf("%.2lf",$rawBases),sprintf("%.2lf",$pctOverlapReads),sprintf("%.2lf",$pctOverlapBases));
+    return ($group,$mindate,@metrics,
+	    sprintf("%.2lf",$pctGenomeDP5),
+	    sprintf("%.2lf",$pctGenomeDP10),
+	    sprintf("%.2lf",$pctGenomeDP20),
+	    sprintf("%.2lf",$pctGenomeDP30),
+	    sprintf("%.2lf",$VMR),
+	    sprintf("%.2lf",$q10DP),
+	    sprintf("%.2lf",$q20DP),
+	    sprintf("%.2lf",$q30DP),
+	    sprintf("%.2lf",$rawBases),
+	    sprintf("%.2lf",$pctOverlapReads),
+	    sprintf("%.2lf",$pctOverlapBases),
+	    sprintf("%.1lf",$q3IS-$q1IS),
+	    sprintf("%.1lf",sqrt($sqSumIS/$cntIS-$sumIS*$sumIS/$cntIS/$cntIS)),
+	    sprintf("%.3lf",$gcDepthNum[0]/$gcDepthDen[0]),
+	    sprintf("%.3lf",$gcDepthNum[1]/$gcDepthDen[1]),
+	    sprintf("%.3lf",$gcDepthNum[2]/$gcDepthDen[2]),
+	    sprintf("%.3lf",$gcDepthNum[3]/$gcDepthDen[3]),
+	    sprintf("%.3lf",$gcDepthNum[4]/$gcDepthDen[4]),
+	    sprintf("%.3lf",$gcDepthNum[5]/$gcDepthDen[5]),
+	    sprintf("%.3lf",$gcDepthNum[6]/$gcDepthDen[6]),	    
+	    sprintf("%.1lf",$nReadsM/(0-log(1-$pctDups/100))));
 }
