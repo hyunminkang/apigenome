@@ -21,8 +21,6 @@ my $b138Flag = "";
 my $b142Flag = "";
 my $phase3Flag = "";
 my $b38Flag = "";
-#my $exomeFlag = "";
-#my $agilentFlag = "";
 my $chr = "";
 my $ref = "/data/local/ref/karma.ref/human.g1k.v37.fa";
 my $ref38 = "/data/local/ref/gotcloud.ref/hg38/hs38DH.fa";
@@ -34,38 +32,41 @@ my $b142b38Dbsnp = "/data/local/ref/gotcloud.ref/hg38/dbsnp_142.b38.vcf.gz";
 my $phase3Dbsnp = "/net/1000g/hmkang/1KG/phase3/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5.20130502.sites.vcf.gz";
 my $defaultHM3 = "/net/fantasia/home/hmkang/data/GATK-resources/hapmap_3.3.b37.sites.vcf.gz";
 my $target = "";
-#my $exomeDbsnp = "/net/fantasia/home/hmkang/data/dbSNP/b129.ncbi37/dbsnp_129_b37.rod.1kg_exome_add50bp_consensus";
-#my $agilentDbsnp = "/net/fantasia/home/hmkang/data/dbSNP/b129.ncbi37/dbsnp_129_b37.rod.agilent_50bp";
-#my $exomeHM3 = "/net/fantasia/home/hmkang/data/HapMap/broad/exonic/hapmap3.3.genotypes.b37_fwd.anno.vcf.1kg-consensus-50bp.vcf";
-#my $agilentHM3 = "/net/fantasia/home/hmkang/data/HapMap/broad/exonic/hapmap3.3.genotypes.b37_fwd.anno.agilent-50bp.vcf";
 my $auto = "";
-my $acbr = "";
+my $infoField = "";
+my $infoBreaks = "";
+my $infoBin = 0;
 my $useMAC = "";
 my $b38 = "";
-#my $nocpg = "";
 
-#my $tabix = "tabix";
 my $binbgzip = "$FindBin::Bin/bgzip";
 my $bintabix = "$FindBin::Bin/tabix";
 
 wGetOptions(
     "-Summarize SNPs in VCF Files",
-    "--Required Options",    
-    "vcf=s" => [\$vcf, "Input VCF file"],
-    "--Additional Options",        
+    "--Input file options",
+    "vcf=s" => [\$vcf, "Input VCF file (STDIN is default)"],    
     "dbsnp=s" => [\$dbSNPf, "dbSNP file location"],
-    "FNRvcf=s" => [\$FNRvcf, "location of gold standard VCF file"],
-    "FNRbfile=s" => [\$FNRbfile, "location of gold standard PLINK file"],
-    "MAFthres=f" => [\$MAFthres, "minor allele frequency threshold"],
-    "chr=s" => [\$chr, "Chromosome label to focus on"],
-    "mono" => [\$monoFlag, "Count monomorphic variants"],
-    "auto" => [\$auto, "Focus on autosomal chromosomes only"],
-    "acbreaks=s" => [\$acbr, "Bin allele counts based on comma-separated intervals"],
+    "FNRvcf=s" => [\$FNRvcf, "location of gold standard VCF file (such as dbSNP)"],
+    "FNRbfile=s" => [\$FNRbfile, "location of gold standard sites in PLINK binary format"],
     "tabix=s" => [\$bintabix, "Location of tabix binary"],
-    "ref=s" => [\$ref, "Location to the reference genome"],
-    "use-mac" => [\$useMAC, "Use minor allele frequency"],
-    "target=s" => [\$target, "Use specific target BED to focus on"],
-    ) || wpod2usage(2);    
+    "ref=s" => [\$ref, "Location to the reference genome"],    
+    "--Options for focused regions",                
+    "chr=s" => [\$chr, "Chromosome label to focus on (recommended if using one chromosome)"],
+    "auto" => [\$auto, "Focus on autosomal chromosomes only"],
+    "target=s" => [\$target, "Use specific target BED to focus on"],    
+    "--Options for variant filtering",    
+    "MAFthres=f" => [\$MAFthres, "minimum minor allele frequency threshold"],
+    "mono" => [\$monoFlag, "Count monomorphic variants"],
+    "--Options for modifying the FILTER columns on-the-fly",
+    "info=s" => [\$infoField, "Name of the INFO field to sort and bin the variants by"],
+    "info-breaks=s" => [\$infoBreaks, "Comma-separated string for determining the breakpoints of use-specified INFO fields"],
+    "info-bin=f" => [\$infoBin, "Use a uniform binning scheme to categorize the INFO field values"],
+    "use-mac" => [\$useMAC, "Use minor allele frequency than non-ref allele frequency"],    
+    ) || wpod2usage(2);
+
+#    "acbreaks=s" => [\$acbr, "Bin allele counts based on comma-separated intervals"],
+
 
 $ref = $ref38 if ( $b38Flag );
 &initRef($ref);
@@ -305,44 +306,57 @@ my %mcnts = ();
 my %hszchrs = ();
 my $prev = "";
 
-my @acbrs = split(/,/,$acbr) if ( $acbr );
-shift(@acbrs) if ( ( $#acbrs >= 0 ) && ( $acbrs[0] == 1 ) );
+my @infobrs = split(/,/,$infoBreaks) if ( $infoBreaks );
+#shift(@acbrs) if ( ( $#acbrs >= 0 ) && ( $acbrs[0] == 1 ) );
+
+print STDERR "WARNING: --info $infoField was provided but no --breaks or --bin was set. Assuming discrete values\n" if ( ( $infoField ) && ( $infoBin == 0 ) && ( ! $infoBreaks ) );
+					   
 while(<IN>) {
     next if ( /^#/ );
-    my ($chrom,$pos,$id,$ref,$alt,$qual,$filter,$info) = split(/[\t\r\n]/);
+    my ($chrom,$pos,$id,$ref,$alt,$qual,$filter,$info) = split(/[\t\r\n ]+/);
     next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
     next if ( ($auto) && ( ! ( $chrom =~ /^(chr)?\d+$/ ) ) );
     next if ( $prev eq $pos );
     $prev = $pos;
 
-    if ( $acbr ) {
-	my $ac = $1 if ( $info =~ /AC=(\d+)/ );
-	my $an = $1 if ( $info =~ /AN=(\d+)/ );
-	if ( defined($ac) ) {
-	    $ac = $an - $ac if ( ( $useMAC ) && ( $ac + $ac > $an ) );
-	    if ( $ac == 0 ) {
-		$filter .= ";AC=0";
+    if ( $infoField ) {
+	$info .= "$info;QUAL=$qual";
+	
+	my $val = $2 if ( $info =~ /(^|;)$infoField=([^;]+)(;|$)/ );
+	#die "$infoBin $infoBreaks $infoField $val $info\n";
+	
+	if ( defined($val) ) {	
+	    if ( ( $infoField eq "AC" ) && ( $useMAC ) ) {
+		my $an = $1 if ( $info =~ /AN=(\d+)/ );
+		$val = $an - $val if ( $val + $val > $an );
 	    }
-	    elsif ( $#acbrs < 0 ) {
-		$filter .= ";AC=1+";
+    
+	    if ( $infoBreaks ) {
+		if ( $val < $infobrs[0] ) {
+		    $filter .= ";$infoField=(-Inf,$infobrs[0])";
+		}
+		elsif ( $val >= $infobrs[$#infobrs] ) {
+		    $filter .= ";$infoField=[".($infobrs[$#infobrs]).",Inf)";		    
+		}
+		else {
+		    for(my $i=1; $i < @infobrs; ++$i) {
+			if ( $val < $infobrs[$i] ) {
+			    $filter .= ";$infoField=[".($infobrs[$i-1]).",".($infobrs[$i]).")";
+			    last;
+			}
+		    }	    
+		}
 	    }
-	    elsif ( $ac < $acbrs[0] ) {
-		$filter .= ";AC=1-".($acbrs[0]-1);
-	    }
-	    elsif ( $ac >= $acbrs[$#acbrs] ) {
-		$filter .= ";AC=".($acbrs[$#acbrs])."+";
+	    elsif ( $infoBin > 0 ) {
+		my $bin = int($val/$infoBin);
+		$filter .= ";$infoField=[".($bin*$infoBin).",".(($bin+1)*$infoBin).")";
 	    }
 	    else {
-		for(my $i=1; $i < @acbrs; ++$i) {
-		    if ( $ac < $acbrs[$i] ) {
-			$filter .= ";AC=".($acbrs[$i-1])."-".($acbrs[$i]-1);
-			last;
-		    }
-		}
+		$filter .= ";$infoField=$val";
 	    }
 	}
 	else {
-	    $filter .= ";AC=.";
+	    $filter .= ";$infoField=.";
 	}
     }
 
@@ -376,20 +390,16 @@ while(<IN>) {
     if ( ( $refalt eq "AG" ) || ( $refalt eq "GA" ) || ( $refalt eq "TC") || ( $refalt eq "CT" ) ) {
 	my $key = 0+(($dbsnpFlag ==1) ? 0 : 4) + ($cpg == 1 ? 2 : 0);
 	++($hcnts{$filter}->[2]->[$key]);
-	#++($hcnts{$filter}->[2]->[($dbsnpFlag == 1) ? 2 : 4]);
 	
 	foreach my $f (@filters) {
-	    #++($mcnts{$f}->[($dbsnpFlag == 1) ? 2 : 4]);
 	    ++($mcnts{$f}->[2]->[$key]);
 	}
     }
     elsif ( ( $ref ne $alt ) && ( $refalt =~ /^[ACGT][ACGT]$/ ) ) {
 	my $key = 1+(($dbsnpFlag ==1) ? 0 : 4) + ($cpg == 1 ? 2 : 0);
 	++($hcnts{$filter}->[2]->[$key]);
-	#++($hcnts{$filter}->[($dbsnpFlag == 1) ? 3 : 5]);
 	
 	foreach my $f (@filters) {
-	    #++($mcnts{$f}->[($dbsnpFlag == 1) ? 3 : 5]);
 	    ++($mcnts{$f}->[2]->[$key]);
 	}
     }

@@ -38,7 +38,10 @@ subdir = scripts
 DIST_COMMON = $(dist_bin_SCRIPTS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -142,10 +145,10 @@ OTOOL64 =
 PACKAGE = apigenome
 PACKAGE_BUGREPORT = hmkang@umich.edu
 PACKAGE_NAME = apigenome
-PACKAGE_STRING = apigenome 0.0.1
+PACKAGE_STRING = apigenome 0.0.2
 PACKAGE_TARNAME = apigenome
 PACKAGE_URL = 
-PACKAGE_VERSION = 0.0.1
+PACKAGE_VERSION = 0.0.2
 PATH_SEPARATOR = :
 PERL_CHECK = yes
 PFBTOPS_CHECK = yes
@@ -159,7 +162,7 @@ SET_MAKE =
 SHELL = /bin/sh
 SORT_CHECK = yes
 STRIP = strip
-VERSION = 0.0.1
+VERSION = 0.0.2
 ZCAT_CHECK = yes
 abs_builddir = /home/hmkang/code/working/apigenome/scripts
 abs_srcdir = /home/hmkang/code/working/apigenome/scripts
@@ -214,17 +217,34 @@ target_alias =
 top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
-dist_bin_SCRIPTS = bed-diff \
+dist_bin_SCRIPTS = \
+	align-dropseq \
+	align-pro \
+	bam-quick-peek-each \
+	bam-quick-peek-batch \
+	bed-diff \
 	bed-tss-match \
+	cel-extract-intensity \
+	count-dropseq \
+	count-dropseq-unit \
 	draw-afs \
-	mift \
-	now-seq-scan \
+	demux-fastq \
+	gtf2GenePred \
+	inspect-sv \
+        merge-fastq \
+	now-seq-each \
+	now-seq-batch \
+	pileup-pro \
+	rev-trim \
 	run-make \
 	vcf-resolve-chrX-hets \
 	vcf-add-rsid \
+	vcf-milk-filter \
+	vcf-f2-sharing \
 	vcf-issac-summary \
 	vcf-lookup-rsid \
 	vcf-summary \
+	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 
 
@@ -240,9 +260,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu scripts/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign scripts/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu scripts/Makefile
+	  $(AUTOMAKE) --foreign scripts/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

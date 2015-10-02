@@ -32,7 +32,17 @@ sub wGetOptions {
 	    }
 	    else {
 		$arg[$i] =~ s/^-*//;
-		$main = $arg[$i];
+		if ( $main ) {
+		    if ( $main =~ /\=over/ ) {
+			$main .= $arg[$i];
+		    }
+		    else {
+			$main .= ("\n\n=over 3\n\n".$arg[$i]);
+		    }
+		}
+		else {
+		    $main = $arg[$i];
+		}
 	    }
 	}
 	else {
@@ -68,9 +78,8 @@ sub wGetOptions {
 
     my $ret = GetOptions(@opts);
 
-    $podstr = "=pod\n\n=head1 NAME\n\n$0 - $main \n\n=head1 SYNOPSIS\n\n$0 [options]\n\n";
-# General Options:\n";
-#  -help             Print out brief help message [OFF]\n  -man              Print the full documentation in man page style [OFF]\n";
+    $podstr = "=pod\n\n=head1 NAME\n\n$0 : $main \n\n=head1 SYNOPSIS\n\n$0 [options]\n\n";
+
     my @values = ();
     for(my ($i,$j) = (0,0); $i < @keys; ++$i) {
 	if ( ( $j <= $#isects ) && ( $i == $isects[$j] ) ) {

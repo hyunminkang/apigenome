@@ -7,13 +7,14 @@ use FileHandle;
 use Cwd qw(realpath);
 use File::Basename qw(dirname);
 use POSIX qw(pow sqrt);
+use FindBin;
 #use Statistics::Distributions qw(chisqrprob);
 
 my $module_dir = dirname(realpath(__FILE__));
 
 ## Variables and methods shared across the package
 our @EXPORT = qw(%hszchrs @achrs);
-our @EXPORT_OK = qw(loadGTF writeGTF readFasta getCpGs initRef getDegeneracies readCDS loadIlluBpm loadIlluIdat forkExecWait autoPod zopen wopen tofpos fromfpos reverseComplement reverseComplementIUPAC iupacCompatible batchCmd sortedBedInsert sortedBedPush sortedBedMerge sortedBedInvert sortedBedSize sortedBedPrint xargsCmd mosixCmd joinps makeMake emAF testHWE);
+our @EXPORT_OK = qw(loadGTF writeGTF readFasta getCpGs initRef getDegeneracies readCDS loadIlluBpm loadIlluIdat forkExecWait autoPod zopen wopen tofpos fromfpos reverseComplement reverseComplementIUPAC iupacCompatible batchCmd sortedBedInsert sortedBedPush sortedBedMerge sortedBedInvert sortedBedSize sortedBedPrint xargsCmd mosixCmd joinps makeMake emAF testHWE readBin);
 
 my $binzcat = "zcat";
 my $binbgzip = "$FindBin::Bin/bgzip";
@@ -295,7 +296,7 @@ sub loadGTF {
     }
     while(<IN>) {
 	next if ( /^#/ );
-	print STDERR "Processing $. lines..\n" if ( $. % 10000 == 0 );
+	print STDERR "Processing $. lines from GTF..\n" if ( $. % 1000000 == 0 );
 	my ($chr,$src,$feature,$beg,$end,$score,$frame,$phase,$attributes,$comments) = split(/[\t\r\n]/);
 	my @attrs = split(/;/,$attributes);
 	my %hvals = ();
@@ -319,7 +320,7 @@ sub loadGTF {
 	    my $tid = $hvals{"transcript_id"};
 	    die "Cannot find gene $gid\n" unless ( defined($hg{$gid}) );
 	    push(@{$hg{$gid}->[7]},$tid);
-	    $ht{$tid} = [ $chr, $beg, $end, $frame, [], [], [], [], [] ];
+	    $ht{$tid} = [ $chr, $beg, $end, $frame, [], [], [], [], [], $gid ];
 
 	}
 	elsif ( $feature eq "exon" ) {
@@ -539,7 +540,13 @@ sub loadIlluBpm {
 
 sub forkExecWait {
     my $cmd = shift;
-    print "forkExecWait(): $cmd\n";
+    my $msg = shift;
+    if ( defined($msg) ) {
+	print "$msg...";
+    }
+    else {
+	print "forkExecWait(): $cmd ...";
+    }
     my $kidpid;
     if ( !defined($kidpid = fork()) ) {
 	die "Cannot fork: $!";
@@ -551,6 +558,8 @@ sub forkExecWait {
     else {
 	waitpid($kidpid,0);
     }
+
+    print ".. finished!\n";
     return ($?>>8);
 }
 

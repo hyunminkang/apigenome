@@ -8,11 +8,11 @@ use lib $FindBin::Bin;
 use wGetOptions qw(wpod2usage wGetOptions);
 use hyunlib qw(makeMake forkExecWait);
 
-my $dir = "";
-my $subdirname = "QCFiles";
-my $extSelfSM = "genoCheck.selfSM";
-my $extQplotStats = "qplot.stats";
-my $extQplotR = "qplot.R";
+my $id = "";
+my $group = "";
+my $qplotR = "";
+my $qplotStats = "";
+my $selfSM = "";
 my $out = "";
 
 ## Create the following summary statistics
@@ -58,103 +58,25 @@ my $out = "";
 wGetOptions(
     "-Scan the gotCloud QC output directories, and summarize statistics",
     "--Required Options",
-    "dir=s" => [\$dir, "Directory to scan"],
+    "id=s" => [\$id,"Sample ID"],
+    "group=s" => [\$group,"Group Name"],    
+    "qplotR=s" => [\$qplotR, "Path to QPLOT's .R output"],
+    "qplotStats=s" => [\$qplotStats, "Path to QPLOT's .stats output"],
+    "selfSM=s" => [\$selfSM, "Path to verifyBamID's .selfSM output"],        
     "out=s" => [\$out, "Output directory"],
-    "--Additional Options",
-    "subdirname=s" => [\$subdirname, "Sub-directory name to search for"],
-    "extSelfSM=s" => [\$extSelfSM, "Suffix (or file extension) for verifyBamID's .selfSM file per sample"],
-    "extQplotStats=s" => [\$extQplotStats, "Suffix (or file extension) for QPLOT's .stats file per sample"],
-    "extQplotR=s" => [\$extQplotR, "Suffix (or file extension) for QPLOT's .R file per sample"],    
     ) || wpod2usage(2);
 
-unless ( ( $dir ) && ( $out ) ) {
+unless ( ($id) && ( $qplotR ) && ( $qplotStats) && ( $selfSM) && ( $out ) ) {
     print STDERR "ERROR: Missing required option\n";
     wpod2usage(2);
 }
 
-$dir =~ s/\/$//g;       ## remove trailing slashes
-$subdirname =~ s/\/$//g; ## remove trailing slashes
-
-print STDERR "Scanning $dir to find $subdirname\n";
-
-my @qcdirs = ();
-if ( $subdirname ) {
-    open(IN,"find $dir -name $subdirname|") || die "Cannot open file\n";
-    while(<IN>) {
-	chomp;
-	push(@qcdirs,$_);
-    }
-    close IN;
-}
-else {
-    open(IN,"ls -d $dir/*/ |") || die "Cannot open file\n";
-    while(<IN>) {
-	chomp;
-	push(@qcdirs,$_);
-    }
-    close IN;    
-}
-
-print STDERR "Finished identifying ".($#qcdirs+1)." directories..\n";
-
-my %hfiles = ();
-foreach my $qcdir (@qcdirs) {
-    open(IN,"ls $qcdir|") || die "Cannot open file\n";
-    while(<IN>) {
-	chomp;
-	if ( /^(\S+)\.($extSelfSM|$extQplotStats|$extQplotR)$/ ) {	     
-	    my ($id,$ext) = ($1,$2);
-	    $hfiles{$id} = [0,0,0,$qcdir] unless ( defined($hfiles{$id}) );
-	    if ( $ext eq $extSelfSM ) {
-		$hfiles{$id}->[0] = 1;
-	    }
-	    elsif ( $ext eq $extQplotStats ) {
-		$hfiles{$id}->[1] = 1;		
-	    }
-	    elsif ( $ext eq $extQplotR ) {
-		$hfiles{$id}->[2] = 1;		
-	    }	    
-	}
-    }
-    close IN;
-}
-
-my $cnts = 0;
-foreach my $f (keys %hfiles) {
-    my $r = $hfiles{$f};
-    if ( $r->[0] + $r->[1] + $r->[2] < 3 ) {
-	print STDERR "WARNING: Individual $f in ".($r->[3])." does have missing files.. Skipping..\n";
-	print STDERR join(",",@{$r})."\n";
-	delete $hfiles{$f};
-    }
-    else {
-	my $dir = $r->[3];
-	unless ( ( -s "$dir/$f.$extSelfSM" ) && ( -s "$dir/$f.$extQplotStats" ) &&  ( -s "$dir/$f.$extQplotR" ) ) {
-	    print STDERR "WARNING: Individual $f in ".($r->[3])." does have empty files.. such as $dir/$f.$extSelfSM. Skipping..\n";
-	    print STDERR join(",",@{$r})."\n";
-	    delete $hfiles{$f};	    
-	}
-	else {
-	    ++$cnts;
-	}
-    }
-}
-
-print STDERR "Finished reading QC files for $cnts samples..\n";
-
-
 open(OUT,">$out") || die "Cannot open file $out for writing\n";
 my @hdrs = qw(ID GROUP DATE PCT_FREEMIX N_READS_M PCT_MAPPED PCT_MQ0 PCT_PAIRED PCT_PROP_PAIR MAPPED_Gb Q20_Gb PCT_Q20_BASE MEAN_DEPTH PCT_GENOME_COV ISIZE_MODE ISIZE_MEDIAN PCT_DUPS PCT_GENOME_DP5 PCT_GENOME_DP10 PCT_GENOME_DP20 PCT_GENOME_DP30 VMR_DEPTH DEPTH_Q10 DEPTH_Q20 DEPTH_Q30 RAW_BASE_Gb PCT_OVERLAP_READS PCT_OVERLAP_BASES ISIZE_IQR ISIZE_STDEV GC_DEPTH_0_1 GC_DEPTH_1_5 GC_DEPTH_5_25 GC_DEPTH_25_75 GC_DEPTH_75_95 GC_DEPTH_95_99 GC_DEPTH_99_100 LIBRARY_SIZE_M);
 print OUT join("\t",@hdrs)."\n";
-foreach my $f (sort keys %hfiles) {
-    my $r = $hfiles{$f};
-    print STDERR "Processing sample $f..\n";
-    my @metrics = &parseQCFiles($r->[3]."/$f.$extSelfSM",$r->[3]."/$f.$extQplotStats",$r->[3]."/$f.$extQplotR");
-    print OUT join("\t",$f,@metrics)."\n";
-}
+my @metrics = &parseQCFiles($selfSM,$qplotStats,$qplotR);
+print OUT join("\t",$id,$group,@metrics)."\n";
 close OUT;
-
-print STDERR "Finished writing  QC metrics for $cnts samples to $out\n";
 
 sub parseRVector {
     my $line = shift;
@@ -167,6 +89,7 @@ sub parseRVector {
 	die "Cannot parse R vector in $line\n";
     }
 }
+
 
 # Extract the following stats
 # 0 - FREEMIX              FREEMIX value from verifyBamID
@@ -344,6 +267,7 @@ sub parseQCFiles {
     my @gcDepthDen =  (0,0,0,0,0,0,0);    
     for(my $i=0; $i < @gcbiasX; ++$i) {
 	$gcTotal += $gcbiasZ[$i];
+	$gcbiasY[$i] = 1 if ( $gcbiasY[$i] eq "NA" );
     }
     my $gcSum = 0;
     for(my $i=0; $i < @gcbiasX; ++$i) {  
@@ -377,14 +301,13 @@ sub parseQCFiles {
 	
 
     #my $group = "DACHS_BATCH".int(rand(3));
-    my $group = ( $genocheckfile =~ /\/([^\/]+)\/$subdirname\// ) ? $1 : "UNKNOWN";
     my $mindate = (stat($genocheckfile))[9];
     $mindate = (stat($rfile))[9] if ( (stat($rfile))[9] < $mindate );
     $mindate = (stat($statfile))[9] if ( (stat($statfile))[9] < $mindate );
     #$mindate = sprintf(strftime("%m/%d/%Y", localtime( $mindate )));
     $mindate = sprintf(strftime("%Y/%m/%d", localtime( $mindate )));    
 
-    return ($group,$mindate,@metrics,
+    return ($mindate,@metrics,
 	    sprintf("%.2lf",$pctGenomeDP5),
 	    sprintf("%.2lf",$pctGenomeDP10),
 	    sprintf("%.2lf",$pctGenomeDP20),

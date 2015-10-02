@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.65])
-AC_INIT([apigenome], [0.0.1], [hmkang@umich.edu])
-AM_INIT_AUTOMAKE(apigenome, 0.0.1)
+AC_INIT([apigenome], [0.0.2], [hmkang@umich.edu])
+AM_INIT_AUTOMAKE(apigenome, 0.0.2)
 AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])

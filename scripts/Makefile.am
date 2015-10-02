@@ -1,13 +1,30 @@
-dist_bin_SCRIPTS = bed-diff \
+dist_bin_SCRIPTS = \
+	align-dropseq \
+	align-pro \
+	bam-quick-peek-each \
+	bam-quick-peek-batch \
+	bed-diff \
 	bed-tss-match \
+	cel-extract-intensity \
+	count-dropseq \
+	count-dropseq-unit \
 	draw-afs \
-	mift \
-	now-seq-scan \
+	demux-fastq \
+	gtf2GenePred \
+	inspect-sv \
+        merge-fastq \
+	now-seq-each \
+	now-seq-batch \
+	pileup-pro \
+	rev-trim \
 	run-make \
 	vcf-resolve-chrX-hets \
 	vcf-add-rsid \
+	vcf-milk-filter \
+	vcf-f2-sharing \
 	vcf-issac-summary \
 	vcf-lookup-rsid \
 	vcf-summary \
+	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 
