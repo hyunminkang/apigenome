@@ -43,7 +43,7 @@ APIGenome contains a list of many self-documented command line utilities. To und
 <pre>
 $ [path/to/apigenome]/bin/[utility-name] -man </pre>
 
-### List of well-documented APIGenome utilities
+### List of stable APIGenome utilities
 
 APIGenome contains many utilities that are not finished and maybe for internal use. You may use them at your own risk too, but the software tools listed below should be mature enough to get assistance from the developers when help is needed.
 
