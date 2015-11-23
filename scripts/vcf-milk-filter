@@ -4,7 +4,6 @@ use strict;
 use POSIX qw(pow log10 sqrt);
 use FindBin;
 use lib $FindBin::Bin;
-#use lib '/net/fantasia/home/hmkang/bin/utils';
 use wGetOptions qw(wpod2usage wGetOptions);
 use Time::HiRes;
 
@@ -21,13 +20,15 @@ use Time::HiRes;
 my $vcf = "";
 my $out = "";
 my $ped = "";
-my $gt = "GT";
-my $pl = "PL";
-my $usephred = "";
+my $gtField = "GT";
+my $plField = "PL";
+my $scaleGL = "";
 my $fixAF = "";
 my @exfamids = ();
 my $region = "";
-#my @incfams = ();
+my $bcftools = "bcftools"; #"/usr/cluster/bin/bcftools";
+my $tabix = "$FindBin::Bin/tabix"; # "/usr/cluster/bin/tabix";
+my $bgzip = "$FindBin::Bin/bgzip"; #"/usr/cluster/bin/bgzip";
 
 wGetOptions(
     "-Family-based variant quality evaluation",
@@ -38,7 +39,13 @@ wGetOptions(
     "--Additional Options",
     "fix-af=f" => [\$fixAF, "Fix allele frequency", "Fix allele frequency to certain value"],
     "exclude-fam=s" => [\@exfamids,"Exclude a particular family ID"],
-    "region=s" => [\$region,"Genomic region to focus on"],    
+    "region=s" => [\$region,"Genomic region to focus on"],
+    "tabix=s" => [\$tabix,"Path to the tabix software binary"],
+    "bgzip=s" => [\$bgzip,"Path to the bgzip software binary"],    
+    "bcftools=s" => [\$bcftools,"Path to the bcftools software binary"],
+    "gt-field=s" => [\$gtField,"Name of GT field containing genotype information"],
+    "pl-field=s" => [\$plField,"Name of GL or PL field containing genotype likelihood information"],
+    "scale-gl" => [\$scaleGL,"Use GL scale rather than PL scale. If GL is used instead of PL, you need to turn this option on"],
     ) || wpod2usage(2);
 
 unless ( ( $vcf ) && ( $out ) && ( $ped ) ) {
@@ -66,14 +73,24 @@ for(my $i=256; $i < 100000; ++$i) {
 
 ## First, scan the VCF to know which samples are sequenced
 ## hvcfids contains the list of IDs sequenced
-if ( $vcf =~ /\.gz/ ) {
+if ( $vcf =~ /\.vcf.gz$/ ) {
     die "Cannot open $vcf\n" unless ( -s $vcf );
     if ( $region ) {
-	open(IN,"tabix -h $vcf $region |");
+	open(IN,"$tabix -h $vcf $region |");
     }
     else {
 	open(IN,"zcat $vcf |");	
     }
+}
+elsif ( $vcf =~ /\.bcf$/ ) {
+    print STDERR "Reading BCF file uusing BCFtools\n";
+    die "Cannot open $vcf\n" unless ( -s $vcf );
+    if ( $region ) {
+	open(IN,"$bcftools view $vcf $region |");
+    }
+    else {
+	open(IN,"$bcftools view $vcf |");	
+    }    
 }
 else {
     open(IN,$vcf) || die "Cannot open $vcf\n";
@@ -167,16 +184,31 @@ foreach my $fid (keys %hfams) {
     }
 }
 
-if ( $vcf =~ /\.gz/ ) {
+if ( $vcf =~ /\.vcf.gz$/ ) {
     die "Cannot open $vcf\n" unless ( -s $vcf );
-    open(IN,"zcat $vcf |");
+    if ( $region ) {
+	open(IN,"$tabix -h $vcf $region |");
+    }
+    else {
+	open(IN,"zcat $vcf |");	
+    }
+}
+elsif ( $vcf =~ /\.bcf$/ ) {
+    print STDERR "Reading BCF file uusing BCFtools\n";
+    die "Cannot open $vcf\n" unless ( -s $vcf );
+    if ( $region ) {
+	open(IN,"$bcftools view $vcf $region |");
+    }
+    else {
+	open(IN,"$bcftools view $vcf |");	
+    }    
 }
 else {
     open(IN,$vcf) || die "Cannot open $vcf\n";
 }
 
-if ( $out =~ /\.gz/ ) {
-    open(OUT,"| bgzip -c > $out") || die "Cannot open file\n";
+if ( $out =~ /\.gz$/ ) {
+    open(OUT,"| $bgzip -c > $out") || die "Cannot open file\n";
 }
 else {
     open(OUT,">$out") || die "Cannot open file\n";
@@ -234,160 +266,65 @@ while(<IN>) {
 	my @PLs = ();
 	my @GTs = ();
 	next if ( $F[4] =~ /,/ );
+	next if ( $F[4] eq "<VNTR>" );
 	my ($ac,$an) = (0,0);
 
-	if ( $F[8] =~ /^GT:DP:GQ:PL$/ ) {  ## GotCloud format
-	    print STDERR "Format is GotCloud\n" if ( $. % 1000 == 0 );
-	    for(my $i=9; $i < @F; ++$i) {
-		my ($gt,$gd,$gq,$pl) = split(/:/,$F[$i]);
-		if ( ( !defined($pl) ) || ( $pl =~ /^\./ ) ) {
-		    my @p = (0,0,0);
-		    push(@PLs,\@p);
-		    push(@GTs,0);
-		}
-		else {
-		    my @p = split(/,/,$pl);
-		    &normPLs(\@p);
-		    push(@PLs,\@p);
-		    my ($gt0,$sep,$gt1) = split(//,$gt);
-		    push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
-		    $ac += ($GTs[$#GTs]-1);
-		    $an += 2;
-		}
+	## We need to know
+	## 1. index of GT fields
+	## 2. index of PL fields
+
+	next if ( $F[4] =~ ',' );  ## skip multiallelics;
+	my @fmts = split(/:/,$F[8]);
+	my $iGT = -1;
+	my $iPL = 1;
+	for(my $i=0; $i < @fmts; ++$i) {
+	    if ( $fmts[$i] eq $gtField ) {
+		$iGT = $i;
+	    }
+	    elsif ( $fmts[$i] eq $plField ) {
+		$iPL = $i;
 	    }
 	}
-	elsif ( $F[8] =~ /^GT:FT:GL:GL0:GQ$/ ) { ## GenomeSTRiP v1
-	    print STDERR "Format is GenomeSTRiP v1\n" if ( $. % 1000 == 0 );
-	    for(my $i=9; $i < @F; ++$i) {
-		my ($gt,$ft,$gl,$gl0,$gq) = split(/:/,$F[$i]);
-		my @gl0s = split(/,/,$gl0);
-		my $maxGL0 = ( $gl0s[0] > $gl0s[1] ) ? ( $gl0s[0] > $gl0s[2] ? $gl0s[0] : $gl0s[2] ) : ( $gl0s[1] > $gl0s[2] ? $gl0s[1] : $gl0s[2] );
-		my @p = ();
-		push(@p, $gl0s[0]-$maxGL0 < -25.5 ? 255 : int(-10*($gl0s[0]-$maxGL0)));
-		push(@p, $gl0s[1]-$maxGL0 < -25.5 ? 255 : int(-10*($gl0s[1]-$maxGL0)));
-		push(@p, $gl0s[2]-$maxGL0 < -25.5 ? 255 : int(-10*($gl0s[2]-$maxGL0)));
-		push(@PLs,\@p);
+	if ( ( $iGT < 0 ) || ( $iPL < 0 ) ) {
+	    print STDERR "WARNING: Cannot find GT or PL field from $F[8] at $F[0]:$F[1]:$F[3]:$F[4].. Skipping\n";
+	    next;
+	}
+
+	for(my $i=9; $i < @F; ++$i) {
+	    my @G = split(/:/,$F[$i]);
+	    my ($gt,$pl) = ($G[$iGT],$G[$iPL]);
+
+	    if ( $gt =~ /^./ ) {
+		push(@GTs,0);
+	    }
+	    else {
 		my ($gt0,$sep,$gt1) = split(//,$gt);
 		push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
 		$ac += ($GTs[$#GTs]-1);
 		$an += 2;
 	    }
-	}
-	elsif ( $F[8] =~ /^GT:FT:GL:GP:GQ$/ ) { ## GenomeSTRiP v2
-	    print STDERR "Format is GenomeSTRiP v2\n" if ( $. % 1000 == 0 );
-	    for(my $i=9; $i < @F; ++$i) {
-		my ($gt,$ft,$gl,$gp,$gq) = split(/:/,$F[$i]);
-		my @gl0s = split(/,/,$gl);
-		my $maxGL0 = ( $gl0s[0] > $gl0s[1] ) ? ( $gl0s[0] > $gl0s[2] ? $gl0s[0] : $gl0s[2] ) : ( $gl0s[1] > $gl0s[2] ? $gl0s[1] : $gl0s[2] );
-		my @p = ();
-		push(@p, $gl0s[0]-$maxGL0 < -25.5 ? 255 : int(-10*($gl0s[0]-$maxGL0)));
-		push(@p, $gl0s[1]-$maxGL0 < -25.5 ? 255 : int(-10*($gl0s[1]-$maxGL0)));
-		push(@p, $gl0s[2]-$maxGL0 < -25.5 ? 255 : int(-10*($gl0s[2]-$maxGL0)));
+	    
+	    if ( ( !defined($pl) ) || ( $pl =~ /^\./ ) ) {
+		my @p = (0,0,0);
 		push(@PLs,\@p);
-		my ($gt0,$sep,$gt1) = split(//,$gt);
-		if ( $gt ne "." ) {
-		    push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
-		    $ac += ($GTs[$#GTs]-1);
-		    $an += 2;
-		}
-		else {
-		    push(@GTs,0);
-		}
 	    }
-	}
-	elsif ( $F[8] =~ /^GT:FT:GP:GQ:PL$/ ) { ## GenomeSTRiP v2
-	    print STDERR "Format is GenomeSTRiP v2\n" if ( $. % 1000 == 0 );
-	    for(my $i=9; $i < @F; ++$i) {
-		my ($gt,$ft,$gp,$gq,$pl) = split(/:/,$F[$i]);
-		my @pls = split(/,/,$pl);
-		&normPLs(\@pls);
-		push(@PLs,\@pls);
-
-		if ( $gt eq "." ) {
-		    push(@GTs,0);
-		}
-		else {
-		    my ($gt0,$sep,$gt1) = split(//,$gt);
-		    push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
-		    $ac += ($GTs[$#GTs]-1);
-		    $an += 2;
-		}
+	    elsif ( $scaleGL ) {
+		my @gls = split(/,/,$pl);
+		my $maxGL = ( $gls[0] > $gls[1] ) ? ( $gls[0] > $gls[2] ? $gls[0] : $gls[2] ) : ( $gls[1] > $gls[2] ? $gls[1] : $gls[2] );
+		my @p = ();
+		push(@p, $gls[0]-$maxGL < -25.5 ? 255 : int(-10*($gls[0]-$maxGL)));
+		push(@p, $gls[1]-$maxGL < -25.5 ? 255 : int(-10*($gls[1]-$maxGL)));
+		push(@p, $gls[2]-$maxGL < -25.5 ? 255 : int(-10*($gls[2]-$maxGL)));
+		push(@PLs,\@p);
 	    }
-	}
-	elsif ( $F[8] =~ /^GT:GP:GQ:PL$/ ) {  ## GenomeSTRiP?
-	    print STDERR "Format is GenomeSTRiP (unknown version)\n" if ( $. % 1000 == 0 );
-	    for(my $i=9; $i < @F; ++$i) {
-		my ($gt,$gp,$gq,$pl) = split(/:/,$F[$i]);
-		my @pls = split(/,/,$pl);
-		&normPLs(\@pls);
-		for(my $j=0; $j < @pls; ++$j) {
-		    $pls[$j] = 255 if ( $pls[$j] > 255 );
-		}
-		push(@PLs,\@pls);
-
-		if ( $gt eq "." ) {
-		    push(@GTs,0);
-		}
-		else {
-		    my ($gt0,$sep,$gt1) = split(//,$gt);
-		    push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
-		    $ac += ($GTs[$#GTs]-1);
-		    $an += 2;
-		}
+	    else {
+		my @p = split(/,/,$pl);
+		&normPLs(\@p);
+		push(@PLs,\@p);
 	    }
-	}
-	elsif ( $F[8] =~ /^GT:AD:DP:GQ:PL$/ ) { ## GATK UG
-	    print STDERR "Format is GATK\n" if ( $. % 1000 == 0 );
-	    #next if ( ( length($F[3]) == 1 ) && ( length($F[4]) == 1 ) ); ## remove SNPs
-	    next if ( $F[4] =~ /,/ ); ## remove multi-allelics
-	    for(my $i=9; $i < @F; ++$i) {
-		my ($gt,$ad,$dp,$gq,$pl) = split(/:/,$F[$i]);
-		if ( ( !defined($pl) ) || ( $pl =~ /^\./ ) ) {
-		    my @p = (0,0,0);
-		    push(@PLs,\@p);
-		    push(@GTs,0);
-		}
-		else {
-		    my @p = split(/,/,$pl);
-		    &normPLs(\@p);
-		    push(@PLs,\@p);
-		    my ($gt0,$sep,$gt1) = split(//,$gt);
-		    push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
-		    $ac += ($GTs[$#GTs]-1);
-		    $an += 2;
-		}
-	    }
-	}
-	# elsif ( $F[8] =~ /^GT:DP:GQ:PL$/ ) { ## ??
-	#     print STDERR "Format is GATK (-AD)\n" if ( $. % 1000 == 0 );
-	#     #next if ( ( length($F[3]) == 1 ) && ( length($F[4]) == 1 ) ); ## remove SNPs
-	#     next if ( $F[4] =~ /,/ ); ## remove multi-allelics
-	#     for(my $i=9; $i < @F; ++$i) {
-	# 	my ($gt,$dp,$gq,$pl) = split(/:/,$F[$i]);
-	# 	if ( ( !defined($pl) ) || ( $pl =~ /^\./ ) ) {
-	# 	    my @p = (0,0,0);
-	# 	    push(@PLs,\@p);
-	# 	    push(@GTs,0);
-	# 	}
-	# 	else {
-	# 	    my @p = split(/,/,$pl);
-	# 	    &normPLs(\@p);
-	# 	    push(@PLs,\@p);
-	# 	    my ($gt0,$sep,$gt1) = split(//,$gt);
-	# 	    push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
-	# 	    $ac += ($GTs[$#GTs]-1);
-	# 	    $an += 2;
-	# 	}
-	#     }
-	# }
-	else {
-	    die $_;
 	}
 
 	my $n = $#F+1-9;
-
-	#my $af = $2 if ( $F[7] =~ /(^|;)AF=([^;]+);/ );
-	#unless ( defined($af) ) {
 
 	my $acaf = ($ac + 0.5)/($an+1);  ## acaf is AC-based AF
 	my ($hweAF,@hwdGF) = ($fixAF) ? ($fixAF, (1-$fixAF)*(1-$fixAF), 2*$fixAF*(1-$fixAF), $fixAF * $fixAF) : &emAF($acaf,$n,\@PLs);  # EM AF estimates without using family structure

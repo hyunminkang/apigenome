@@ -408,6 +408,7 @@ void longParams::HelpMessage(longParamList * ptr)
 void longParams::HelpMessage()
 {
   if (!description.empty() && description[0] != 0)  // group option
+    fprintf(stderr, "\n%s\n\n", description.c_str());    
     //fprintf(stderr, "\n%s - %s\n", description.c_str(), helpstring.c_str());
 
   // for the rest of the group, print parameters
@@ -420,8 +421,11 @@ void longParams::HelpMessage()
 // print the status of the parameter
 void longParams::Status()
 {
-  if (!description.empty() && description[0] != 0)  // group option
-    fprintf(stderr, "\n%s\n", description.c_str());
+  if (!description.empty() && description[0] != 0)  { // group option
+    fprintf(stderr, "\n%s\n\n", description.c_str());
+
+    fprintf(stderr, "The following parameters are available. Ones with \"[]\" are in effect:\n");
+  }
 
   bool need_a_comma = false;
   int  line_len = 0;
@@ -523,7 +527,7 @@ int paramList::ReadWithTrailer(int argc, char ** argv, int start)
 
 void paramList::HelpMessage()
 {
-  fprintf(stderr, "\nDetailed instructions of parameters are availanle. Ones with \"[]\" are in effect:\n");
+  fprintf(stderr, "\nDetailed instructions of parameters are available. Ones with \"[]\" are in effect:\n");
 
   for (int i=0; i<(int)pl.size(); i++)
     pl[i]->HelpMessage();
@@ -547,11 +551,12 @@ void paramList::HelpMessage()
 // Print the total parameter list
 void paramList::Status()
 {
-  fprintf(stderr, "\nThe following parameters are available.  Ones with \"[]\" are in effect:\n");
+  //fprintf(stderr, "\nThe following parameters are available. Ones with \"[]\" are in effect:\n");
 
   for (int i=0; i<(int)pl.size(); i++)
     pl[i]->Status();
 
+  fprintf(stderr, "\nRun with --help for more detailed help messages of each argument.\n");  
   fprintf(stderr, "\n");
 
   if (errors.size())

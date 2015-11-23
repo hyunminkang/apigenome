@@ -48,17 +48,23 @@ if ( ( $keep ) && ( $key ) ) {
 
 my $chr = "";
 my $pos = 0;
-my @G = ();
+my $bufLine = "";   ## last line of dbSNP file read
+my $rBuf = "";      ## reference to the parsed version of bufLine (always match to bufLine)
+my @rG = ();   ## reference to the parsed version of active lines (empty - nothing left) -- should be all same positions
+my $posActive = 0;  ## position of active variant
 while(<VCF>) {
     if ( /^#/ ) {
 	print OUT $_;
     }
     else {
+	## read the variant
 	my @F = split(/[\t\r\n]/);
-	if ( ( $F[0] ne $chr ) || ( $pos - $F[1] > 50000 ) ) {
+
+	## Load or reload dbSNP file based on the positoon
+	if ( ( $F[0] ne $chr ) || ( $F[1] - $pos > 50000 ) ) {  ## chromosome was changed or jumped too much (>50kb)
 	    close DBF if ( defined(fileno DBF) );
 	    $chr = $F[0];
-	    print STDERR "Processing chr$chr..\n";
+	    print STDERR "Processing chr$chr:$pos..\n";
 
 	    my $cdb = $dbSNPf;
 	    if ( $sepchr ) {
@@ -66,28 +72,83 @@ while(<VCF>) {
 	    }
 
 	    open(DBF,"$bintabix $cdb $chr:0|") || die "Cannot open file\n";
-	    @G = split(/[\t\r\n]/,<DBF>);
-	}
-	while ( ( defined($G[1]) ) && ( $G[1] < $F[1] ) ) {
-	    @G = split(/[\t\r\n]/,<DBF>);	    
+
+	    $bufLine = <DBF>;   ## read a line
+	    if ( $bufLine ) {  ## if a line was read
+		my @G = split(/[ \t\r\n]+/,$bufLine);  ## first, parse the buffer line
+		$rBuf = \@G;
+		$posActive = 0;
+		while( ( $posActive < $F[1] ) || ( $posActive == $rBuf->[1] ) ) {  ## need to read more lines
+		    if ( $posActive < $F[1] ) {   ## if the active position is behind the current position, no need to keep the ties
+			$posActive = $rBuf->[1];
+			@rG = ($rBuf);
+		    }
+		    elsif ( $posActive == $rBuf->[1] ) {
+			push(@rG,$rBuf);
+		    }
+		    else {
+			die "Something is wront here. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n";
+		    }
+		    
+		    $bufLine = <DBF>;
+		    if ( $bufLine ) {
+			my @G2 = split(/[ \t\r\n]+/,$bufLine);  ## first, parse the buffer line			
+			$rBuf = \@G2;
+		    }
+		    else {
+			my @G2 = ($chr,1e9);
+			$rBuf = \@G2;
+			last;
+		    }
+		}
+	    }
+	    else {  ## no variant in dbSNP
+		my @G2 = ($chr,1e9);
+		$rBuf = \@G2;
+		@rG = ($rBuf);
+		$posActive = 1e9;
+	    }
+	}  ## after this, $posActive must be equal or greater than $F[1], $posActive < $rBuf
+	elsif ( $posActive < $F[1] ) {
+	    while( ( $posActive < $F[1] ) || ( $posActive == $rBuf->[1] ) ) {  ## need to read more lines
+		if ( $posActive < $F[1] ) {   ## if the active position is behind the current position, no need to keep the ties
+		    $posActive = $rBuf->[1];
+		    @rG = ($rBuf);
+		}
+		elsif ( $posActive == $rBuf->[1] ) {
+		    push(@rG,$rBuf);
+		}
+		else {
+		    die "Something is wrong here 2. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n";
+		}
+		
+		$bufLine = <DBF>;
+		if ( $bufLine ) {
+		    my @G2 = split(/[ \t\r\n]+/,$bufLine);  ## first, parse the buffer line			
+		    $rBuf = \@G2;
+		}
+		else {
+		    my @G2 = ($chr,1e9);
+		    $rBuf = \@G2;
+		    last;
+		}
+	    }	    
 	}
 
-	if ( defined($G[1]) && ( $G[1] == $F[1] ) && ( $G[3] eq $F[3] ) && ( $G[4] eq $F[4] ) ) {
-	    if ( $key ) {
-		$F[7] .= ";$key=1";
-	    }
-	    else {
-		$F[2] = $G[2];
-	    }
-	}
-	else {
-	    if ( $key ) {
-		$F[7] .= ";$key=0";
-	    }
-	    else {
-		$F[2] = "." unless ( $keep );
+	die "Something is wront here 2. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n" if ( $posActive < $F[1] );
+
+	$F[2] = "." unless ( $keep );
+	my $found = 0;
+	if ( $posActive == $F[1] ) { ## if there is a matching position, scan for the variant matching alleles
+	    for(my $i=0; $i < @rG; ++$i) {
+		if ( ( $rG[$i]->[3] eq $F[3] ) && ( $rG[$i]->[4] eq $F[4] ) ) {  ## exact allele match
+		    $F[2] = $rG[$i]->[2] unless ( $key );  ## change the variant ID
+		    $found = 1;
+		    last;
+		}
 	    }
 	}
+	$F[7] .= ";$key=$found" if ( $key );
 
 	print OUT join("\t",@F);
 	print OUT "\n";

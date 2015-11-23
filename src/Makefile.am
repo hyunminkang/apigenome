@@ -25,13 +25,16 @@ noinst_HEADERS = hDist.h \
 	knetfile.h \
 	wFile.h
 
-bin_PROGRAMS = vcfast bgzip tabix 
+bin_PROGRAMS = vcfast bgzip tabix tinyfast
 
 noinst_LIBRARIES = libtabix.a
 
 ## vcfast files
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
 vcfast_LDADD = libtabix.a
+
+tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
+tinyfast_LDADD = libtabix.a
 
 bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
 

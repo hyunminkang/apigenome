@@ -219,6 +219,9 @@ int runSummary(int argc, char** argv) {
   paramList pl;
   double minScore = 0;
   bool fullAFS = false;
+
+  bool allvar = false;
+  bool snps = false;
   bool nonsnps = false;
 
   BEGIN_LONG_PARAMS(longParameters)
@@ -235,7 +238,11 @@ int runSummary(int argc, char** argv) {
     LONG_INT_PARAM("minAC",&arg.minAC,"Minimum non-reference allele count cutoff")
     LONG_INT_PARAM("maxAC",&arg.maxAC,"Maximum non-reference allele count cutoff")
     LONG_PARAM("full-afs",&fullAFS,"Create full allele frequency spectrum")
-    LONG_PARAM("nonsnps",&nonsnps,"Focus on non-SNP variants")
+
+    LONG_PARAM_GROUP("Variant Types", NULL)    
+    EXCLUSIVE_PARAM("all-variants",&allvar,"Focus on all types of variants")
+    EXCLUSIVE_PARAM("snps-only",&snps,"Focus on SNPs only")
+    EXCLUSIVE_PARAM("exclude-snps",&nonsnps,"Focus on non-SNP variants")    
 
     LONG_PARAM_GROUP("Output Options", NULL)
     LONG_STRING_PARAM("out",&arg.outf,"Output file name")
@@ -283,6 +290,11 @@ int runSummary(int argc, char** argv) {
      { // if pass the criteria
        int vt = 0; // 0 OTHER 1 Ts 2 Tv
        int frq = 0;  // 0 COMMON 1 SING 2 DBL
+
+       bool is_snp = ( ( tvcf.refs[i].length() == 1 ) && ( ( tvcf.alts[i].length() == 1 ) || ( ( tvcf.alts[i].length() == 3 ) && ( tvcf.alts[i][1] == ',') ) ) ) ? true : false;
+
+       if ( ( nonsnps && is_snp ) || ( snps && !is_snp ) ) continue; // skip variants that does not have matching types
+       
        if ( ( tvcf.refs[i].length() == 1 ) && ( tvcf.alts[i].length() == 1 ) ) {
 	 switch(tvcf.refs[i][0]) {
 	 case 'A':

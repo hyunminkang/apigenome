@@ -157,8 +157,10 @@ sub readFasta {
 
     &initRef($ref) unless ( %hszchrs );
 
-    $chr =~ s/^chr//;
-    $chr = "MT" if ( ( $chr eq "M" ) && ( defined($hszchrs{"MT"}) ) );
+    if ( (!defined($hszchrs{$chr})) && ( $chr =~ /^chr/ ) ) {  ## Try to remove chr prefix and see if it works
+	$chr =~ s/^chr//;
+	$chr = "MT" if ( ( $chr eq "M" ) && ( defined($hszchrs{"MT"}) ) );
+    }
     my ($startbyte,$basesperline,$bytesperline) = @{$hszchrs{$chr}};
     #my $byteoffset = ($startbyte + int($beg/$basesperline)*$bytesperline + ( $beg % $basesperline ) - 1 );
     my $byteoffset = ($startbyte + int(($beg-1)/$basesperline)*$bytesperline + ( ( $beg - 1 ) % $basesperline ) );

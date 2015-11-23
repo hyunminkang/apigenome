@@ -36,7 +36,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = x86_64-unknown-linux-gnu
 host_triplet = x86_64-unknown-linux-gnu
-bin_PROGRAMS = vcfast$(EXEEXT) bgzip$(EXEEXT) tabix$(EXEEXT)
+bin_PROGRAMS = vcfast$(EXEEXT) bgzip$(EXEEXT) tabix$(EXEEXT) \
+	tinyfast$(EXEEXT)
 subdir = src
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -68,6 +69,10 @@ am_tabix_OBJECTS = tabix.$(OBJEXT) bedidx.$(OBJEXT) bgzf.$(OBJEXT) \
 	knetfile.$(OBJEXT) kstring.$(OBJEXT) index.$(OBJEXT)
 tabix_OBJECTS = $(am_tabix_OBJECTS)
 tabix_LDADD = $(LDADD)
+am_tinyfast_OBJECTS = tinyfast.$(OBJEXT) Error.$(OBJEXT) \
+	params.$(OBJEXT)
+tinyfast_OBJECTS = $(am_tinyfast_OBJECTS)
+tinyfast_DEPENDENCIES = libtabix.a
 am_vcfast_OBJECTS = vcfast.$(OBJEXT) Error.$(OBJEXT) \
 	PhredHelper.$(OBJEXT) params.$(OBJEXT) codonHelper.$(OBJEXT) \
 	genomePosition.$(OBJEXT) IO.$(OBJEXT)
@@ -96,9 +101,9 @@ CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libtabix_a_SOURCES) $(bgzip_SOURCES) $(tabix_SOURCES) \
-	$(vcfast_SOURCES)
+	$(tinyfast_SOURCES) $(vcfast_SOURCES)
 DIST_SOURCES = $(libtabix_a_SOURCES) $(bgzip_SOURCES) $(tabix_SOURCES) \
-	$(vcfast_SOURCES)
+	$(tinyfast_SOURCES) $(vcfast_SOURCES)
 HEADERS = $(noinst_HEADERS)
 ETAGS = etags
 CTAGS = ctags
@@ -264,6 +269,8 @@ noinst_HEADERS = hDist.h \
 noinst_LIBRARIES = libtabix.a
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
 vcfast_LDADD = libtabix.a
+tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
+tinyfast_LDADD = libtabix.a
 bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
 tabix_SOURCES = tabix.c bedidx.c bgzf.c knetfile.c kstring.c index.c
 libtabix_a_SOURCES = bedidx.c bgzf.c knetfile.c kstring.c index.c
@@ -357,6 +364,9 @@ bgzip$(EXEEXT): $(bgzip_OBJECTS) $(bgzip_DEPENDENCIES) $(EXTRA_bgzip_DEPENDENCIE
 tabix$(EXEEXT): $(tabix_OBJECTS) $(tabix_DEPENDENCIES) $(EXTRA_tabix_DEPENDENCIES) 
 	@rm -f tabix$(EXEEXT)
 	$(LINK) $(tabix_OBJECTS) $(tabix_LDADD) $(LIBS)
+tinyfast$(EXEEXT): $(tinyfast_OBJECTS) $(tinyfast_DEPENDENCIES) $(EXTRA_tinyfast_DEPENDENCIES) 
+	@rm -f tinyfast$(EXEEXT)
+	$(CXXLINK) $(tinyfast_OBJECTS) $(tinyfast_LDADD) $(LIBS)
 vcfast$(EXEEXT): $(vcfast_OBJECTS) $(vcfast_DEPENDENCIES) $(EXTRA_vcfast_DEPENDENCIES) 
 	@rm -f vcfast$(EXEEXT)
 	$(CXXLINK) $(vcfast_OBJECTS) $(vcfast_LDADD) $(LIBS)
@@ -380,6 +390,7 @@ include ./$(DEPDIR)/knetfile.Po
 include ./$(DEPDIR)/kstring.Po
 include ./$(DEPDIR)/params.Po
 include ./$(DEPDIR)/tabix.Po
+include ./$(DEPDIR)/tinyfast.Po
 include ./$(DEPDIR)/vcfast.Po
 
 .c.o:

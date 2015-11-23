@@ -234,14 +234,18 @@ dist_bin_SCRIPTS = \
         merge-fastq \
 	now-seq-each \
 	now-seq-batch \
+	paste-pileup-pro \
 	pileup-pro \
 	rev-trim \
 	run-make \
+	vcf-delta-svm \
+	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \
 	vcf-add-rsid \
 	vcf-milk-filter \
 	vcf-f2-sharing \
 	vcf-issac-summary \
+	vcf-liftover \
 	vcf-lookup-rsid \
 	vcf-summary \
 	yipe \

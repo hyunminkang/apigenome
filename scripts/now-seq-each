@@ -328,5 +328,5 @@ sub parseQCFiles {
 	    sprintf("%.3lf",$gcDepthNum[4]/$gcDepthDen[4]),
 	    sprintf("%.3lf",$gcDepthNum[5]/$gcDepthDen[5]),
 	    sprintf("%.3lf",$gcDepthNum[6]/$gcDepthDen[6]),	    
-	    sprintf("%.1lf",$nReadsM/(0-log(1-$pctDups/100))));
+	    sprintf("%.1lf",$nReadsM/(1e-6 - log(1-$pctDups/100))));
 }

@@ -2,7 +2,7 @@
 #define __TABIXED_WFILE__H
 
 #include <zlib.h>
-#include <string>
+#include <cstring>
 #include <cstdlib>
 #include <cstdio>
 #include <cstdarg>
