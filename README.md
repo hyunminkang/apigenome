@@ -63,6 +63,9 @@ List of currently provided utilities:
 |               | vcf-resolve-chrX-hets | Resolve heterozygous genotyes from chrX based on likelihoods |
 |               | vcf-issac-sumary | Sumamrize VCF files produced by Illumina's iSSAC pipeline |
 |               | draw-afs | Draw allele frequency spectrum (AFS) from VCF sites |
+|               | vcf-liftover | Software for lifting over VCF files |
+|               | vcf-delta-svm | DeltaSVM Method (Lee et al. Nat Genet 2015) implemented for VCF files |
+|               | vcf-summary | Produce basic summary of VCF files such as Ts/Tv, %dbSNP |
 | Expression | cel-extract-intensity | Extract probe-level intensity information from CEL files |
 | PROcap/PROseq | pileup-pro | Produce pileups for PROseq/PROcap data |
 |               | bed-tss-match | Identify transcription start sites from pileups |
