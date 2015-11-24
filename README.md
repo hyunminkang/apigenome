@@ -8,23 +8,6 @@ As APIGenome will be continuously updated with new tools, it will be always UNDE
 
 ### Installing APIGenome
 
-#### Downloading the from latest release
-
-To install APIGenome, you can download the [Latest Release of APIGenome](https://github.com/hyunminkang/apigenome/raw/master/releases/apigenome-latest.tar.gz) by clicking the link or using command line.
-<pre>
-$ wget https://github.com/hyunminkang/apigenome/raw/master/releases/apigenome-latest.tar.gz </pre>
-
-Note that the latest release is a stable snapshot of a previous version of APIGenome, but may not contain the more recent update since the last freeze.
-
-To install APIGenome, uncompress the tarball, configure the install directory, build, and install.
-
-<pre>
-$ tar xzvf apigenome-latest.tar.gz
-$ cd apigenome-[version]/
-$ ./configure --prefix [/path/to/install]
-$ make
-$ make install </pre>
-
 #### Cloning from github repository
 
 You can clone the current snapshot of this repository to install as well
