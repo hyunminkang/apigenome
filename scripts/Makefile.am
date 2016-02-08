@@ -5,6 +5,7 @@ dist_bin_SCRIPTS = \
 	bam-quick-peek-batch \
 	bed-diff \
 	bed-tss-match \
+	dropseq-resolve-barcode-trimming \
 	cel-extract-intensity \
 	count-dropseq \
 	count-dropseq-unit \
@@ -29,6 +30,8 @@ dist_bin_SCRIPTS = \
 	vcf-liftover \
 	vcf-lookup-rsid \
 	vcf-summary \
+	vcf-summary-merge \
+	vcf-summary-v2 \
 	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 

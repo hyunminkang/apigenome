@@ -492,7 +492,7 @@ int runConvert(int argc, char** argv) {
     bimf = new wFile((arg.outf+".bim").c_str());
     wFile famf((arg.outf+".fam").c_str());
     for(i=0; i < n; ++i) {
-      famf.printf("%d\t%s\t0\t0\t0\t-9\n",tvcf.inds[i].c_str(),tvcf.inds[i].c_str());
+      famf.printf("%s\t%s\t0\t0\t0\t-9\n",tvcf.inds[i].c_str(),tvcf.inds[i].c_str());
     }
     famf.close();
     arg.outf += ".bed";

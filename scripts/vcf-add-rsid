@@ -87,17 +87,18 @@ while(<VCF>) {
 			push(@rG,$rBuf);
 		    }
 		    else {
-			die "Something is wront here. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n";
+			die "Something is wrong here. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n";
 		    }
 		    
 		    $bufLine = <DBF>;
 		    if ( $bufLine ) {
-			my @G2 = split(/[ \t\r\n]+/,$bufLine);  ## first, parse the buffer line			
+			my @G2 = split(/[ \t\r\n]+/,$bufLine);  ## first, parse the buffer line	 
 			$rBuf = \@G2;
 		    }
 		    else {
 			my @G2 = ($chr,1e9);
 			$rBuf = \@G2;
+			$posActive = 1e9;			
 			last;
 		    }
 		}
@@ -130,12 +131,13 @@ while(<VCF>) {
 		else {
 		    my @G2 = ($chr,1e9);
 		    $rBuf = \@G2;
+		    $posActive = 1e9;		    
 		    last;
 		}
 	    }	    
 	}
 
-	die "Something is wront here 2. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n" if ( $posActive < $F[1] );
+	die "Something is wrong here 3. posActive=$posActive F[1]=$F[1] rBuf is @{$rBuf}\n" if ( $posActive < $F[1] );
 
 	$F[2] = "." unless ( $keep );
 	my $found = 0;

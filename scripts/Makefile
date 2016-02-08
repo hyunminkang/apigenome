@@ -80,12 +80,12 @@ SCRIPTS = $(dist_bin_SCRIPTS)
 SOURCES =
 DIST_SOURCES =
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/hmkang/code/working/apigenome/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
 AR = ar
-AUTOCONF = ${SHELL} /home/hmkang/code/working/apigenome/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/hmkang/code/working/apigenome/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/hmkang/code/working/apigenome/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run automake-1.11
 AWK = gawk
 CAT_CHECK = yes
 CC = gcc
@@ -130,7 +130,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/hmkang/code/working/apigenome/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run makeinfo
 MAKE_CHECK = yes
 MANIFEST_TOOL = :
 MKDIR_CHECK = yes
@@ -164,10 +164,10 @@ SORT_CHECK = yes
 STRIP = strip
 VERSION = 0.0.2
 ZCAT_CHECK = yes
-abs_builddir = /home/hmkang/code/working/apigenome/scripts
-abs_srcdir = /home/hmkang/code/working/apigenome/scripts
-abs_top_builddir = /home/hmkang/code/working/apigenome
-abs_top_srcdir = /home/hmkang/code/working/apigenome
+abs_builddir = /home/hmkang/code/working/apigenome.master/scripts
+abs_srcdir = /home/hmkang/code/working/apigenome.master/scripts
+abs_top_builddir = /home/hmkang/code/working/apigenome.master
+abs_top_srcdir = /home/hmkang/code/working/apigenome.master
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_CXX = g++
@@ -197,7 +197,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/hmkang/code/working/apigenome/install-sh
+install_sh = ${SHELL} /home/hmkang/code/working/apigenome.master/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -224,6 +224,7 @@ dist_bin_SCRIPTS = \
 	bam-quick-peek-batch \
 	bed-diff \
 	bed-tss-match \
+	dropseq-resolve-barcode-trimming \
 	cel-extract-intensity \
 	count-dropseq \
 	count-dropseq-unit \
@@ -248,6 +249,8 @@ dist_bin_SCRIPTS = \
 	vcf-liftover \
 	vcf-lookup-rsid \
 	vcf-summary \
+	vcf-summary-merge \
+	vcf-summary-v2 \
 	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 
