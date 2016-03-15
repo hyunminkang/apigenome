@@ -224,11 +224,12 @@ dist_bin_SCRIPTS = \
 	bam-quick-peek-batch \
 	bed-diff \
 	bed-tss-match \
-	dropseq-resolve-barcode-trimming \
 	cel-extract-intensity \
 	count-dropseq \
 	count-dropseq-unit \
 	draw-afs \
+	dropseq-resolve-barcode-trimming \
+	dropseq-kalisto \
 	demux-fastq \
 	gtf2GenePred \
 	inspect-sv \

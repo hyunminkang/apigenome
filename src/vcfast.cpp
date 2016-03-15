@@ -220,6 +220,7 @@ int runSummary(int argc, char** argv) {
   double minScore = 0;
   bool fullAFS = false;
 
+  bool biallelicOnly = false;
   bool allvar = false;
   bool snps = false;
   bool nonsnps = false;
@@ -238,6 +239,7 @@ int runSummary(int argc, char** argv) {
     LONG_INT_PARAM("minAC",&arg.minAC,"Minimum non-reference allele count cutoff")
     LONG_INT_PARAM("maxAC",&arg.maxAC,"Maximum non-reference allele count cutoff")
     LONG_PARAM("full-afs",&fullAFS,"Create full allele frequency spectrum")
+    LONG_PARAM("biallelic-only",&biallelicOnly,"Skip multi-allelic variants")    
 
     LONG_PARAM_GROUP("Variant Types", NULL)    
     EXCLUSIVE_PARAM("all-variants",&allvar,"Focus on all types of variants")
@@ -291,9 +293,11 @@ int runSummary(int argc, char** argv) {
        int vt = 0; // 0 OTHER 1 Ts 2 Tv
        int frq = 0;  // 0 COMMON 1 SING 2 DBL
 
-       bool is_snp = ( ( tvcf.refs[i].length() == 1 ) && ( ( tvcf.alts[i].length() == 1 ) || ( ( tvcf.alts[i].length() == 3 ) && ( tvcf.alts[i][1] == ',') ) ) ) ? true : false;
+       bool is_multi = (tvcf.alts[i].find(',') == std::string::npos) ? false : true;
+       bool is_snp = ( ( tvcf.refs[i].length() == 1 ) && ( ( tvcf.alts[i].length() == 1 ) || ( ( tvcf.alts[i].length() == 3 ) && is_multi ) ) ) ? true : false;
 
-       if ( ( nonsnps && is_snp ) || ( snps && !is_snp ) ) continue; // skip variants that does not have matching types
+       if ( ( nonsnps && is_snp ) || ( snps && ( !is_snp ) ) ) continue; // skip variants that does not have matching types
+       if ( is_multi && biallelicOnly ) continue;
        
        if ( ( tvcf.refs[i].length() == 1 ) && ( tvcf.alts[i].length() == 1 ) ) {
 	 switch(tvcf.refs[i][0]) {
@@ -492,7 +496,7 @@ int runConvert(int argc, char** argv) {
     bimf = new wFile((arg.outf+".bim").c_str());
     wFile famf((arg.outf+".fam").c_str());
     for(i=0; i < n; ++i) {
-      famf.printf("%s\t%s\t0\t0\t0\t-9\n",tvcf.inds[i].c_str(),tvcf.inds[i].c_str());
+      famf.printf("%d\t%s\t0\t0\t0\t-9\n",tvcf.inds[i].c_str(),tvcf.inds[i].c_str());
     }
     famf.close();
     arg.outf += ".bed";
