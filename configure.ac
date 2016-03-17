@@ -2,9 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.65])
-AC_INIT([apigenome], [0.0.2], [hmkang@umich.edu])
-AM_INIT_AUTOMAKE(apigenome, 0.0.2)
+AC_INIT([apigenome], [0.0.3], [hmkang@umich.edu])
+AM_INIT_AUTOMAKE(apigenome, 0.0.3)
 AC_CONFIG_HEADERS([config.h])
+#AM_EXTRA_RECURSIVE_TARGETS([htslib])
 
 AC_CONFIG_MACRO_DIR([m4])
 AM_PROG_LIBTOOL
@@ -155,4 +156,4 @@ if test x"$GNUPLOT_CHECK" != x"yes" ; then
    AC_MSG_ERROR([Please install gnuplot at http://sourceforge.net/projects/gnuplot/files/ before installing.])
 fi
 
-AC_OUTPUT(Makefile src/Makefile scripts/Makefile data/Makefile)
+AC_OUTPUT(Makefile htslib/Makefile src/Makefile scripts/Makefile data/Makefile)

@@ -33,7 +33,10 @@ autom4te.cache/*
 src/.deps/
 
 # Binaries
+src/bcfast
 src/vcfast
 src/bgzip
 src/tabix
+htslib/bgzip
+htslib/tabix
 

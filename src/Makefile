@@ -36,8 +36,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = x86_64-unknown-linux-gnu
 host_triplet = x86_64-unknown-linux-gnu
-bin_PROGRAMS = vcfast$(EXEEXT) bgzip$(EXEEXT) tabix$(EXEEXT) \
-	tinyfast$(EXEEXT)
+bin_PROGRAMS = vcfast$(EXEEXT) tinyfast$(EXEEXT) bcfast$(EXEEXT)
 subdir = src
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -61,14 +60,13 @@ am_libtabix_a_OBJECTS = bedidx.$(OBJEXT) bgzf.$(OBJEXT) \
 libtabix_a_OBJECTS = $(am_libtabix_a_OBJECTS)
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_bgzip_OBJECTS = bgzip.$(OBJEXT) bedidx.$(OBJEXT) bgzf.$(OBJEXT) \
-	knetfile.$(OBJEXT) kstring.$(OBJEXT)
-bgzip_OBJECTS = $(am_bgzip_OBJECTS)
-bgzip_LDADD = $(LDADD)
-am_tabix_OBJECTS = tabix.$(OBJEXT) bedidx.$(OBJEXT) bgzf.$(OBJEXT) \
-	knetfile.$(OBJEXT) kstring.$(OBJEXT) index.$(OBJEXT)
-tabix_OBJECTS = $(am_tabix_OBJECTS)
-tabix_LDADD = $(LDADD)
+am_bcfast_OBJECTS = bcfast.$(OBJEXT) Error.$(OBJEXT) \
+	PhredHelper.$(OBJEXT) params.$(OBJEXT) \
+	bcf_ordered_reader.$(OBJEXT) interval.$(OBJEXT) \
+	interval_tree.$(OBJEXT) utils.$(OBJEXT) hts_utils.$(OBJEXT) \
+	genome_interval.$(OBJEXT)
+bcfast_OBJECTS = $(am_bcfast_OBJECTS)
+bcfast_DEPENDENCIES = ../htslib/libhts.a
 am_tinyfast_OBJECTS = tinyfast.$(OBJEXT) Error.$(OBJEXT) \
 	params.$(OBJEXT)
 tinyfast_OBJECTS = $(am_tinyfast_OBJECTS)
@@ -100,9 +98,9 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libtabix_a_SOURCES) $(bgzip_SOURCES) $(tabix_SOURCES) \
-	$(tinyfast_SOURCES) $(vcfast_SOURCES)
-DIST_SOURCES = $(libtabix_a_SOURCES) $(bgzip_SOURCES) $(tabix_SOURCES) \
+SOURCES = $(libtabix_a_SOURCES) $(bcfast_SOURCES) $(tinyfast_SOURCES) \
+	$(vcfast_SOURCES)
+DIST_SOURCES = $(libtabix_a_SOURCES) $(bcfast_SOURCES) \
 	$(tinyfast_SOURCES) $(vcfast_SOURCES)
 HEADERS = $(noinst_HEADERS)
 ETAGS = etags
@@ -173,10 +171,10 @@ OTOOL64 =
 PACKAGE = apigenome
 PACKAGE_BUGREPORT = hmkang@umich.edu
 PACKAGE_NAME = apigenome
-PACKAGE_STRING = apigenome 0.0.2
+PACKAGE_STRING = apigenome 0.0.3
 PACKAGE_TARNAME = apigenome
 PACKAGE_URL = 
-PACKAGE_VERSION = 0.0.2
+PACKAGE_VERSION = 0.0.3
 PATH_SEPARATOR = :
 PERL_CHECK = yes
 PFBTOPS_CHECK = yes
@@ -190,7 +188,7 @@ SET_MAKE =
 SHELL = /bin/sh
 SORT_CHECK = yes
 STRIP = strip
-VERSION = 0.0.2
+VERSION = 0.0.3
 ZCAT_CHECK = yes
 abs_builddir = /home/hmkang/code/working/apigenome/src
 abs_srcdir = /home/hmkang/code/working/apigenome/src
@@ -234,7 +232,7 @@ mandir = ${datarootdir}/man
 mkdir_p = /bin/mkdir -p
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /net/fantasia/home/hmkang/bin/apigenome
+prefix = /net/fantasia/home/hmkang/tools/tmpdir
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin
@@ -246,9 +244,12 @@ top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
-TABIX_VER = 0.2.5
-TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+
+#SUBDIRS = htslib
+
+#TABIX_VER = 0.2.5
+#TABIX = tabix-$(TABIX_VER)
+AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
 noinst_HEADERS = hDist.h \
 	bam_endian.h \
 	boolParser.h \
@@ -267,12 +268,16 @@ noinst_HEADERS = hDist.h \
 	wFile.h
 
 noinst_LIBRARIES = libtabix.a
+bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
+bcfast_LDADD = ../htslib/libhts.a -lpthread
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
 vcfast_LDADD = libtabix.a
 tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
 tinyfast_LDADD = libtabix.a
-bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
-tabix_SOURCES = tabix.c bedidx.c bgzf.c knetfile.c kstring.c index.c
+
+#bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
+
+#tabix_SOURCES = tabix.c bedidx.c bgzf.c knetfile.c kstring.c index.c
 libtabix_a_SOURCES = bedidx.c bgzf.c knetfile.c kstring.c index.c
 all: all-am
 
@@ -358,12 +363,9 @@ clean-binPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-bgzip$(EXEEXT): $(bgzip_OBJECTS) $(bgzip_DEPENDENCIES) $(EXTRA_bgzip_DEPENDENCIES) 
-	@rm -f bgzip$(EXEEXT)
-	$(LINK) $(bgzip_OBJECTS) $(bgzip_LDADD) $(LIBS)
-tabix$(EXEEXT): $(tabix_OBJECTS) $(tabix_DEPENDENCIES) $(EXTRA_tabix_DEPENDENCIES) 
-	@rm -f tabix$(EXEEXT)
-	$(LINK) $(tabix_OBJECTS) $(tabix_LDADD) $(LIBS)
+bcfast$(EXEEXT): $(bcfast_OBJECTS) $(bcfast_DEPENDENCIES) $(EXTRA_bcfast_DEPENDENCIES) 
+	@rm -f bcfast$(EXEEXT)
+	$(CXXLINK) $(bcfast_OBJECTS) $(bcfast_LDADD) $(LIBS)
 tinyfast$(EXEEXT): $(tinyfast_OBJECTS) $(tinyfast_DEPENDENCIES) $(EXTRA_tinyfast_DEPENDENCIES) 
 	@rm -f tinyfast$(EXEEXT)
 	$(CXXLINK) $(tinyfast_OBJECTS) $(tinyfast_LDADD) $(LIBS)
@@ -380,17 +382,22 @@ distclean-compile:
 include ./$(DEPDIR)/Error.Po
 include ./$(DEPDIR)/IO.Po
 include ./$(DEPDIR)/PhredHelper.Po
+include ./$(DEPDIR)/bcf_ordered_reader.Po
+include ./$(DEPDIR)/bcfast.Po
 include ./$(DEPDIR)/bedidx.Po
 include ./$(DEPDIR)/bgzf.Po
-include ./$(DEPDIR)/bgzip.Po
 include ./$(DEPDIR)/codonHelper.Po
 include ./$(DEPDIR)/genomePosition.Po
+include ./$(DEPDIR)/genome_interval.Po
+include ./$(DEPDIR)/hts_utils.Po
 include ./$(DEPDIR)/index.Po
+include ./$(DEPDIR)/interval.Po
+include ./$(DEPDIR)/interval_tree.Po
 include ./$(DEPDIR)/knetfile.Po
 include ./$(DEPDIR)/kstring.Po
 include ./$(DEPDIR)/params.Po
-include ./$(DEPDIR)/tabix.Po
 include ./$(DEPDIR)/tinyfast.Po
+include ./$(DEPDIR)/utils.Po
 include ./$(DEPDIR)/vcfast.Po
 
 .c.o:

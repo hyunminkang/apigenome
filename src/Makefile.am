@@ -3,10 +3,12 @@
 ## to provide a way for the user to supply additional arguments.
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 
+#SUBDIRS = htslib
+
 ## Paths to include
-TABIX_VER = 0.2.5
-TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+#TABIX_VER = 0.2.5
+#TABIX = tabix-$(TABIX_VER)
+AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
 
 noinst_HEADERS = hDist.h \
 	bam_endian.h \
@@ -25,9 +27,14 @@ noinst_HEADERS = hDist.h \
 	knetfile.h \
 	wFile.h
 
-bin_PROGRAMS = vcfast bgzip tabix tinyfast
+#bin_PROGRAMS = vcfast bgzip tabix tinyfast
+bin_PROGRAMS = vcfast tinyfast bcfast
 
 noinst_LIBRARIES = libtabix.a
+
+## vcfast files
+bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
+bcfast_LDADD = ../htslib/libhts.a -lpthread
 
 ## vcfast files
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
@@ -36,8 +43,8 @@ vcfast_LDADD = libtabix.a
 tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
 tinyfast_LDADD = libtabix.a
 
-bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
+#bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
 
-tabix_SOURCES = tabix.c bedidx.c bgzf.c knetfile.c kstring.c index.c
+#tabix_SOURCES = tabix.c bedidx.c bgzf.c knetfile.c kstring.c index.c
 
 libtabix_a_SOURCES = bedidx.c bgzf.c knetfile.c kstring.c index.c
