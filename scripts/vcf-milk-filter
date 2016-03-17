@@ -83,7 +83,7 @@ if ( $vcf =~ /\.vcf.gz$/ ) {
     }
 }
 elsif ( $vcf =~ /\.bcf$/ ) {
-    print STDERR "Reading BCF file uusing BCFtools\n";
+    print STDERR "Reading BCF file using BCFtools\n";
     die "Cannot open $vcf\n" unless ( -s $vcf );
     if ( $region ) {
 	open(IN,"$bcftools view $vcf $region |");
@@ -194,7 +194,7 @@ if ( $vcf =~ /\.vcf.gz$/ ) {
     }
 }
 elsif ( $vcf =~ /\.bcf$/ ) {
-    print STDERR "Reading BCF file uusing BCFtools\n";
+    print STDERR "Reading BCF file using BCFtools\n";
     die "Cannot open $vcf\n" unless ( -s $vcf );
     if ( $region ) {
 	open(IN,"$bcftools view $vcf $region |");
@@ -219,7 +219,7 @@ foreach my $fid (sort keys %hfams) {
     print OUT "##FID=$fid";
     foreach my $rind (@{$hfams{$fid}}) {
 	print OUT "\t[ ".join(" , ",@{$rind})." ] ";
-	die "The maximum offspring per family is 4\n" if ( $#{$rind} > 3 );
+	#die "The maximum offspring per family is 4\n" if ( $#{$rind} > 3 );
     }
     print OUT "\n";
 }
@@ -294,11 +294,11 @@ while(<IN>) {
 	    my @G = split(/:/,$F[$i]);
 	    my ($gt,$pl) = ($G[$iGT],$G[$iPL]);
 
-	    if ( $gt =~ /^./ ) {
+	    if ( $gt =~ /^\./ ) {
 		push(@GTs,0);
 	    }
 	    else {
-		my ($gt0,$sep,$gt1) = split(//,$gt);
+		my ($gt0,$gt1) = split(/[\/\|]/,$gt);
 		push(@GTs,($gt0 > 0 ? 1 : 0) + ($gt1 > 0 ? 1 : 0)+1);
 		$ac += ($GTs[$#GTs]-1);
 		$an += 2;

@@ -35,6 +35,8 @@ src/.deps/
 # Binaries
 src/bcfast
 src/vcfast
+src/bcfast
+src/tinyfast
 src/bgzip
 src/tabix
 htslib/bgzip

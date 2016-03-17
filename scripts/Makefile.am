@@ -9,6 +9,8 @@ dist_bin_SCRIPTS = \
 	count-dropseq \
 	count-dropseq-unit \
 	draw-afs \
+	dropseq-resolve-barcode-trimming \
+	dropseq-kalisto \
 	demux-fastq \
 	gtf2GenePred \
 	inspect-sv \
@@ -29,6 +31,8 @@ dist_bin_SCRIPTS = \
 	vcf-liftover \
 	vcf-lookup-rsid \
 	vcf-summary \
+	vcf-summary-merge \
+	vcf-summary-v2 \
 	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 

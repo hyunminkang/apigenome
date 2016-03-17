@@ -10,109 +10,39 @@ use wGetOptions qw(wpod2usage wGetOptions);
 use warnings;
 
 my $vcf = "";
-my $dbSNPf = "";
-my $FNRbfile = "";
-my $FNRvcf = "";
-my $MAFthres = 0;
-my $monoFlag = "";
-my $defaultFlag = "";
-my $b137Flag = "";
-my $b138Flag = "";
-my $b142Flag = "";
-my $phase3Flag = "";
-my $b38Flag = "";
+my $dbSNPf = "/net/1000g/hmkang/data/dbSNP/b146/b37/All_20151104.vcf.gz";
+my $FNRvcf = "/net/fantasia/home/hmkang/data/GATK-resources/hapmap_3.3.b37.sites.vcf.gz";
 my $chr = "";
 my $ref = "/data/local/ref/karma.ref/human.g1k.v37.fa";
-my $ref38 = "/data/local/ref/gotcloud.ref/hg38/hs38DH.fa";
-my $defaultDbsnp = "/net/fantasia/home/hmkang/data/dbSNP/b129.ncbi37/dbsnp_129_b37.rod";
-my $b137Dbsnp = "/net/fantasia/home/hmkang/data/dbSNP/b137/00-All.vcf.gz";
-my $b138Dbsnp = "/net/1000g/hmkang/data/dbSNP/b138/dbsnp_138.b37.vcf.gz";
-my $b142Dbsnp = "/net/1000g/hmkang/data/dbSNP/b142/b37/00-All.vcf.gz";
-my $b142b38Dbsnp = "/data/local/ref/gotcloud.ref/hg38/dbsnp_142.b38.vcf.gz";
-my $phase3Dbsnp = "/net/1000g/hmkang/1KG/phase3/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5.20130502.sites.vcf.gz";
-my $defaultHM3 = "/net/fantasia/home/hmkang/data/GATK-resources/hapmap_3.3.b37.sites.vcf.gz";
 my $target = "";
 my $auto = "";
-my $infoField = "";
-my $infoBreaks = "";
+my $infoField = "AC";
+my $infoBreaks = "1,2,3,0.001,0.01,0.1";
 my $infoBin = 0;
-my $useMAC = "";
-my $b38 = "";
 
 my $binbgzip = "$FindBin::Bin/bgzip";
 my $bintabix = "$FindBin::Bin/tabix";
 
 wGetOptions(
-    "-Summarize SNPs in VCF Files",
+    "-Summarize SNPs and indels in VCF Files",
     "--Input file options",
-    "vcf=s" => [\$vcf, "Input VCF file (STDIN is default)"],    
+    "vcf=s" => [\$vcf, "Input VCF file (STDIN is default)"],
     "dbsnp=s" => [\$dbSNPf, "dbSNP file location"],
     "FNRvcf=s" => [\$FNRvcf, "location of gold standard VCF file (such as dbSNP)"],
-    "FNRbfile=s" => [\$FNRbfile, "location of gold standard sites in PLINK binary format"],
     "tabix=s" => [\$bintabix, "Location of tabix binary"],
     "ref=s" => [\$ref, "Location to the reference genome"],    
     "--Options for focused regions",                
     "chr=s" => [\$chr, "Chromosome label to focus on (recommended if using one chromosome)"],
     "auto" => [\$auto, "Focus on autosomal chromosomes only"],
     "target=s" => [\$target, "Use specific target BED to focus on"],    
-    "--Options for variant filtering",    
-    "MAFthres=f" => [\$MAFthres, "minimum minor allele frequency threshold"],
-    "mono" => [\$monoFlag, "Count monomorphic variants"],
     "--Options for modifying the FILTER columns on-the-fly",
-    "info=s" => [\$infoField, "Name of the INFO field to sort and bin the variants by"],
     "info-breaks=s" => [\$infoBreaks, "Comma-separated string for determining the breakpoints of use-specified INFO fields"],
-    "info-bin=f" => [\$infoBin, "Use a uniform binning scheme to categorize the INFO field values"],
-    "use-mac" => [\$useMAC, "Use minor allele frequency than non-ref allele frequency"],    
+    "info-field=s" => [\$infoField, "String for user-specified INFO fields"],
+    "info-bin=f" => [\$infoBin, "Binning "],
     ) || wpod2usage(2);
 
-#    "acbreaks=s" => [\$acbr, "Bin allele counts based on comma-separated intervals"],
-
-
-$ref = $ref38 if ( $b38Flag );
 &initRef($ref);
 
-my %hdbsnps = ();
-if ( $b137Flag ) {
-    $dbSNPf = $b137Dbsnp;
-    $FNRvcf = $defaultHM3 unless ( $FNRvcf );
-    die "Cannot load dbSNPs\n" if ( $b38Flag );
-}
-elsif ( $b138Flag ) {
-    $dbSNPf = $b138Dbsnp;
-    $FNRvcf = $defaultHM3 unless ( $FNRvcf );
-    die "Cannot load dbSNPs\n" if ( $b38Flag );
-}
-elsif ( $b142Flag ) {
-    $b142Dbsnp = $b142b38Dbsnp if ( $b38Flag );
-    $dbSNPf = $b142Dbsnp;
-    $FNRvcf = $defaultHM3 unless ( $FNRvcf );
-}
-elsif ( $phase3Flag ) {
-    die "Cannot load dbSNPs\n" if ( $b38Flag );        
-    $dbSNPf = $phase3Dbsnp;
-    $FNRvcf = $defaultHM3 unless ( $FNRvcf );
-}
-elsif ( $defaultFlag ) {
-    die "Cannot load dbSNPs\n" if ( $b38Flag );    
-    if ( $chr ) {
-	$dbSNPf = "$defaultDbsnp.chr$chr.map";
-	$FNRvcf = $defaultHM3 unless ( $FNRvcf );
-    }
-    else {
-	$dbSNPf = "$defaultDbsnp.map";
-	$FNRvcf = $defaultHM3 unless ( $FNRvcf );
-    }
-}
-#elsif ( $exomeFlag ) {
-#    $dbSNPf = "$exomeDbsnp.map";
-#    $FNRvcf = "$exomeHM3";
-#}
-#elsif ( $agilentFlag ) {
-#    $dbSNPf = "$agilentDbsnp.map";
-#    $FNRvcf = "$agilentHM3";
-#}
-
-## incorporate target information
 if ( $target ) {
     die "Cannot use target $target because dbSNP and FNRvcf are not tabixed\n" unless ( ( -s "$dbSNPf.tbi" ) && ( -s "$FNRvcf.tbi" ) );
     if ( $dbSNPf ) {
@@ -151,6 +81,8 @@ if ( $target ) {
     }
 }
 
+my %hdbsnps = ();
+
 if ( $dbSNPf ) {
     my $ndbsnp = 0;
     ## check if dbSNP file ends with .vcf or .vcf.gz
@@ -173,7 +105,7 @@ if ( $dbSNPf ) {
 	    next if ( /^#/ );
 	    my ($chr,$bp,$id,$ref,$alt) = split;
 	    next if ( ($auto) && ( ! ( $chr =~ /^(chr)?^\d+$/ ) ) );
-	    next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
+	    #next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
 	    $hdbsnps{"$chr:$bp"} = 1;
 	    ++$ndbsnp;
 	}
@@ -200,40 +132,7 @@ else {
 
 my %hFNRs = ();
 my $nFNR = 0;
-if ( $FNRbfile ) {
-    print STDERR "loading FNR evaluation sites from $FNRbfile\n";
-    open(IN,"$FNRbfile.bim") || die "Cannot open file\n";
-    open(IN2,"$FNRbfile.frq") || die "Cannot open file\n";
-    my $line = <IN2>;
-    while(<IN>) {
-	my ($chr,$snpid,$cM,$bp,$a1,$a2) = split;
-	next if ( ($auto) && ( $chr > 22 ) );
-	if ( $chr > 22 ) {
-	    if ( $chr == 23 ) { $chr = "X"; }
-	    elsif ( $chr == 24 ) { $chr = "Y"; }
-	    elsif ( $chr == 25 ) { $chr = "XY"; }
-	    elsif ( $chr == 26 ) { $chr = "MT"; }
-	}
-	my ($dummy,$chr2,$snpid2,$b1,$b2,$maf,$nchrobs) = split(/\s+/,<IN2>);
-	die "$snpid != $snpid2\n" unless ($snpid eq $snpid2);
-	if ( $monoFlag ) {
-	    if ( ($maf ne "NA") && ( ( $maf == 0 ) || ( $maf == 1 ) ) ) {
-		++$nFNR;
-		$hFNRs{"$chr:$bp"} = $snpid;
-	    }
-	}
-	else {
-	    if ( ($maf ne "NA") && ( $maf > $MAFthres ) && ( $maf < 1-$MAFthres ) ) {
-		++$nFNR;
-		$hFNRs{"$chr:$bp"} = $snpid;
-	    }
-	}
-    }
-    close IN;
-    close IN2;
-    print STDERR "finished loading $nFNR FNR evaluation sites\n";
-}
-elsif ( $FNRvcf ) {
+if ( $FNRvcf ) {
     print STDERR "loading FNR evaluation sites from $FNRvcf\n";
     if ( $FNRvcf =~ /\.gz$/ ) {
 	if ( ($chr) && ( -s "$FNRvcf.tbi" ) ) {
@@ -253,35 +152,8 @@ elsif ( $FNRvcf ) {
 	my ($chrom,$pos,$id,$ref,$alt,$qual,$filter,$info) = split(/[\t\r\n]/);
 	next if ( ($auto) && ( ! ( $chrom =~ /^(chr)?\d+$/ ) ) );
 	next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
-	my $maf = 0;
-	if ( $info =~ /AC=(\d+);/ ) {
-	    my $AC = $1;
-	    if ( $info =~ /AN=(\d)+1;/ ) {
-		$maf = $1/$AC;
-	    }
-	    else {
-		$maf = 0.01 if ( $1 > 0 );
-	    }
-	}
-	elsif ( $info =~ /AF=([\d\.]+)/ ) {
-	    $maf = $1;
-	}
-	else {
-	    $maf = 0.5; # include if AF does not exist
-	}
-
-	if ( $monoFlag ) {
-	    if ( ($maf ne "NA") && ( ( $maf == 0 ) || ( $maf == 1 ) ) ) {
-		++$nFNR;
-		$hFNRs{"$chrom:$pos"} = $id;
-	    }
-	}
-	else {
-	    if ( ($maf ne "NA") && ( $maf > $MAFthres ) && ( $maf < 1-$MAFthres ) ) {
-		++$nFNR;
-		$hFNRs{"$chrom:$pos"} = $id;
-	    }
-	}
+	++$nFNR;
+	$hFNRs{"$chrom:$pos"} = $id;
     }
     close IN;
 }
@@ -289,14 +161,12 @@ else {
     print STDERR "Skipped loading FNR evaluation sites\n";
 }
 
-#my ($fh,$ninds,$riids,$rhiids) = &openVCF($ARGV[0]);
 if ( $vcf eq "" ) {
     *IN = *STDIN;
 }
 elsif ( $vcf =~ /\.gz$/ ) {
     die "Can't read $vcf" unless( -f $vcf and -r $vcf);
     open(IN,"zcat $vcf|") || die "Cannot open file\n";
-    #tie (*IN, "IO::Zlib", $vcf, "rb") || die "Cannot open file $vcf\n";
 }
 else {
     open(IN,$vcf) || die "Cannot open file $vcf\n";
@@ -307,44 +177,85 @@ my %hszchrs = ();
 my $prev = "";
 
 my @infobrs = split(/,/,$infoBreaks) if ( $infoBreaks );
-#shift(@acbrs) if ( ( $#acbrs >= 0 ) && ( $acbrs[0] == 1 ) );
 
 print STDERR "WARNING: --info $infoField was provided but no --breaks or --bin was set. Assuming discrete values\n" if ( ( $infoField ) && ( $infoBin == 0 ) && ( ! $infoBreaks ) );
 					   
 while(<IN>) {
     next if ( /^#/ );
     my ($chrom,$pos,$id,$ref,$alt,$qual,$filter,$info) = split(/[\t\r\n ]+/);
-    next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
+
+    print STDERR "Processing $chrom:$pos\n" if ( $pos % 100000 == 0 );
+
+    next if ( $alt =~ /,/ );
+    #next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
     next if ( ($auto) && ( ! ( $chrom =~ /^(chr)?\d+$/ ) ) );
     next if ( $prev eq $pos );
     $prev = $pos;
 
     if ( $infoField ) {
 	$info = "$info;QUAL=$qual";
-	
+
 	my $val = $2 if ( $info =~ /(^|;)$infoField=([^;]+)(;|$)/ );
 	#die "$infoBin $infoBreaks $infoField $val $info\n";
 	
 	if ( defined($val) ) {	
-	    if ( ( $infoField eq "AC" ) && ( $useMAC ) ) {
-		my $an = $1 if ( $info =~ /AN=(\d+)/ );
-		$val = $an - $val if ( $val + $val > $an );
-	    }
-    
 	    if ( $infoBreaks ) {
-		if ( $val < $infobrs[0] ) {
-		    $filter .= ";$infoField=(-Inf,$infobrs[0])";
-		}
-		elsif ( $val >= $infobrs[$#infobrs] ) {
-		    $filter .= ";$infoField=[".($infobrs[$#infobrs]).",Inf)";		    
+		if ( $infoField eq "AC" ) {
+		    splice(@infobrs,0,0,0) if ( $infobrs[0] > 0 );
+
+		    my $set = 0;
+		    my $an = $2 if ( $info =~ /(^|;)AN=(\d+)/ );
+		    
+		    if ( $infobrs[$#infobrs] < 1 ) {
+			if ( $val/($an+1e-6) >= $infobrs[$#infobrs] ) {
+			    $filter .= ";AF=[".($infobrs[$#infobrs]).",1]";
+			    $set = 1;
+			}
+		    }
+		    else {
+			if ( $val >= $infobrs[$#infobrs] ) {
+			    $filter .= ";$infoField=[".($infobrs[$#infobrs]).",Inf)";
+			    $set = 1;
+			}
+		    }
+
+		    if ( $set == 0 ) {
+			for(my $i=1; $i < @infobrs; ++$i) {
+			    if ( $infobrs[$i] < 1 ) {
+				if ( $val/($an+1e-6) < $infobrs[$i] ) {
+				    if ( $infobrs[$i-1] < 1 ) {				
+					$filter .= ";AF=[".($infobrs[$i-1]).",".($infobrs[$i]).")";
+					$set = 1;
+				    }
+				    else {
+					$filter .= ";[AC=".($infobrs[$i-1]).",AF=".($infobrs[$i]).")";
+					$set = 1;				    
+				    }
+				}
+			    }
+			    elsif ( $val < $infobrs[$i] ) {
+				$filter .= ";AC=[".($infobrs[$i-1]).",".($infobrs[$i]).")";
+				$set = 1;					
+			    }
+			    last if ( $set > 0 );
+			}
+		    }
 		}
 		else {
-		    for(my $i=1; $i < @infobrs; ++$i) {
-			if ( $val < $infobrs[$i] ) {
-			    $filter .= ";$infoField=[".($infobrs[$i-1]).",".($infobrs[$i]).")";
-			    last;
-			}
-		    }	    
+		    if ( $val < $infobrs[0] ) {
+			$filter .= ";$infoField=(-Inf,$infobrs[0])";
+		    }
+		    elsif ( $val >= $infobrs[$#infobrs] ) {
+			$filter .= ";$infoField=[".($infobrs[$#infobrs]).",Inf)";		    
+		    }
+		    else {
+			for(my $i=1; $i < @infobrs; ++$i) {
+			    if ( $val < $infobrs[$i] ) {
+				$filter .= ";$infoField=[".($infobrs[$i-1]).",".($infobrs[$i]).")";
+				last;
+			    }
+			}	    
+		    }
 		}
 	    }
 	    elsif ( $infoBin > 0 ) {
@@ -367,60 +278,95 @@ while(<IN>) {
     
     my @filters = split(/;/,$filter);
     unless ( defined($hcnts{$filter}) ) { # Old/New, CpG/nonCpG, Ts/Tv
-	$hcnts{$filter} = [0,0,[0,0,0,0,0,0,0,0],0];
+	$hcnts{$filter} = [0,0,[0,0,0,0,0,0,0,0],0,[0,0],[0,0]];
     }
     
     foreach my $f (@filters) {
 	unless ( defined($mcnts{$f}) ) {
-	    $mcnts{$f} = [0,0,[0,0,0,0,0,0,0,0],0];
+	    $mcnts{$f} = [0,0,[0,0,0,0,0,0,0,0],0,[0,0],[0,0]];
 	}
     }
-    
-    my $refalt = $ref.$alt;
-    my $dbsnpFlag = 0;
-    if ( ( ( $dbSNPf eq "" ) && ( $id =~ /^rs/ ) ) || ( ( $dbSNPf ne "" ) && ( defined($hdbsnps{"$chrom:$pos"}) ) ) ) {
-	++($hcnts{$filter}->[1]);
-	$dbsnpFlag = 1;
+
+    if ( length($ref) + length($alt) == 2 ) {
+	my $refalt = $ref.$alt;
+	my $dbsnpFlag = 0;
+	if ( ( ( $dbSNPf eq "" ) && ( $id =~ /^rs/ ) ) || ( ( $dbSNPf ne "" ) && ( defined($hdbsnps{"$chrom:$pos"}) ) ) ) {
+	    ++($hcnts{$filter}->[1]);
+	    $dbsnpFlag = 1;
+	    
+	    foreach my $f (@filters) {
+		++($mcnts{$f}->[1]);
+	    }
+	}
 	
+	if ( ( $refalt eq "AG" ) || ( $refalt eq "GA" ) || ( $refalt eq "TC") || ( $refalt eq "CT" ) ) {
+	    my $key = 0+(($dbsnpFlag ==1) ? 0 : 4) + ($cpg == 1 ? 2 : 0);
+	    ++($hcnts{$filter}->[2]->[$key]);
+	    
+	    foreach my $f (@filters) {
+		++($mcnts{$f}->[2]->[$key]);
+	    }
+	}
+	elsif ( ( $ref ne $alt ) && ( $refalt =~ /^[ACGT][ACGT]$/ ) ) {
+	    my $key = 1+(($dbsnpFlag ==1) ? 0 : 4) + ($cpg == 1 ? 2 : 0);
+	    ++($hcnts{$filter}->[2]->[$key]);
+	    
+	    foreach my $f (@filters) {
+		++($mcnts{$f}->[2]->[$key]);
+	    }
+	}
+	if ( defined($hFNRs{"$chrom:$pos"}) ) {
+	    ++($hcnts{$filter}->[3]);
+	    
+	    foreach my $f (@filters) {
+		++($mcnts{$f}->[3]);
+	    }
+	}
+	++($hcnts{$filter}->[0]);
 	foreach my $f (@filters) {
-	    ++($mcnts{$f}->[1]);
+	    ++($mcnts{$f}->[0]);
 	}
     }
-    
-    if ( ( $refalt eq "AG" ) || ( $refalt eq "GA" ) || ( $refalt eq "TC") || ( $refalt eq "CT" ) ) {
-	my $key = 0+(($dbsnpFlag ==1) ? 0 : 4) + ($cpg == 1 ? 2 : 0);
-	++($hcnts{$filter}->[2]->[$key]);
-	
-	foreach my $f (@filters) {
-	    ++($mcnts{$f}->[2]->[$key]);
+    elsif ( $alt =~/,/ ) {
+	my $dbsnpFlag = 0;
+	if ( ( ( $dbSNPf eq "" ) && ( $id =~ /^rs/ ) ) || ( ( $dbSNPf ne "" ) && ( defined($hdbsnps{"$chrom:$pos"}) ) ) ) {
+	    ++($hcnts{$filter}->[5]->[1]);
+	    $dbsnpFlag = 1;
+	    
+	    foreach my $f (@filters) {
+		++($mcnts{$f}->[5]->[1]);
+	    }
 	}
+	++($hcnts{$filter}->[5]->[0]);
+	foreach my $f (@filters) {	
+	    ++($mcnts{$f}->[5]->[0]);
+	}	
     }
-    elsif ( ( $ref ne $alt ) && ( $refalt =~ /^[ACGT][ACGT]$/ ) ) {
-	my $key = 1+(($dbsnpFlag ==1) ? 0 : 4) + ($cpg == 1 ? 2 : 0);
-	++($hcnts{$filter}->[2]->[$key]);
-	
-	foreach my $f (@filters) {
-	    ++($mcnts{$f}->[2]->[$key]);
+    else {
+	my $dbsnpFlag = 0;
+	if ( ( ( $dbSNPf eq "" ) && ( $id =~ /^rs/ ) ) || ( ( $dbSNPf ne "" ) && ( defined($hdbsnps{"$chrom:$pos"}) ) ) ) {
+	    ++($hcnts{$filter}->[4]->[1]);
+	    $dbsnpFlag = 1;
+	    
+	    foreach my $f (@filters) {
+		++($mcnts{$f}->[4]->[1]);
+	    }
 	}
-    }
-    if ( defined($hFNRs{"$chrom:$pos"}) ) {
-	++($hcnts{$filter}->[3]);
-	
-	foreach my $f (@filters) {
-	    ++($mcnts{$f}->[3]);
-	}
-    }
-    ++($hcnts{$filter}->[0]);
-    foreach my $f (@filters) {
-	++($mcnts{$f}->[0]);
+	++($hcnts{$filter}->[4]->[0]);
+	foreach my $f (@filters) {		
+	    ++($mcnts{$f}->[4]->[0]);	
+	}	
     }
 }
 
 close IN;
 
-my @totals = (0,0,[0,0,0,0,0,0,0,0],0);
-my @passes = (0,0,[0,0,0,0,0,0,0,0],0);
-my @fails  = (0,0,[0,0,0,0,0,0,0,0],0);
+my @totals = (0,0,[0,0,0,0,0,0,0,0],0,[0,0],[0,0]);
+my @passes = (0,0,[0,0,0,0,0,0,0,0],0,[0,0],[0,0]);
+my @fails  = (0,0,[0,0,0,0,0,0,0,0],0,[0,0],[0,0]);
+
+print "--------------------------------------------------------------------------------------------------------------\n";
+print "\t\tSNP SUMMARY\n";
 print "--------------------------------------------------------------------------------------------------------------\n";
 print sprintf("%20s","FILTER")."\t#SNPs\t#dbSNP\t%dbSNP\t%CpG\t%CpG\t%Known\t%Novel\t%nCpG-K\t%nCpG-N\t%HM3\t%HM3\n";
 print sprintf("%20s","")."\t\t\t\tKnown\tNovel\tTs/Tv\tTs/Tv\tTs/Tv\tTs/Tv\tsens\t/SNP\n";
@@ -428,12 +374,18 @@ print "-------------------------------------------------------------------------
 
 foreach my $key (sort keys %hcnts) {
     for(my $i=0; $i < @totals; ++$i) {
-	if ( ( $key eq "PASS" ) || ( $key eq "0" ) ) {
+	if ( $key =~ /PASS/ ) {
 	    if ( $i == 2 ) {
 		for(my $j=0; $j < 8; ++$j) {
 		    $passes[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
 		    $totals[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
 		}
+	    }
+	    elsif ( ( $i == 4 ) || ( $i == 5 ) ) {
+		for(my $j=0; $j < 2; ++$j) {
+		    $passes[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
+		    $totals[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
+		}		
 	    }
 	    else {
 		$passes[$i] += $hcnts{$key}->[$i];	    
@@ -447,32 +399,87 @@ foreach my $key (sort keys %hcnts) {
 		    $totals[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
 		}
 	    }
+	    elsif ( ( $i == 4 ) || ( $i == 5 ) ) {
+		for(my $j=0; $j < 2; ++$j) {
+		    $fails[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
+		    $totals[$i]->[$j] += $hcnts{$key}->[$i]->[$j];
+		}		
+	    }	    
 	    else {
 		$fails[$i] += $hcnts{$key}->[$i];	
 		$totals[$i] += $hcnts{$key}->[$i];
     	    }
 	}
     }
-    &printSummary($key,$hcnts{$key});
+    &printSNPSummary($key,$hcnts{$key});
 }
 print "--------------------------------------------------------------------------------------------------------------\n";
 print sprintf("%20s","FILTER")."\t#SNPs\t#dbSNP\t%dbSNP\t%CpG\t%CpG\t%Known\t%Novel\t%nCpG-K\t%nCpG-N\t%HM3\t%HM3\n";
 print sprintf("%20s","")."\t\t\t\tKnown\tNovel\tTs/Tv\tTs/Tv\tTs/Tv\tTs/Tv\tsens\t/SNP\n";
 print "--------------------------------------------------------------------------------------------------------------\n";
 foreach my $key (sort keys %mcnts) {
-    &printSummary($key,$mcnts{$key});
+    &printSNPSummary($key,$mcnts{$key});
 }
 print "--------------------------------------------------------------------------------------------------------------\n";
 if ( $passes[0] > 0 ) {
-    &printSummary("PASS",\@passes);
+    &printSNPSummary("PASS",\@passes);
 }
 if ( $fails[0] > 0 ) {
-    &printSummary("FAIL",\@fails);
+    &printSNPSummary("FAIL",\@fails);
 }
-&printSummary("TOTAL",\@totals);
+&printSNPSummary("TOTAL",\@totals);
 print "------------------------------------------------------------------------------------------------------------\n";
 
-sub printSummary {
+print "\n\n--------------------------------------------------------------------------------------------------------------\n";
+print "\t\tINDEL SUMMARY\n";
+print "--------------------------------------------------------------------------------------------------------------\n";
+print sprintf("%20s","FILTER")."\t#Indels\t#dbSNP\t%dbSNP\n";
+print "--------------------------------------------------------------------------------------------------------------\n";
+foreach my $key (sort keys %hcnts) {
+    &printIndelSummary($key,$hcnts{$key});
+}
+print "--------------------------------------------------------------------------------------------------------------\n";
+print sprintf("%20s","FILTER")."\t#Indels\t#dbSNP\t%dbSNP\n";
+print "--------------------------------------------------------------------------------------------------------------\n";
+foreach my $key (sort keys %mcnts) {
+    &printIndelSummary($key,$mcnts{$key});
+}
+print "--------------------------------------------------------------------------------------------------------------\n";
+if ( $passes[4]->[0] > 0 ) {
+    &printIndelSummary("PASS",\@passes);
+}
+if ( $fails[4]->[0] > 0 ) {
+    &printIndelSummary("FAIL",\@fails);
+}
+&printIndelSummary("TOTAL",\@totals);
+print "\n\n--------------------------------------------------------------------------------------------------------------\n";
+
+print "\n\n--------------------------------------------------------------------------------------------------------------\n";
+print "MULTI-ALLELIC SUMMARY\n";
+print "--------------------------------------------------------------------------------------------------------------\n";
+print sprintf("%20s","FILTER")."\t#Indels\t#dbSNP\t%dbSNP\n";
+print "--------------------------------------------------------------------------------------------------------------\n";
+foreach my $key (sort keys %hcnts) {
+    &printMultiSummary($key,$hcnts{$key});
+}
+print "--------------------------------------------------------------------------------------------------------------\n";
+print sprintf("%20s","FILTER")."\t#Indels\t#dbSNP\t%dbSNP\n";
+print "--------------------------------------------------------------------------------------------------------------\n";
+foreach my $key (sort keys %mcnts) {
+    &printMultiSummary($key,$mcnts{$key});
+}
+print "--------------------------------------------------------------------------------------------------------------\n";
+if ( $passes[4]->[0] > 0 ) {
+    &printMultiSummary("PASS",\@passes);
+}
+if ( $fails[4]->[0] > 0 ) {
+    &printMultiSummary("FAIL",\@fails);
+}
+&printMultiSummary("TOTAL",\@totals);
+print "\n\n--------------------------------------------------------------------------------------------------------------\n";
+
+
+sub printSNPSummary {
     my ($key,$r) = @_;
     my ($a,$b,$c,$d,$e,$f,$g,$h) = @{$r->[2]};
     my $s = $a+$b+$c+$d+$e+$f+$g+$h;
@@ -486,6 +493,26 @@ sub printSummary {
     print ( ($f == 0) ? "\tNA" : sprintf("\t%.2lf",($e)/($f)) );
     printf("\t%.3lf",100*($r->[3]/($nFNR+1e-6)));
     printf("\t%.3lf\n",100*($r->[3]/($r->[0]+1e-6)));
+}
+
+sub printIndelSummary {
+    my ($key,$r) = @_;
+    my ($a,$b) = @{$r->[4]};
+    #print STDERR "$key\t$r->[0]\t$s\t".join("\t",@{$r->[2]})."\n" if ( $key eq "TOTAL" );
+    if ( $a > 0 ) {
+	print sprintf("%20s",$key)."\t".($a)."\t".($b)."\t".sprintf("%.1lf",$b*100/($a+1e-10));
+	print "\n";
+    }
+}
+
+sub printMultiSummary {
+    my ($key,$r) = @_;
+    my ($a,$b) = @{$r->[5]};
+    #print STDERR "$key\t$r->[0]\t$s\t".join("\t",@{$r->[2]})."\n" if ( $key eq "TOTAL" );
+    if ( $a > 0 ) {
+	print sprintf("%20s",$key)."\t".($a)."\t".($b)."\t".sprintf("%.1lf",$b*100/($a+1e-10));
+	print "\n";
+    }
 }
 
 sub getCpGs {
