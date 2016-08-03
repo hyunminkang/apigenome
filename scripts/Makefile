@@ -80,12 +80,12 @@ SCRIPTS = $(dist_bin_SCRIPTS)
 SOURCES =
 DIST_SOURCES =
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/hmkang/code/working/apigenome/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
 AR = ar
-AUTOCONF = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/hmkang/code/working/apigenome/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/hmkang/code/working/apigenome/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/hmkang/code/working/apigenome/missing --run automake-1.11
 AWK = gawk
 CAT_CHECK = yes
 CC = gcc
@@ -110,6 +110,8 @@ ECHO_N = -n
 ECHO_T = 
 EGREP = /bin/grep -E
 EXEEXT = 
+F77 = gfortran
+FFLAGS = -g -O2
 FGREP = /bin/grep -F
 GNUPLOT_CHECK = yes
 GREP = /bin/grep
@@ -130,7 +132,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/hmkang/code/working/apigenome/missing --run makeinfo
 MAKE_CHECK = yes
 MANIFEST_TOOL = :
 MKDIR_CHECK = yes
@@ -164,14 +166,15 @@ SORT_CHECK = yes
 STRIP = strip
 VERSION = 0.0.3
 ZCAT_CHECK = yes
-abs_builddir = /home/hmkang/code/working/apigenome.master/scripts
-abs_srcdir = /home/hmkang/code/working/apigenome.master/scripts
-abs_top_builddir = /home/hmkang/code/working/apigenome.master
-abs_top_srcdir = /home/hmkang/code/working/apigenome.master
+abs_builddir = /home/hmkang/code/working/apigenome/scripts
+abs_srcdir = /home/hmkang/code/working/apigenome/scripts
+abs_top_builddir = /home/hmkang/code/working/apigenome
+abs_top_srcdir = /home/hmkang/code/working/apigenome
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 ac_ct_DUMPBIN = 
+ac_ct_F77 = gfortran
 am__include = include
 am__leading_dot = .
 am__quote = 
@@ -197,7 +200,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/hmkang/code/working/apigenome.master/install-sh
+install_sh = ${SHELL} /home/hmkang/code/working/apigenome/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -229,17 +232,20 @@ dist_bin_SCRIPTS = \
 	count-dropseq-unit \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
-	dropseq-kalisto \
+	dropseq-kallisto \
 	demux-fastq \
+	gene-conv-names \
 	gtf2GenePred \
 	inspect-sv \
         merge-fastq \
+	merge-tsv-generic \
 	now-seq-each \
 	now-seq-batch \
 	paste-pileup-pro \
 	pileup-pro \
 	rev-trim \
 	run-make \
+	tsv-join \
 	vcf-delta-svm \
 	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \

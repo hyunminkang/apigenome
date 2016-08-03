@@ -16,6 +16,7 @@ AC_DISABLE_STATIC
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
+AC_PROG_F77
 
 # Checks for libraries.
 
@@ -156,4 +157,4 @@ if test x"$GNUPLOT_CHECK" != x"yes" ; then
    AC_MSG_ERROR([Please install gnuplot at http://sourceforge.net/projects/gnuplot/files/ before installing.])
 fi
 
-AC_OUTPUT(Makefile htslib/Makefile src/Makefile scripts/Makefile data/Makefile)
+AC_OUTPUT(Makefile libnmf/Makefile htslib/Makefile src/Makefile scripts/Makefile data/Makefile)

@@ -1,7 +1,7 @@
 # This Makefile is for the YAML::AppConfig extension to perl.
 #
 # It was generated automatically by MakeMaker version
-# 6.57_05 (Revision: 65705) from the contents of
+# 7.1 (Revision: 71000) from the contents of
 # Makefile.PL. Don't edit this file, edit Makefile.PL instead.
 #
 #       ANY CHANGES MADE HERE WILL BE LOST!
@@ -13,12 +13,14 @@
 
 #     ABSTRACT_FROM => q[lib/YAML/AppConfig.pm]
 #     AUTHOR => [q[Matthew O'Connor <matthew@canonical.org>]]
-#     BUILD_REQUIRES => { Test::More=>q[0] }
+#     BUILD_REQUIRES => {  }
+#     CONFIGURE_REQUIRES => {  }
 #     LICENSE => q[perl_5]
-#     META_MERGE => { resources=>{ repository=>{ web=>q[https://github.com/Xaerxess/YAML-AppConfig], url=>q[git://github.com/Xaerxess/YAML-AppConfig.git], type=>q[git] }, bugtracker=>{ web=>q[https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig] } }, meta-spec=>{ version=>q[2] } }
+#     META_MERGE => { meta-spec=>{ version=>q[2] }, resources=>{ bugtracker=>{ web=>q[https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig] }, repository=>{ type=>q[git], url=>q[git://github.com/Xaerxess/YAML-AppConfig.git], web=>q[https://github.com/Xaerxess/YAML-AppConfig] } } }
 #     MIN_PERL_VERSION => q[5.006000]
 #     NAME => q[YAML::AppConfig]
-#     PREREQ_PM => { Test::More=>q[0], strict=>q[0], warnings=>q[0], YAML=>q[0.38], Storable=>q[0], YAML::Syck=>q[0], Carp=>q[0] }
+#     PREREQ_PM => { Carp=>q[0], Storable=>q[0], Test::More=>q[0], YAML=>q[0.38], YAML::Syck=>q[0], strict=>q[0], warnings=>q[0] }
+#     TEST_REQUIRES => { Test::More=>q[0] }
 #     VERSION_FROM => q[lib/YAML/AppConfig.pm]
 #     test => { TESTS=>q[t/*.t] }
 
@@ -44,7 +46,7 @@ LIBC =
 LIB_EXT = .a
 OBJ_EXT = .o
 OSNAME = linux
-OSVERS = 2.6.42-37-generic
+OSVERS = 2.6.53-79-generic
 RANLIB = :
 SITELIBEXP = /usr/local/share/perl/5.14.2
 SITEARCHEXP = /usr/local/lib/perl/5.14.2
@@ -116,14 +118,16 @@ INSTALLVENDORMAN3DIR = $(INSTALL_BASE)/man/man3
 DESTINSTALLVENDORMAN3DIR = $(DESTDIR)$(INSTALLVENDORMAN3DIR)
 PERL_LIB = /usr/share/perl/5.14
 PERL_ARCHLIB = /usr/lib/perl/5.14
+PERL_ARCHLIBDEP = /usr/lib/perl/5.14
 LIBPERL_A = libperl.a
 FIRST_MAKEFILE = Makefile
 MAKEFILE_OLD = Makefile.old
 MAKE_APERL_FILE = Makefile.aperl
 PERLMAINCC = $(CC)
 PERL_INC = /usr/lib/perl/5.14/CORE
-PERL = /usr/bin/perl
-FULLPERL = /usr/bin/perl
+PERL_INCDEP = /usr/lib/perl/5.14/CORE
+PERL = "/usr/bin/perl"
+FULLPERL = "/usr/bin/perl"
 ABSPERL = $(PERL)
 PERLRUN = $(PERL)
 FULLPERLRUN = $(FULLPERL)
@@ -136,9 +140,9 @@ PERM_DIR = 755
 PERM_RW = 644
 PERM_RWX = 755
 
-MAKEMAKER   = /usr/share/perl/5.14/ExtUtils/MakeMaker.pm
-MM_VERSION  = 6.57_05
-MM_REVISION = 65705
+MAKEMAKER   = /usr/cluster/software/precise/perl/5.14.2/lib/perl5/ExtUtils/MakeMaker.pm
+MM_VERSION  = 7.1
+MM_REVISION = 71000
 
 # FULLEXT = Pathname for extension directory (eg Foo/Bar/Oracle).
 # BASEEXT = Basename part of FULLEXT. May be just equal FULLEXT. (eg Oracle)
@@ -164,7 +168,7 @@ MAN1PODS =
 MAN3PODS = lib/YAML/AppConfig.pm
 
 # Where is the Config information that we are using/depend on
-CONFIGDEP = $(PERL_ARCHLIB)$(DFSEP)Config.pm $(PERL_INC)$(DFSEP)config.h
+CONFIGDEP = $(PERL_ARCHLIBDEP)$(DFSEP)Config.pm $(PERL_INCDEP)$(DFSEP)config.h
 
 # Where to build things
 INST_LIBDIR      = $(INST_LIB)/YAML
@@ -180,6 +184,7 @@ INST_BOOT        =
 # Extra linker info
 EXPORT_LIST        = 
 PERL_ARCHIVE       = 
+PERL_ARCHIVEDEP    = 
 PERL_ARCHIVE_AFTER = 
 
 
@@ -190,13 +195,13 @@ PM_TO_BLIB = lib/YAML/AppConfig.pm \
 
 
 # --- MakeMaker platform_constants section:
-MM_Unix_VERSION = 6.57_05
+MM_Unix_VERSION = 7.1
 PERL_MALLOC_DEF = -DPERL_EXTMALLOC_DEF -Dmalloc=Perl_malloc -Dfree=Perl_mfree -Drealloc=Perl_realloc -Dcalloc=Perl_calloc
 
 
 # --- MakeMaker tool_autosplit section:
 # Usage: $(AUTOSPLITFILE) FileToSplit AutoDirToSplitInto
-AUTOSPLITFILE = $(ABSPERLRUN)  -e 'use AutoSplit;  autosplit($$ARGV[0], $$ARGV[1], 0, 1, 1)' --
+AUTOSPLITFILE = $(ABSPERLRUN)  -e 'use AutoSplit;  autosplit($$$$ARGV[0], $$$$ARGV[1], 0, 1, 1)' --
 
 
 
@@ -232,6 +237,7 @@ MACROSTART =
 MACROEND = 
 USEMAKEFILE = -f
 FIXIN = $(ABSPERLRUN) -MExtUtils::MY -e 'MY->fixin(shift)' --
+CP_NONEMPTY = $(ABSPERLRUN) -MExtUtils::Command::MM -e 'cp_nonempty' --
 
 
 # --- MakeMaker makemakerdflt section:
@@ -377,15 +383,15 @@ linkext :: $(LINKTYPE)
 # --- MakeMaker dlsyms section:
 
 
-# --- MakeMaker dynamic section:
-
-dynamic :: $(FIRST_MAKEFILE) $(INST_DYNAMIC) $(INST_BOOT)
-	$(NOECHO) $(NOOP)
-
-
 # --- MakeMaker dynamic_bs section:
 
 BOOTSTRAP =
+
+
+# --- MakeMaker dynamic section:
+
+dynamic :: $(FIRST_MAKEFILE) $(BOOTSTRAP) $(INST_DYNAMIC)
+	$(NOECHO) $(NOOP)
 
 
 # --- MakeMaker dynamic_lib section:
@@ -410,7 +416,7 @@ POD2MAN = $(POD2MAN_EXE)
 
 manifypods : pure_all  \
 	lib/YAML/AppConfig.pm
-	$(NOECHO) $(POD2MAN) --section=$(MAN3EXT) --perm_rw=$(PERM_RW) \
+	$(NOECHO) $(POD2MAN) --section=3 --perm_rw=$(PERM_RW) -u \
 	  lib/YAML/AppConfig.pm $(INST_MAN3DIR)/YAML::AppConfig.$(MAN3EXT) 
 
 
@@ -438,23 +444,25 @@ clean_subdirs :
 
 clean :: clean_subdirs
 	- $(RM_F) \
-	  *$(LIB_EXT) core \
-	  core.[0-9] $(INST_ARCHAUTODIR)/extralibs.all \
-	  core.[0-9][0-9] $(BASEEXT).bso \
-	  pm_to_blib.ts core.[0-9][0-9][0-9][0-9] \
-	  MYMETA.yml $(BASEEXT).x \
-	  $(BOOTSTRAP) perl$(EXE_EXT) \
-	  tmon.out *$(OBJ_EXT) \
-	  pm_to_blib $(INST_ARCHAUTODIR)/extralibs.ld \
-	  blibdirs.ts core.[0-9][0-9][0-9][0-9][0-9] \
-	  *perl.core core.*perl.*.? \
-	  $(MAKE_APERL_FILE) $(BASEEXT).def \
-	  perl core.[0-9][0-9][0-9] \
-	  mon.out lib$(BASEEXT).def \
-	  perlmain.c perl.exe \
-	  so_locations $(BASEEXT).exp 
+	  $(BASEEXT).bso $(BASEEXT).def \
+	  $(BASEEXT).exp $(BASEEXT).x \
+	  $(BOOTSTRAP) $(INST_ARCHAUTODIR)/extralibs.all \
+	  $(INST_ARCHAUTODIR)/extralibs.ld $(MAKE_APERL_FILE) \
+	  *$(LIB_EXT) *$(OBJ_EXT) \
+	  *perl.core MYMETA.json \
+	  MYMETA.yml blibdirs.ts \
+	  core core.*perl.*.? \
+	  core.[0-9] core.[0-9][0-9] \
+	  core.[0-9][0-9][0-9] core.[0-9][0-9][0-9][0-9] \
+	  core.[0-9][0-9][0-9][0-9][0-9] lib$(BASEEXT).def \
+	  mon.out perl \
+	  perl$(EXE_EXT) perl.exe \
+	  perlmain.c pm_to_blib \
+	  pm_to_blib.ts so_locations \
+	  tmon.out 
 	- $(RM_RF) \
 	  blib 
+	  $(NOECHO) $(RM_F) $(MAKEFILE_OLD)
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
 
 
@@ -475,42 +483,105 @@ realclean purge ::  clean realclean_subdirs
 # --- MakeMaker metafile section:
 metafile : create_distdir
 	$(NOECHO) $(ECHO) Generating META.yml
-	$(NOECHO) $(ECHO) '--- #YAML:1.0' > META_new.yml
-	$(NOECHO) $(ECHO) 'name:               YAML-AppConfig' >> META_new.yml
-	$(NOECHO) $(ECHO) 'version:            0.19' >> META_new.yml
-	$(NOECHO) $(ECHO) 'abstract:           Manage configuration files with YAML and variable references.' >> META_new.yml
+	$(NOECHO) $(ECHO) '---' > META_new.yml
+	$(NOECHO) $(ECHO) 'abstract: '\''Manage configuration files with YAML and variable references.'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) 'author:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    - Matthew O'\''Connor <matthew@canonical.org>' >> META_new.yml
-	$(NOECHO) $(ECHO) 'license:            perl_5' >> META_new.yml
-	$(NOECHO) $(ECHO) 'distribution_type:  module' >> META_new.yml
-	$(NOECHO) $(ECHO) 'configure_requires:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    ExtUtils::MakeMaker:  0' >> META_new.yml
+	$(NOECHO) $(ECHO) '  - "Matthew O'\''Connor <matthew@canonical.org>"' >> META_new.yml
 	$(NOECHO) $(ECHO) 'build_requires:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    Test::More:  0' >> META_new.yml
-	$(NOECHO) $(ECHO) 'requires:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    Carp:        0' >> META_new.yml
-	$(NOECHO) $(ECHO) '    perl:        5.006000' >> META_new.yml
-	$(NOECHO) $(ECHO) '    Storable:    0' >> META_new.yml
-	$(NOECHO) $(ECHO) '    strict:      0' >> META_new.yml
-	$(NOECHO) $(ECHO) '    warnings:    0' >> META_new.yml
-	$(NOECHO) $(ECHO) '    YAML:        0.38' >> META_new.yml
-	$(NOECHO) $(ECHO) '    YAML::Syck:  0' >> META_new.yml
-	$(NOECHO) $(ECHO) 'resources:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    bugtracker:' >> META_new.yml
-	$(NOECHO) $(ECHO) '        web:  https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig' >> META_new.yml
-	$(NOECHO) $(ECHO) '    repository:' >> META_new.yml
-	$(NOECHO) $(ECHO) '        type:  git' >> META_new.yml
-	$(NOECHO) $(ECHO) '        url:   git://github.com/Xaerxess/YAML-AppConfig.git' >> META_new.yml
-	$(NOECHO) $(ECHO) '        web:   https://github.com/Xaerxess/YAML-AppConfig' >> META_new.yml
-	$(NOECHO) $(ECHO) 'no_index:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    directory:' >> META_new.yml
-	$(NOECHO) $(ECHO) '        - t' >> META_new.yml
-	$(NOECHO) $(ECHO) '        - inc' >> META_new.yml
-	$(NOECHO) $(ECHO) 'generated_by:       ExtUtils::MakeMaker version 6.57_05' >> META_new.yml
+	$(NOECHO) $(ECHO) '  ExtUtils::MakeMaker: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  Test::More: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'configure_requires:' >> META_new.yml
+	$(NOECHO) $(ECHO) '  ExtUtils::MakeMaker: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'dynamic_config: 1' >> META_new.yml
+	$(NOECHO) $(ECHO) 'generated_by: '\''ExtUtils::MakeMaker version 7.1, CPAN::Meta::Converter version 2.150005'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'license: perl' >> META_new.yml
 	$(NOECHO) $(ECHO) 'meta-spec:' >> META_new.yml
-	$(NOECHO) $(ECHO) '    url:      http://module-build.sourceforge.net/META-spec-v1.4.html' >> META_new.yml
-	$(NOECHO) $(ECHO) '    version:  2' >> META_new.yml
+	$(NOECHO) $(ECHO) '  url: http://module-build.sourceforge.net/META-spec-v1.4.html' >> META_new.yml
+	$(NOECHO) $(ECHO) '  version: '\''1.4'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'name: YAML-AppConfig' >> META_new.yml
+	$(NOECHO) $(ECHO) 'no_index:' >> META_new.yml
+	$(NOECHO) $(ECHO) '  directory:' >> META_new.yml
+	$(NOECHO) $(ECHO) '    - t' >> META_new.yml
+	$(NOECHO) $(ECHO) '    - inc' >> META_new.yml
+	$(NOECHO) $(ECHO) 'requires:' >> META_new.yml
+	$(NOECHO) $(ECHO) '  Carp: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  Storable: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  YAML: '\''0.38'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  YAML::Syck: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  perl: '\''5.006000'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  strict: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) '  warnings: '\''0'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'resources:' >> META_new.yml
+	$(NOECHO) $(ECHO) '  bugtracker: https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig' >> META_new.yml
+	$(NOECHO) $(ECHO) '  repository: git://github.com/Xaerxess/YAML-AppConfig.git' >> META_new.yml
+	$(NOECHO) $(ECHO) 'version: '\''0.19'\''' >> META_new.yml
+	$(NOECHO) $(ECHO) 'x_serialization_backend: '\''CPAN::Meta::YAML version 0.018'\''' >> META_new.yml
 	-$(NOECHO) $(MV) META_new.yml $(DISTVNAME)/META.yml
+	$(NOECHO) $(ECHO) Generating META.json
+	$(NOECHO) $(ECHO) '{' > META_new.json
+	$(NOECHO) $(ECHO) '   "abstract" : "Manage configuration files with YAML and variable references.",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "author" : [' >> META_new.json
+	$(NOECHO) $(ECHO) '      "Matthew O'\''Connor <matthew@canonical.org>"' >> META_new.json
+	$(NOECHO) $(ECHO) '   ],' >> META_new.json
+	$(NOECHO) $(ECHO) '   "dynamic_config" : 1,' >> META_new.json
+	$(NOECHO) $(ECHO) '   "generated_by" : "ExtUtils::MakeMaker version 7.1, CPAN::Meta::Converter version 2.150005",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "license" : [' >> META_new.json
+	$(NOECHO) $(ECHO) '      "perl_5"' >> META_new.json
+	$(NOECHO) $(ECHO) '   ],' >> META_new.json
+	$(NOECHO) $(ECHO) '   "meta-spec" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",' >> META_new.json
+	$(NOECHO) $(ECHO) '      "version" : "2"' >> META_new.json
+	$(NOECHO) $(ECHO) '   },' >> META_new.json
+	$(NOECHO) $(ECHO) '   "name" : "YAML-AppConfig",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "no_index" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '      "directory" : [' >> META_new.json
+	$(NOECHO) $(ECHO) '         "t",' >> META_new.json
+	$(NOECHO) $(ECHO) '         "inc"' >> META_new.json
+	$(NOECHO) $(ECHO) '      ]' >> META_new.json
+	$(NOECHO) $(ECHO) '   },' >> META_new.json
+	$(NOECHO) $(ECHO) '   "prereqs" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '      "build" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '         "requires" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '            "ExtUtils::MakeMaker" : "0"' >> META_new.json
+	$(NOECHO) $(ECHO) '         }' >> META_new.json
+	$(NOECHO) $(ECHO) '      },' >> META_new.json
+	$(NOECHO) $(ECHO) '      "configure" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '         "requires" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '            "ExtUtils::MakeMaker" : "0"' >> META_new.json
+	$(NOECHO) $(ECHO) '         }' >> META_new.json
+	$(NOECHO) $(ECHO) '      },' >> META_new.json
+	$(NOECHO) $(ECHO) '      "runtime" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '         "requires" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '            "Carp" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "Storable" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "YAML" : "0.38",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "YAML::Syck" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "perl" : "5.006000",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "strict" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "warnings" : "0"' >> META_new.json
+	$(NOECHO) $(ECHO) '         }' >> META_new.json
+	$(NOECHO) $(ECHO) '      },' >> META_new.json
+	$(NOECHO) $(ECHO) '      "test" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '         "requires" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '            "Test::More" : "0"' >> META_new.json
+	$(NOECHO) $(ECHO) '         }' >> META_new.json
+	$(NOECHO) $(ECHO) '      }' >> META_new.json
+	$(NOECHO) $(ECHO) '   },' >> META_new.json
+	$(NOECHO) $(ECHO) '   "release_status" : "stable",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "resources" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '      "bugtracker" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '         "web" : "https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig"' >> META_new.json
+	$(NOECHO) $(ECHO) '      },' >> META_new.json
+	$(NOECHO) $(ECHO) '      "repository" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '         "type" : "git",' >> META_new.json
+	$(NOECHO) $(ECHO) '         "url" : "git://github.com/Xaerxess/YAML-AppConfig.git",' >> META_new.json
+	$(NOECHO) $(ECHO) '         "web" : "https://github.com/Xaerxess/YAML-AppConfig"' >> META_new.json
+	$(NOECHO) $(ECHO) '      }' >> META_new.json
+	$(NOECHO) $(ECHO) '   },' >> META_new.json
+	$(NOECHO) $(ECHO) '   "version" : "0.19",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "x_serialization_backend" : "JSON::PP version 2.27300"' >> META_new.json
+	$(NOECHO) $(ECHO) '}' >> META_new.json
+	-$(NOECHO) $(MV) META_new.json $(DISTVNAME)/META.json
 
 
 # --- MakeMaker signature section:
@@ -532,7 +603,7 @@ manifest :
 	$(PERLRUN) "-MExtUtils::Manifest=mkmanifest" -e mkmanifest
 
 veryclean : realclean
-	$(RM_F) *~ */*~ *.orig */*.orig *.bak */*.bak *.old */*.old 
+	$(RM_F) *~ */*~ *.orig */*.orig *.bak */*.bak *.old */*.old
 
 
 
@@ -547,6 +618,7 @@ tardist : $(DISTVNAME).tar$(SUFFIX)
 
 uutardist : $(DISTVNAME).tar$(SUFFIX)
 	uuencode $(DISTVNAME).tar$(SUFFIX) $(DISTVNAME).tar$(SUFFIX) > $(DISTVNAME).tar$(SUFFIX)_uu
+	$(NOECHO) $(ECHO) 'Created $(DISTVNAME).tar$(SUFFIX)_uu'
 
 $(DISTVNAME).tar$(SUFFIX) : distdir
 	$(PREOP)
@@ -554,6 +626,7 @@ $(DISTVNAME).tar$(SUFFIX) : distdir
 	$(TAR) $(TARFLAGS) $(DISTVNAME).tar $(DISTVNAME)
 	$(RM_RF) $(DISTVNAME)
 	$(COMPRESS) $(DISTVNAME).tar
+	$(NOECHO) $(ECHO) 'Created $(DISTVNAME).tar$(SUFFIX)'
 	$(POSTOP)
 
 zipdist : $(DISTVNAME).zip
@@ -563,12 +636,14 @@ $(DISTVNAME).zip : distdir
 	$(PREOP)
 	$(ZIP) $(ZIPFLAGS) $(DISTVNAME).zip $(DISTVNAME)
 	$(RM_RF) $(DISTVNAME)
+	$(NOECHO) $(ECHO) 'Created $(DISTVNAME).zip'
 	$(POSTOP)
 
 shdist : distdir
 	$(PREOP)
 	$(SHAR) $(DISTVNAME) > $(DISTVNAME).shar
 	$(RM_RF) $(DISTVNAME)
+	$(NOECHO) $(ECHO) 'Created $(DISTVNAME).shar'
 	$(POSTOP)
 
 
@@ -592,25 +667,29 @@ disttest : distdir
 
 
 # --- MakeMaker dist_ci section:
-
 ci :
-	$(PERLRUN) "-MExtUtils::Manifest=maniread" \
-	  -e "@all = keys %{ maniread() };" \
-	  -e "print(qq{Executing $(CI) @all\n}); system(qq{$(CI) @all});" \
-	  -e "print(qq{Executing $(RCS_LABEL) ...\n}); system(qq{$(RCS_LABEL) @all});"
+	$(ABSPERLRUN) -MExtUtils::Manifest=maniread -e '@all = sort keys %{ maniread() };' \
+	  -e 'print(qq{Executing $(CI) @all\n});' \
+	  -e 'system(qq{$(CI) @all}) == 0 or die $$!;' \
+	  -e 'print(qq{Executing $(RCS_LABEL) ...\n});' \
+	  -e 'system(qq{$(RCS_LABEL) @all}) == 0 or die $$!;' --
 
 
 # --- MakeMaker distmeta section:
 distmeta : create_distdir metafile
-	$(NOECHO) cd $(DISTVNAME) && $(ABSPERLRUN) -MExtUtils::Manifest=maniadd -e 'eval { maniadd({q{META.yml} => q{Module meta-data (added by MakeMaker)}}) } ' \
-	  -e '    or print "Could not add META.yml to MANIFEST: $${'\''@'\''}\n"' --
+	$(NOECHO) cd $(DISTVNAME) && $(ABSPERLRUN) -MExtUtils::Manifest=maniadd -e 'exit unless -e q{META.yml};' \
+	  -e 'eval { maniadd({q{META.yml} => q{Module YAML meta-data (added by MakeMaker)}}) }' \
+	  -e '    or print "Could not add META.yml to MANIFEST: $$$${'\''@'\''}\n"' --
+	$(NOECHO) cd $(DISTVNAME) && $(ABSPERLRUN) -MExtUtils::Manifest=maniadd -e 'exit unless -f q{META.json};' \
+	  -e 'eval { maniadd({q{META.json} => q{Module JSON meta-data (added by MakeMaker)}}) }' \
+	  -e '    or print "Could not add META.json to MANIFEST: $$$${'\''@'\''}\n"' --
 
 
 
 # --- MakeMaker distsignature section:
-distsignature : create_distdir
-	$(NOECHO) cd $(DISTVNAME) && $(ABSPERLRUN) -MExtUtils::Manifest=maniadd -e 'eval { maniadd({q{SIGNATURE} => q{Public-key signature (added by MakeMaker)}}) } ' \
-	  -e '    or print "Could not add SIGNATURE to MANIFEST: $${'\''@'\''}\n"' --
+distsignature : distmeta
+	$(NOECHO) cd $(DISTVNAME) && $(ABSPERLRUN) -MExtUtils::Manifest=maniadd -e 'eval { maniadd({q{SIGNATURE} => q{Public-key signature (added by MakeMaker)}}) }' \
+	  -e '    or print "Could not add SIGNATURE to MANIFEST: $$$${'\''@'\''}\n"' --
 	$(NOECHO) cd $(DISTVNAME) && $(TOUCH) SIGNATURE
 	cd $(DISTVNAME) && cpansign -s
 
@@ -643,65 +722,89 @@ doc__install : doc_site_install
 	$(NOECHO) $(ECHO) INSTALLDIRS not defined, defaulting to INSTALLDIRS=site
 
 pure_perl_install :: all
-	$(NOECHO) umask 022; $(MOD_INSTALL) \
-		$(INST_LIB) $(DESTINSTALLPRIVLIB) \
-		$(INST_ARCHLIB) $(DESTINSTALLARCHLIB) \
-		$(INST_BIN) $(DESTINSTALLBIN) \
-		$(INST_SCRIPT) $(DESTINSTALLSCRIPT) \
-		$(INST_MAN1DIR) $(DESTINSTALLMAN1DIR) \
-		$(INST_MAN3DIR) $(DESTINSTALLMAN3DIR)
+	$(NOECHO) $(MOD_INSTALL) \
+		read "$(PERL_ARCHLIB)/auto/$(FULLEXT)/.packlist" \
+		write "$(DESTINSTALLARCHLIB)/auto/$(FULLEXT)/.packlist" \
+		"$(INST_LIB)" "$(DESTINSTALLPRIVLIB)" \
+		"$(INST_ARCHLIB)" "$(DESTINSTALLARCHLIB)" \
+		"$(INST_BIN)" "$(DESTINSTALLBIN)" \
+		"$(INST_SCRIPT)" "$(DESTINSTALLSCRIPT)" \
+		"$(INST_MAN1DIR)" "$(DESTINSTALLMAN1DIR)" \
+		"$(INST_MAN3DIR)" "$(DESTINSTALLMAN3DIR)"
 	$(NOECHO) $(WARN_IF_OLD_PACKLIST) \
-		$(SITEARCHEXP)/auto/$(FULLEXT)
+		"$(SITEARCHEXP)/auto/$(FULLEXT)"
 
 
 pure_site_install :: all
-	$(NOECHO) umask 02; $(MOD_INSTALL) \
-		read $(SITEARCHEXP)/auto/$(FULLEXT)/.packlist \
-		write $(DESTINSTALLSITEARCH)/auto/$(FULLEXT)/.packlist \
-		$(INST_LIB) $(DESTINSTALLSITELIB) \
-		$(INST_ARCHLIB) $(DESTINSTALLSITEARCH) \
-		$(INST_BIN) $(DESTINSTALLSITEBIN) \
-		$(INST_SCRIPT) $(DESTINSTALLSITESCRIPT) \
-		$(INST_MAN1DIR) $(DESTINSTALLSITEMAN1DIR) \
-		$(INST_MAN3DIR) $(DESTINSTALLSITEMAN3DIR)
+	$(NOECHO) $(MOD_INSTALL) \
+		read "$(SITEARCHEXP)/auto/$(FULLEXT)/.packlist" \
+		write "$(DESTINSTALLSITEARCH)/auto/$(FULLEXT)/.packlist" \
+		"$(INST_LIB)" "$(DESTINSTALLSITELIB)" \
+		"$(INST_ARCHLIB)" "$(DESTINSTALLSITEARCH)" \
+		"$(INST_BIN)" "$(DESTINSTALLSITEBIN)" \
+		"$(INST_SCRIPT)" "$(DESTINSTALLSITESCRIPT)" \
+		"$(INST_MAN1DIR)" "$(DESTINSTALLSITEMAN1DIR)" \
+		"$(INST_MAN3DIR)" "$(DESTINSTALLSITEMAN3DIR)"
 	$(NOECHO) $(WARN_IF_OLD_PACKLIST) \
-		$(PERL_ARCHLIB)/auto/$(FULLEXT)
+		"$(PERL_ARCHLIB)/auto/$(FULLEXT)"
 
 pure_vendor_install :: all
-	$(NOECHO) umask 022; $(MOD_INSTALL) \
-		$(INST_LIB) $(DESTINSTALLVENDORLIB) \
-		$(INST_ARCHLIB) $(DESTINSTALLVENDORARCH) \
-		$(INST_BIN) $(DESTINSTALLVENDORBIN) \
-		$(INST_SCRIPT) $(DESTINSTALLVENDORSCRIPT) \
-		$(INST_MAN1DIR) $(DESTINSTALLVENDORMAN1DIR) \
-		$(INST_MAN3DIR) $(DESTINSTALLVENDORMAN3DIR)
+	$(NOECHO) $(MOD_INSTALL) \
+		read "$(VENDORARCHEXP)/auto/$(FULLEXT)/.packlist" \
+		write "$(DESTINSTALLVENDORARCH)/auto/$(FULLEXT)/.packlist" \
+		"$(INST_LIB)" "$(DESTINSTALLVENDORLIB)" \
+		"$(INST_ARCHLIB)" "$(DESTINSTALLVENDORARCH)" \
+		"$(INST_BIN)" "$(DESTINSTALLVENDORBIN)" \
+		"$(INST_SCRIPT)" "$(DESTINSTALLVENDORSCRIPT)" \
+		"$(INST_MAN1DIR)" "$(DESTINSTALLVENDORMAN1DIR)" \
+		"$(INST_MAN3DIR)" "$(DESTINSTALLVENDORMAN3DIR)"
+
 
 doc_perl_install :: all
-
-doc_site_install :: all
-	$(NOECHO) $(ECHO) Appending installation info to $(DESTINSTALLSITEARCH)/perllocal.pod
-	-$(NOECHO) umask 02; $(MKPATH) $(DESTINSTALLSITEARCH)
-	-$(NOECHO) umask 02; $(DOC_INSTALL) \
+	$(NOECHO) $(ECHO) Appending installation info to "$(DESTINSTALLARCHLIB)/perllocal.pod"
+	-$(NOECHO) $(MKPATH) "$(DESTINSTALLARCHLIB)"
+	-$(NOECHO) $(DOC_INSTALL) \
 		"Module" "$(NAME)" \
-		"installed into" "$(INSTALLSITELIB)" \
+		"installed into" $(INSTALLPRIVLIB) \
 		LINKTYPE "$(LINKTYPE)" \
 		VERSION "$(VERSION)" \
 		EXE_FILES "$(EXE_FILES)" \
-		>> $(DESTINSTALLSITEARCH)/perllocal.pod
+		>> "$(DESTINSTALLARCHLIB)/perllocal.pod"
+
+doc_site_install :: all
+	$(NOECHO) $(ECHO) Appending installation info to "$(DESTINSTALLARCHLIB)/perllocal.pod"
+	-$(NOECHO) $(MKPATH) "$(DESTINSTALLARCHLIB)"
+	-$(NOECHO) $(DOC_INSTALL) \
+		"Module" "$(NAME)" \
+		"installed into" $(INSTALLSITELIB) \
+		LINKTYPE "$(LINKTYPE)" \
+		VERSION "$(VERSION)" \
+		EXE_FILES "$(EXE_FILES)" \
+		>> "$(DESTINSTALLARCHLIB)/perllocal.pod"
 
 doc_vendor_install :: all
+	$(NOECHO) $(ECHO) Appending installation info to "$(DESTINSTALLARCHLIB)/perllocal.pod"
+	-$(NOECHO) $(MKPATH) "$(DESTINSTALLARCHLIB)"
+	-$(NOECHO) $(DOC_INSTALL) \
+		"Module" "$(NAME)" \
+		"installed into" $(INSTALLVENDORLIB) \
+		LINKTYPE "$(LINKTYPE)" \
+		VERSION "$(VERSION)" \
+		EXE_FILES "$(EXE_FILES)" \
+		>> "$(DESTINSTALLARCHLIB)/perllocal.pod"
 
 
 uninstall :: uninstall_from_$(INSTALLDIRS)dirs
 	$(NOECHO) $(NOOP)
 
 uninstall_from_perldirs ::
+	$(NOECHO) $(UNINSTALL) "$(PERL_ARCHLIB)/auto/$(FULLEXT)/.packlist"
 
 uninstall_from_sitedirs ::
-	$(NOECHO) $(UNINSTALL) $(SITEARCHEXP)/auto/$(FULLEXT)/.packlist
+	$(NOECHO) $(UNINSTALL) "$(SITEARCHEXP)/auto/$(FULLEXT)/.packlist"
 
 uninstall_from_vendordirs ::
-
+	$(NOECHO) $(UNINSTALL) "$(VENDORARCHEXP)/auto/$(FULLEXT)/.packlist"
 
 
 # --- MakeMaker force section:
@@ -733,7 +836,7 @@ $(FIRST_MAKEFILE) : Makefile.PL $(CONFIGDEP)
 
 # --- MakeMaker makeaperl section ---
 MAP_TARGET    = perl
-FULLPERL      = /usr/bin/perl
+FULLPERL      = "/usr/bin/perl"
 
 $(MAP_TARGET) :: static $(MAKE_APERL_FILE)
 	$(MAKE) $(USEMAKEFILE) $(MAKE_APERL_FILE) $@
@@ -741,7 +844,7 @@ $(MAP_TARGET) :: static $(MAKE_APERL_FILE)
 $(MAKE_APERL_FILE) : $(FIRST_MAKEFILE) pm_to_blib
 	$(NOECHO) $(ECHO) Writing \"$(MAKE_APERL_FILE)\" for this $(MAP_TARGET)
 	$(NOECHO) $(PERLRUNINST) \
-		Makefile.PL DIR= \
+		Makefile.PL DIR="" \
 		MAKEFILE=$(MAKE_APERL_FILE) LINKTYPE=static \
 		MAKEAPERL=1 NORECURS=1 CCCDLFLAGS= \
 		INSTALL_BASE=/net/fantasia/home/hmkang/tools/tmpdir
@@ -764,7 +867,7 @@ subdirs-test ::
 
 
 test_dynamic :: pure_all
-	PERL_DL_NONLAZY=1 $(FULLPERLRUN) "-MExtUtils::Command::MM" "-e" "test_harness($(TEST_VERBOSE), '$(INST_LIB)', '$(INST_ARCHLIB)')" $(TEST_FILES)
+	PERL_DL_NONLAZY=1 $(FULLPERLRUN) "-MExtUtils::Command::MM" "-MTest::Harness" "-e" "undef *Test::Harness::Switches; test_harness($(TEST_VERBOSE), '$(INST_LIB)', '$(INST_ARCHLIB)')" $(TEST_FILES)
 
 testdb_dynamic :: pure_all
 	PERL_DL_NONLAZY=1 $(FULLPERLRUN) $(TESTDB_SW) "-I$(INST_LIB)" "-I$(INST_ARCHLIB)" $(TEST_FILE)
@@ -778,7 +881,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd :
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="0.19">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="$(VERSION)">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT>Manage configuration files with YAML and variable references.</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Matthew O'\''Connor &lt;matthew@canonical.org&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd

@@ -15,12 +15,14 @@ my $out = "";
 my $numjobs = 100;
 my $keeptmp = "";
 my $samtools = "samtools";
+my $listf = "";
 
 wGetOptions(
     "-Scan the gotCloud QC outputs, and merge summarized statistics",
     "--Required Options",
     "dir=s" => [\$dir, "Directory to scan"],
     "out=s" => [\$out, "Output directory"],
+    "list=s" => [\$listf, "List file containing the locations of CRAM, QPLOT, verifyBamID files"],
     "--Additional Options",
     "extSelfSM=s" => [\$extSelfSM, "Suffix (or file extension) for verifyBamID's .selfSM file per sample"],
     "extQplotStats=s" => [\$extQplotStats, "Suffix (or file extension) for QPLOT's .stats file per sample"],
@@ -39,54 +41,41 @@ $dir =~ s/\/$//g;       ## remove trailing slashes
 
 print STDERR "Scanning $dir...\n";
 
-my @qcdirs = ();
-
 my @args = ();
 
-open(IN,"find $dir -name '*.$extQplotR' |") || die "Cannot open file\n";
-while(<IN>) {
-    chomp;
-    my $fqplotR = $_;
-    my $fqplotStats = $_;
-    my $fselfSM = $_;
-    $fqplotStats =~ s/\Q$extQplotR\E$/$extQplotStats/;
-    $fselfSM =~ s/\Q$extQplotR\E$/$extSelfSM/;
-
-    #die "$fqplotR $fqplotStats $fselfSM";
-
-    if ( ( -s $fqplotR ) && ( -s $fqplotStats ) && ( -s $fselfSM ) ) {
-	if ( $fqplotR =~ /^\Q$dir\E\/(\S+)\/([^\/]+)\.\Q$extQplotR\E$/ ) {
-	    my $id = $2;
-	    my $group = $1; #"";
-	    # if ( $fqplotR =~ /illumina\.barnes\.01/ ) {
-	    # 	$group = "Illumina_Barnes_Asthma";
-	    # }
-	    # elsif ( $fqplotR =~ /illumina/ ) {
-	    # 	$group = "Illumina_Blangero_SAFHS";		
-	    # }
-	    # elsif ( $fqplotR =~ /nygc\/nhlbi-umich-20150609/ ) {
-	    # 	$group = "NYGC_Burchard_Asthm";
-	    # }
-	    # elsif ( $fqplotR =~ /weiss/ ) {
-	    # 	$group = "UW_Weiss_Asthma";
-	    # }
-	    # elsif ( $fqplotR =~ /silverman/ ) {
-	    # 	$group = "UW_Silverman_COPD";
-	    # }
-	    # if ( $group ) {
-	    # 	push(@files,[$id,$group,$fqplotR,$fqplotStats,$fselfSM]);
-	    # }
-	    # else {
-	    # 	print STDERR "Skipping $id in $fqplotR..\n";
-	    # }
-	    push(@args,[$id,$group,$fqplotR,$fqplotStats,$fselfSM]);	    
-	}
-	else {
-	    die "Cannot find ID from $fqplotR";
-	}
+if ( $listf ) {
+    open(IN,$listf) || die "Cannot open file\n";
+    while(<IN>) {
+	chomp;
+	my @F = split;
+	push(@args,\@F);
     }
 }
-close IN;
+else {
+    open(IN,"find $dir -name '*.$extQplotR' |") || die "Cannot open file\n";
+    while(<IN>) {
+	chomp;
+	my $fqplotR = $_;
+	my $fqplotStats = $_;
+	my $fselfSM = $_;
+	$fqplotStats =~ s/\Q$extQplotR\E$/$extQplotStats/;
+	$fselfSM =~ s/\Q$extQplotR\E$/$extSelfSM/;
+	
+	#die "$fqplotR $fqplotStats $fselfSM";
+	
+	if ( ( -s $fqplotR ) && ( -s $fqplotStats ) && ( ( $extSelfSM eq "." ) || ( -s $fselfSM ) ) ) {
+	    if ( $fqplotR =~ /^\Q$dir\E\/(\S+)\/([^\/]+)\.\Q$extQplotR\E$/ ) {
+		my $id = $2;
+		my $group = $1; #"";
+		push(@args,[$id,$group,$fqplotR,$fqplotStats,$fselfSM]);	    
+	    }
+	    else {
+		die "Cannot find ID from $fqplotR";
+	    }
+	}
+    }
+    close IN;
+}
 
 print STDERR "Finished identifying ".($#args+1)." samples with QC..\n";
 

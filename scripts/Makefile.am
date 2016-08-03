@@ -10,17 +10,20 @@ dist_bin_SCRIPTS = \
 	count-dropseq-unit \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
-	dropseq-kalisto \
+	dropseq-kallisto \
 	demux-fastq \
+	gene-conv-names \
 	gtf2GenePred \
 	inspect-sv \
         merge-fastq \
+	merge-tsv-generic \
 	now-seq-each \
 	now-seq-batch \
 	paste-pileup-pro \
 	pileup-pro \
 	rev-trim \
 	run-make \
+	tsv-join \
 	vcf-delta-svm \
 	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \

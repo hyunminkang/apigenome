@@ -110,6 +110,8 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+F77 = @F77@
+FFLAGS = @FFLAGS@
 FGREP = @FGREP@
 GNUPLOT_CHECK = @GNUPLOT_CHECK@
 GREP = @GREP@
@@ -172,6 +174,7 @@ ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
+ac_ct_F77 = @ac_ct_F77@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -229,17 +232,20 @@ dist_bin_SCRIPTS = \
 	count-dropseq-unit \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
-	dropseq-kalisto \
+	dropseq-kallisto \
 	demux-fastq \
+	gene-conv-names \
 	gtf2GenePred \
 	inspect-sv \
         merge-fastq \
+	merge-tsv-generic \
 	now-seq-each \
 	now-seq-batch \
 	paste-pileup-pro \
 	pileup-pro \
 	rev-trim \
 	run-make \
+	tsv-join \
 	vcf-delta-svm \
 	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \

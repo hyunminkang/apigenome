@@ -39,6 +39,7 @@ src/bcfast
 src/tinyfast
 src/bgzip
 src/tabix
+src/cramore
+src/cremor*
 htslib/bgzip
 htslib/tabix
-

@@ -21,6 +21,7 @@
 #include <string>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <stdarg.h>
 
 void error(const char * msg, ...)
@@ -71,7 +72,13 @@ void notice(const char * msg, ...) {
   va_list ap;
   va_start(ap, msg);
 
-  fprintf(stderr,"NOTICE - ");
+  time_t current_time;
+  char buff[255];
+  current_time = time(NULL);
+
+  strftime(buff, 120, "%Y/%m/%d %H:%M:%S", localtime(&current_time));
+
+  fprintf(stderr,"NOTICE [%s] - ", buff);
   vfprintf(stderr, msg, ap);
   fprintf(stderr,"\n");
 

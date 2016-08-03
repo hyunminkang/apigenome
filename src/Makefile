@@ -36,7 +36,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = x86_64-unknown-linux-gnu
 host_triplet = x86_64-unknown-linux-gnu
-bin_PROGRAMS = vcfast$(EXEEXT) tinyfast$(EXEEXT) bcfast$(EXEEXT)
+bin_PROGRAMS = vcfast$(EXEEXT) tinyfast$(EXEEXT) bcfast$(EXEEXT) \
+	cramore$(EXEEXT)
 subdir = src
 DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
@@ -67,6 +68,19 @@ am_bcfast_OBJECTS = bcfast.$(OBJEXT) Error.$(OBJEXT) \
 	genome_interval.$(OBJEXT)
 bcfast_OBJECTS = $(am_bcfast_OBJECTS)
 bcfast_DEPENDENCIES = ../htslib/libhts.a
+am_cramore_OBJECTS = cramore.$(OBJEXT) Error.$(OBJEXT) \
+	PhredHelper.$(OBJEXT) params.$(OBJEXT) dropseq.$(OBJEXT) \
+	hts_utils.$(OBJEXT) bcf_ordered_reader.$(OBJEXT) \
+	interval.$(OBJEXT) interval_tree.$(OBJEXT) utils.$(OBJEXT) \
+	genome_interval.$(OBJEXT) log_tool.$(OBJEXT) \
+	estimator.$(OBJEXT) bcf_ordered_writer.$(OBJEXT) \
+	nuclear_pedigree.$(OBJEXT) genotype_concordance.$(OBJEXT) \
+	filter.$(OBJEXT)
+cramore_OBJECTS = $(am_cramore_OBJECTS)
+cramore_DEPENDENCIES = ../htslib/libhts.a
+cramore_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
+	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) \
+	$(cramore_LDFLAGS) $(LDFLAGS) -o $@
 am_tinyfast_OBJECTS = tinyfast.$(OBJEXT) Error.$(OBJEXT) \
 	params.$(OBJEXT)
 tinyfast_OBJECTS = $(am_tinyfast_OBJECTS)
@@ -98,20 +112,20 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(libtabix_a_SOURCES) $(bcfast_SOURCES) $(tinyfast_SOURCES) \
-	$(vcfast_SOURCES)
-DIST_SOURCES = $(libtabix_a_SOURCES) $(bcfast_SOURCES) \
+SOURCES = $(libtabix_a_SOURCES) $(bcfast_SOURCES) $(cramore_SOURCES) \
 	$(tinyfast_SOURCES) $(vcfast_SOURCES)
+DIST_SOURCES = $(libtabix_a_SOURCES) $(bcfast_SOURCES) \
+	$(cramore_SOURCES) $(tinyfast_SOURCES) $(vcfast_SOURCES)
 HEADERS = $(noinst_HEADERS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/hmkang/code/working/apigenome/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
 AR = ar
-AUTOCONF = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/hmkang/code/working/apigenome/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/hmkang/code/working/apigenome/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/hmkang/code/working/apigenome/missing --run automake-1.11
 AWK = gawk
 CAT_CHECK = yes
 CC = gcc
@@ -136,6 +150,8 @@ ECHO_N = -n
 ECHO_T = 
 EGREP = /bin/grep -E
 EXEEXT = 
+F77 = gfortran
+FFLAGS = -g -O2
 FGREP = /bin/grep -F
 GNUPLOT_CHECK = yes
 GREP = /bin/grep
@@ -156,7 +172,7 @@ LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/hmkang/code/working/apigenome.master/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/hmkang/code/working/apigenome/missing --run makeinfo
 MAKE_CHECK = yes
 MANIFEST_TOOL = :
 MKDIR_CHECK = yes
@@ -190,14 +206,15 @@ SORT_CHECK = yes
 STRIP = strip
 VERSION = 0.0.3
 ZCAT_CHECK = yes
-abs_builddir = /home/hmkang/code/working/apigenome.master/src
-abs_srcdir = /home/hmkang/code/working/apigenome.master/src
-abs_top_builddir = /home/hmkang/code/working/apigenome.master
-abs_top_srcdir = /home/hmkang/code/working/apigenome.master
+abs_builddir = /home/hmkang/code/working/apigenome/src
+abs_srcdir = /home/hmkang/code/working/apigenome/src
+abs_top_builddir = /home/hmkang/code/working/apigenome
+abs_top_srcdir = /home/hmkang/code/working/apigenome
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_CXX = g++
 ac_ct_DUMPBIN = 
+ac_ct_F77 = gfortran
 am__include = include
 am__leading_dot = .
 am__quote = 
@@ -223,7 +240,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/hmkang/code/working/apigenome.master/install-sh
+install_sh = ${SHELL} /home/hmkang/code/working/apigenome/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -249,7 +266,8 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 
 #TABIX_VER = 0.2.5
 #TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+AM_CPPFLAGS = -fopenmp -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+#AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -g #-O2 #-I../include/ #-I$(TABIX)/
 noinst_HEADERS = hDist.h \
 	bam_endian.h \
 	boolParser.h \
@@ -265,9 +283,12 @@ noinst_HEADERS = hDist.h \
 	genomeScore.h khash.h params.h \
 	boolExprParser.h \
 	knetfile.h \
-	wFile.h
+	wFile.h 
 
 noinst_LIBRARIES = libtabix.a
+cramore_SOURCES = cramore.cpp Error.cpp PhredHelper.cpp params.cpp dropseq.cpp hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp nuclear_pedigree.cpp genotype_concordance.cpp filter.cpp
+cramore_LDADD = ../htslib/libhts.a -lpthread
+cramore_LDFLAGS = -fopenmp
 bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
 bcfast_LDADD = ../htslib/libhts.a -lpthread
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
@@ -366,6 +387,9 @@ clean-binPROGRAMS:
 bcfast$(EXEEXT): $(bcfast_OBJECTS) $(bcfast_DEPENDENCIES) $(EXTRA_bcfast_DEPENDENCIES) 
 	@rm -f bcfast$(EXEEXT)
 	$(CXXLINK) $(bcfast_OBJECTS) $(bcfast_LDADD) $(LIBS)
+cramore$(EXEEXT): $(cramore_OBJECTS) $(cramore_DEPENDENCIES) $(EXTRA_cramore_DEPENDENCIES) 
+	@rm -f cramore$(EXEEXT)
+	$(cramore_LINK) $(cramore_OBJECTS) $(cramore_LDADD) $(LIBS)
 tinyfast$(EXEEXT): $(tinyfast_OBJECTS) $(tinyfast_DEPENDENCIES) $(EXTRA_tinyfast_DEPENDENCIES) 
 	@rm -f tinyfast$(EXEEXT)
 	$(CXXLINK) $(tinyfast_OBJECTS) $(tinyfast_LDADD) $(LIBS)
@@ -383,18 +407,26 @@ include ./$(DEPDIR)/Error.Po
 include ./$(DEPDIR)/IO.Po
 include ./$(DEPDIR)/PhredHelper.Po
 include ./$(DEPDIR)/bcf_ordered_reader.Po
+include ./$(DEPDIR)/bcf_ordered_writer.Po
 include ./$(DEPDIR)/bcfast.Po
 include ./$(DEPDIR)/bedidx.Po
 include ./$(DEPDIR)/bgzf.Po
 include ./$(DEPDIR)/codonHelper.Po
+include ./$(DEPDIR)/cramore.Po
+include ./$(DEPDIR)/dropseq.Po
+include ./$(DEPDIR)/estimator.Po
+include ./$(DEPDIR)/filter.Po
 include ./$(DEPDIR)/genomePosition.Po
 include ./$(DEPDIR)/genome_interval.Po
+include ./$(DEPDIR)/genotype_concordance.Po
 include ./$(DEPDIR)/hts_utils.Po
 include ./$(DEPDIR)/index.Po
 include ./$(DEPDIR)/interval.Po
 include ./$(DEPDIR)/interval_tree.Po
 include ./$(DEPDIR)/knetfile.Po
 include ./$(DEPDIR)/kstring.Po
+include ./$(DEPDIR)/log_tool.Po
+include ./$(DEPDIR)/nuclear_pedigree.Po
 include ./$(DEPDIR)/params.Po
 include ./$(DEPDIR)/tinyfast.Po
 include ./$(DEPDIR)/utils.Po

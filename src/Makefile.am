@@ -8,7 +8,8 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 ## Paths to include
 #TABIX_VER = 0.2.5
 #TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+AM_CPPFLAGS = -fopenmp -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+#AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -g #-O2 #-I../include/ #-I$(TABIX)/
 
 noinst_HEADERS = hDist.h \
 	bam_endian.h \
@@ -25,12 +26,17 @@ noinst_HEADERS = hDist.h \
 	genomeScore.h khash.h params.h \
 	boolExprParser.h \
 	knetfile.h \
-	wFile.h
+	wFile.h 
 
 #bin_PROGRAMS = vcfast bgzip tabix tinyfast
-bin_PROGRAMS = vcfast tinyfast bcfast
+bin_PROGRAMS = vcfast tinyfast bcfast cramore
 
 noinst_LIBRARIES = libtabix.a
+
+## vcfast files
+cramore_SOURCES = cramore.cpp Error.cpp PhredHelper.cpp params.cpp dropseq.cpp hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp nuclear_pedigree.cpp genotype_concordance.cpp filter.cpp
+cramore_LDADD = ../htslib/libhts.a -lpthread
+cramore_LDFLAGS = -fopenmp
 
 ## vcfast files
 bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp

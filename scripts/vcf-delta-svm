@@ -12,6 +12,8 @@ my $outvcf = "";
 my $ref = "";
 my $weightf = "";
 my $infoKey = "DELTA_SVM";
+my $multiWeightf = "";
+my $rawScore = "";
 my $region = "";
 my $binbgzip = "$FindBin::Bin/bgzip";
 my $bintabix = "$FindBin::Bin/tabix";
@@ -22,48 +24,71 @@ wGetOptions(
     "in-vcf=s",[\$invcf,"Input VCF file"],
     "out-vcf=s",[\$outvcf,"Output VCF file where deltaSVM score will be attached to the INFO field"],
     "weight=s",[\$weightf,"Weight file trained by delta-SVM method"],
+    "multi-weight=s",[\$multiWeightf,"Tab-limited file containing the list of multiple weight files as [KEY] [FILENAME]"],    
     "ref=s",[\$ref,"FASTA-format sequences for the reference genome, which should match to the genome build used for the input VCF file"],
     "--Additional Options",
     "info-key=s",[\$infoKey,"The name of INFO field entry to record the delta svm score"],
     "region=s",[\$region,"Subset of genomic regions to extract from the input VCF"],
     "bgzip=s",[\$binbgzip,"Path to bgzip binary"],
     "tabix=s",[\$bintabix,"Path to tabix binary"],
+    "raw-score",[\$rawScore,"Report (averaged) raw score of delta-svm binding score for each allele, rather than reporting the difference from reference allele"],
     ) || wpod2usage(2);
 
 
-wpod2usage(2) unless ( ( $invcf ) || ( $outvcf ) || ( $weightf ) || ( $ref ) );
-
+wpod2usage(2) unless ( ( $invcf ) && ( $outvcf ) && ( ( $weightf ) || ( $multiWeightf) ) && ( $ref ) );
+						      
 print STDERR "Analysis started at ".scalar(localtime)."\n";
 
 ### Initialize the reference FASTQ sequence
 &initRef($ref);
 
-### Read the weight file to contstruct the hash table
+my @weightfs = ();
+my @infokeys = ();
 
-print STDERR "Reading SVM weight file $weightf..\n";
-my %svmW = ();
-my $calcRevComp = 0;
-my $kmerLength = 0;
-open(IN,$weightf) || die "Cannot open the weight file $weightf\n";
-while(<IN>) {
-    next if ( /^(#|kmer|bias)/ );
-    my @F = split;
-    if ( $#F == 1 ) {
-	$svmW{$F[0]} = $F[1];
-	$svmW{revcomp($F[0])} = $F[1];
+if ( $multiWeightf ) {
+    open(IN,$multiWeightf) || die "Cannot open file\n";
+    while(<IN>) {
+	my ($key,$fname) = split;
+	push(@weightfs, $fname);
+	push(@infokeys,$key);
     }
-    elsif ( $#F == 2 ) {
-	$svmW{$F[0]} = $F[2];
-	$svmW{$F[1]} = $F[2];
-    }
-    else {
-	die "Cannot recognize the SVM weight file. line $. -- @F\n";
-    }
-
-    $kmerLength = length($F[0]) if ( $kmerLength == 0 );
+    close IN;
 }
-close IN;
+else {
+    push(@weightfs,$weightf);
+    push(@infokeys,$infoKey);
+}
 
+my @svmWeights = ();
+my @kmerLengths = ();
+for(my $i=0; $i < @weightfs; ++$i) {
+    ### Read the weight file to contstruct the hash table
+    print STDERR "Reading SVM weight file $weightfs[$i]..\n";
+    my %svmW = ();
+    my $calcRevComp = 0;
+    my $kmerLength = 0;
+    open(IN,$weightfs[$i]) || die "Cannot open the weight file $weightf\n";
+    while(<IN>) {
+	next if ( /^(#|kmer|bias)/ );
+	my @F = split;
+	if ( $#F == 1 ) {
+	    $svmW{$F[0]} = $F[1];
+	    $svmW{revcomp($F[0])} = $F[1];
+	}
+	elsif ( $#F == 2 ) {
+	    $svmW{$F[0]} = $F[2];
+	    $svmW{$F[1]} = $F[2];
+	}
+	else {
+	    die "Cannot recognize the SVM weight file. line $. -- @F\n";
+	}
+	
+	$kmerLength = length($F[0]) if ( $kmerLength == 0 );
+    }
+    close IN;
+    push(@svmWeights,\%svmW);
+    push(@kmerLengths,$kmerLength);
+}
 
 print STDERR "Finished reading weights and processing VCF file $invcf...\n";
 ### Read input VCF file
@@ -108,37 +133,51 @@ while(<VCF>) {
 	    }
 	}
 	else {
-	    my $refSeq = uc(&readFasta($F[0],$F[1]-$kmerLength+1,$F[1]+$kmerLength-2+$refLength));
-	    ## if any non-ACGT is observed, fill with random sequence
-	    if ( $refSeq =~ /[^ACGT]/ ) {
-		for(my $i=0; $i < length($refSeq); ++$i) {
-		    unless ( substr($refSeq,$i,1) =~ /[ACGT]/ ) {
-			my @acgts = qw(A C G T);
-			substr($refSeq,$i,1) = $acgts[int(rand(4))]; ## replace the string with random sequence
-		    }
-		}
-	    }
-	    my $winRef = $kmerLength+$refLength-1;
-	    my $sumRef = 0;
-	    for(my $i=0; $i < $winRef; ++$i) {
-		$sumRef += $svmW{substr($refSeq,$i,$kmerLength)};
-	    }
+	    my $refSeq = uc(&readFasta($F[0],$F[1]-$kmerLengths[0]+1,$F[1]+$kmerLengths[0]-2+$refLength));
+	    $refSeq =~ s/[^ACGT]/A/g;
+	    my $winRef = $kmerLengths[0]+$refLength-1;
+	    my @alts = split(/,/,$F[4]);	    
 
-	    my @alts = split(/,/,$F[4]);
-	    my @deltaSVMScores = ();
+	    my @infoFields = ();
 
-	    foreach my $alt (@alts) {
-		my $altSeq = substr($refSeq,0,$kmerLength-1).$alt.substr($refSeq,1-$kmerLength);
-		my $winAlt = $kmerLength+length($alt)-1;
-		my $sumAlt = 0;
-		for(my $i=0; $i < $winAlt; ++$i) {
-		    $sumAlt += $svmW{substr($altSeq,$i,$kmerLength)};
+	    for(my $i=0; $i < @infokeys; ++$i) {
+		if ( ( $i > 0 ) && ( $kmerLengths[$i] != $kmerLengths[$i-1] ) ) {
+		    $refSeq = uc(&readFasta($F[0],$F[1]-$kmerLengths[$i]+1,$F[1]+$kmerLengths[$i]-2+$refLength));
+		    $refSeq =~ s/[^ACGT]/A/g;		    
+		    $winRef = $kmerLengths[$i]+$refLength-1;
 		}
 	    
-		## To make deltaSVM score compatible to the original code, we rescale the scores by kmer length
-		push(@deltaSVMScores,sprintf("%.6lf",$kmerLength * ( $sumAlt / $winAlt - $sumRef / $winRef )));
+		my $sumRef = 0;
+		for(my $j=0; $j < $winRef; ++$j) {
+		    $sumRef += $svmWeights[$i]->{substr($refSeq,$j,$kmerLengths[$i])};
+		}
+
+		my @deltaSVMScores = ();
+
+		if ( $rawScore ) {
+		    push(@deltaSVMScores,sprintf("%.5lf",$kmerLengths[$i] * ( $sumRef / $winRef )));
+		}
+		
+		foreach my $alt (@alts) {
+		    my $altSeq = substr($refSeq,0,$kmerLengths[$i]-1).$alt.substr($refSeq,1-$kmerLengths[$i]);
+		    my $winAlt = $kmerLengths[$i]+length($alt)-1;
+		    my $sumAlt = 0;
+		    for(my $j=0; $j < $winAlt; ++$j) {
+			$sumAlt += $svmWeights[$i]->{substr($altSeq,$j,$kmerLengths[$i])};
+		    }
+		    
+		    ## To make deltaSVM score compatible to the original code, we rescale the scores by kmer length
+		    if ( $rawScore ) {
+			push(@deltaSVMScores,sprintf("%.5lf",$kmerLengths[$i] * ( $sumAlt / $winAlt)));
+		    }
+		    else {
+			push(@deltaSVMScores,sprintf("%.5lf",$kmerLengths[$i] * ( $sumAlt / $winAlt - $sumRef / $winRef )));			
+		    }
+		}
+		my $infoField = $infokeys[$i] . "=".join(",",@deltaSVMScores);
+		push(@infoFields,$infoField);
 	    }
-	    $F[7] .= ";DELTA_SVM=".join(",",@deltaSVMScores);
+	    $F[7] .= ";".join(";",@infoFields);
 	}
 	print OUT join("\t",@F)."\n";
     }

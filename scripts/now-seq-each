@@ -121,13 +121,19 @@ sub parseQCFiles {
     my ($genocheckfile,$statfile,$rfile) = @_;
     my @metrics = ();    
 
-    open(IN,$genocheckfile) || die "Cannot open $genocheckfile for reading\n";
-    my $line = <IN>;
-    $line = <IN>;
-    close IN;
+    if ( -s $genocheckfile ) {
+	open(IN,$genocheckfile) || die "Cannot open $genocheckfile for reading\n";
+	my $line = <IN>;
+	$line = <IN>;
+	close IN;
     
-    my @F = split(/\s+/,$line);
-    push(@metrics,sprintf("%.1lf",$F[6]*100));
+	my @F = split(/\s+/,$line);
+	push(@metrics,sprintf("%.1lf",$F[6]*100));
+    }
+    else {
+	print STDERR "Cannot find $genocheckfile\n";
+	push(@metrics,"0.0");
+    }
 
     my @flags = (0,1,1,0,0,1,0,1,1,1,1,1,1,1,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
     open(IN,$statfile) || die "Cannot open $statfile for reading\n";    
@@ -301,7 +307,7 @@ sub parseQCFiles {
 	
 
     #my $group = "DACHS_BATCH".int(rand(3));
-    my $mindate = (stat($genocheckfile))[9];
+    my $mindate = (stat($statfile))[9];
     $mindate = (stat($rfile))[9] if ( (stat($rfile))[9] < $mindate );
     $mindate = (stat($statfile))[9] if ( (stat($statfile))[9] < $mindate );
     #$mindate = sprintf(strftime("%m/%d/%Y", localtime( $mindate )));
