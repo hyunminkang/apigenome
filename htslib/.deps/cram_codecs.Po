@@ -1,4 +1,4 @@
-cram_codecs.o: cram/cram_codecs.c config.h /usr/include/stdlib.h \
+cram_codecs.o: cram/cram_codecs.c ../config.h /usr/include/stdlib.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -47,7 +47,7 @@ cram_codecs.o: cram/cram_codecs.c config.h /usr/include/stdlib.h \
  cram/cram_decode.h cram/cram_stats.h cram/cram_codecs.h \
  cram/cram_index.h htslib/cram.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 

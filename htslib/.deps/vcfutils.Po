@@ -1,4 +1,4 @@
-vcfutils.o: vcfutils.c config.h htslib/vcfutils.h htslib/vcf.h \
+vcfutils.o: vcfutils.c ../config.h htslib/vcfutils.h htslib/vcf.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h /usr/include/stdint.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -39,7 +39,7 @@ vcfutils.o: vcfutils.c config.h htslib/vcfutils.h htslib/vcf.h \
  /usr/include/x86_64-linux-gnu/bits/stdio.h \
  /usr/include/x86_64-linux-gnu/bits/stdio2.h htslib/kbitset.h
 
-config.h:
+../config.h:
 
 htslib/vcfutils.h:
 

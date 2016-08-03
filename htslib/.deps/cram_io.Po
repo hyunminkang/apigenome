@@ -1,4 +1,4 @@
-cram_io.o: cram/cram_io.c config.h /usr/include/stdio.h \
+cram_io.o: cram/cram_io.c ../config.h /usr/include/stdio.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -67,7 +67,7 @@ cram_io.o: cram/cram_io.c config.h /usr/include/stdio.h \
  cram/cram_index.h htslib/cram.h htslib/hts.h cram/open_trace_file.h \
  cram/rANS_static.h htslib/hfile.h htslib/bgzf.h htslib/faidx.h
 
-config.h:
+../config.h:
 
 /usr/include/stdio.h:
 

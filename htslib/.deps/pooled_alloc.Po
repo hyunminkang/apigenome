@@ -1,4 +1,4 @@
-pooled_alloc.o: cram/pooled_alloc.c config.h /usr/include/stdlib.h \
+pooled_alloc.o: cram/pooled_alloc.c ../config.h /usr/include/stdlib.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -36,7 +36,7 @@ pooled_alloc.o: cram/pooled_alloc.c config.h /usr/include/stdlib.h \
  /usr/include/linux/limits.h \
  /usr/include/x86_64-linux-gnu/bits/posix2_lim.h /usr/include/inttypes.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 

@@ -1,4 +1,4 @@
-vcf.o: vcf.c config.h /usr/include/zlib.h /usr/include/zconf.h \
+vcf.o: vcf.c ../config.h /usr/include/zlib.h /usr/include/zconf.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/features.h \
@@ -47,7 +47,7 @@ vcf.o: vcf.c config.h /usr/include/zlib.h /usr/include/zconf.h \
  htslib/tbx.h htslib/hfile.h htslib/khash_str2int.h htslib/khash.h \
  hts_internal.h htslib/hts.h htslib/khash.h htslib/kseq.h
 
-config.h:
+../config.h:
 
 /usr/include/zlib.h:
 

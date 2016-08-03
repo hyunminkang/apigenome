@@ -31,6 +31,8 @@
 autom4te.cache
 autom4te.cache/*
 src/.deps/
+htslib/.deps/
+libnmf/.deps/
 
 # Binaries
 src/bcfast
@@ -40,6 +42,6 @@ src/tinyfast
 src/bgzip
 src/tabix
 src/cramore
-src/cremor*
+src/cramor*
 htslib/bgzip
 htslib/tabix

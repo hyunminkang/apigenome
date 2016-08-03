@@ -1,4 +1,4 @@
-kstring.o: kstring.c config.h \
+kstring.o: kstring.c ../config.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdarg.h /usr/include/stdio.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -32,7 +32,7 @@ kstring.o: kstring.c config.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib.h
 
-config.h:
+../config.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdarg.h:
 

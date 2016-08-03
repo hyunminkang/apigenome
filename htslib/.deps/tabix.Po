@@ -1,4 +1,4 @@
-tabix.o: tabix.c config.h /usr/include/stdio.h /usr/include/features.h \
+tabix.o: tabix.c ../config.h /usr/include/stdio.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -52,7 +52,7 @@ tabix.o: tabix.c config.h /usr/include/stdio.h /usr/include/features.h \
  /usr/include/zlib.h /usr/include/zconf.h htslib/hts.h htslib/regidx.h \
  /usr/include/inttypes.h
 
-config.h:
+../config.h:
 
 /usr/include/stdio.h:
 

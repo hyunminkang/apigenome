@@ -1,4 +1,4 @@
-bgzf.o: bgzf.c config.h /usr/include/stdio.h /usr/include/features.h \
+bgzf.o: bgzf.c ../config.h /usr/include/stdio.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -50,7 +50,7 @@ bgzf.o: bgzf.c config.h /usr/include/stdio.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/posix2_lim.h htslib/hfile.h \
  htslib/khash.h
 
-config.h:
+../config.h:
 
 /usr/include/stdio.h:
 

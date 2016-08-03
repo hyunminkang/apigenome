@@ -1,4 +1,4 @@
-files.o: cram/files.c config.h cram/misc.h cram/os.h \
+files.o: cram/files.c ../config.h cram/misc.h cram/os.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include-fixed/syslimits.h \
  /usr/include/limits.h /usr/include/features.h \
@@ -35,7 +35,7 @@ files.o: cram/files.c config.h cram/misc.h cram/os.h \
  /usr/include/x86_64-linux-gnu/sys/stat.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h
 
-config.h:
+../config.h:
 
 cram/misc.h:
 

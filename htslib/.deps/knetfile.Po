@@ -1,4 +1,4 @@
-knetfile.o: knetfile.c config.h /usr/include/time.h \
+knetfile.o: knetfile.c ../config.h /usr/include/time.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -56,7 +56,7 @@ knetfile.o: knetfile.c config.h /usr/include/time.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
  /usr/include/x86_64-linux-gnu/bits/fcntl2.h
 
-config.h:
+../config.h:
 
 /usr/include/time.h:
 

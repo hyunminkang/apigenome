@@ -1,4 +1,4 @@
-md5.o: md5.c config.h /usr/include/stdlib.h /usr/include/features.h \
+md5.o: md5.c ../config.h /usr/include/stdlib.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -27,7 +27,7 @@ md5.o: md5.c config.h /usr/include/stdlib.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/string2.h \
  /usr/include/x86_64-linux-gnu/bits/string3.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 

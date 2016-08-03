@@ -1,4 +1,4 @@
-synced_bcf_reader.o: synced_bcf_reader.c config.h /usr/include/stdio.h \
+synced_bcf_reader.o: synced_bcf_reader.c ../config.h /usr/include/stdio.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -51,7 +51,7 @@ synced_bcf_reader.o: synced_bcf_reader.c config.h /usr/include/stdio.h \
  htslib/khash_str2int.h htslib/khash.h htslib/bgzf.h /usr/include/zlib.h \
  /usr/include/zconf.h
 
-config.h:
+../config.h:
 
 /usr/include/stdio.h:
 

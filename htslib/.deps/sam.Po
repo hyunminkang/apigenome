@@ -1,4 +1,4 @@
-sam.o: sam.c config.h /usr/include/stdio.h /usr/include/features.h \
+sam.o: sam.c ../config.h /usr/include/stdio.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -57,7 +57,7 @@ sam.o: sam.c config.h /usr/include/stdio.h /usr/include/features.h \
  htslib/hfile.h htslib/khash.h htslib/kseq.h htslib/kstring.h \
  /usr/include/assert.h
 
-config.h:
+../config.h:
 
 /usr/include/stdio.h:
 

@@ -1,4 +1,4 @@
-hfile_net.o: hfile_net.c config.h /usr/include/stdlib.h \
+hfile_net.o: hfile_net.c ../config.h /usr/include/stdlib.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -33,7 +33,7 @@ hfile_net.o: hfile_net.c config.h /usr/include/stdlib.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
  /usr/include/x86_64-linux-gnu/bits/fcntl2.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 

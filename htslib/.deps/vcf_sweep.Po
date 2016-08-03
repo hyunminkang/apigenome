@@ -1,4 +1,4 @@
-vcf_sweep.o: vcf_sweep.c config.h htslib/vcf_sweep.h htslib/hts.h \
+vcf_sweep.o: vcf_sweep.c ../config.h htslib/vcf_sweep.h htslib/hts.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stddef.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h /usr/include/stdint.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
@@ -44,7 +44,7 @@ vcf_sweep.o: vcf_sweep.c config.h htslib/vcf_sweep.h htslib/hts.h \
  /usr/include/x86_64-linux-gnu/bits/confname.h /usr/include/getopt.h \
  /usr/include/x86_64-linux-gnu/bits/unistd.h
 
-config.h:
+../config.h:
 
 htslib/vcf_sweep.h:
 

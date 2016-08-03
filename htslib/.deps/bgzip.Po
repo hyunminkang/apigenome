@@ -1,5 +1,5 @@
-bgzip.o: bgzip.c config.h /usr/include/stdlib.h /usr/include/features.h \
- /usr/include/x86_64-linux-gnu/bits/predefs.h \
+bgzip.o: bgzip.c ../config.h /usr/include/stdlib.h \
+ /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
  /usr/include/x86_64-linux-gnu/gnu/stubs.h \
@@ -51,7 +51,7 @@ bgzip.o: bgzip.c config.h /usr/include/stdlib.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/posix2_lim.h htslib/hts_defs.h \
  htslib/hts.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 

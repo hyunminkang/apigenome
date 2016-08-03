@@ -3,11 +3,9 @@
 *.dSYM
 *.exe
 *-uninstalled.pc
-/version.h
 
 autom4te.cache
 config.cache
-config.h
 config.log
 config.mk
 config.status
@@ -21,6 +19,7 @@ lib*.dylib
 lib*.so
 lib*.so.*
 
+.deps/*
 /bgzip
 /htsfile
 /tabix

@@ -1,4 +1,4 @@
-regidx.o: regidx.c config.h htslib/hts.h \
+regidx.o: regidx.c ../config.h htslib/hts.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stddef.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h /usr/include/stdint.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
@@ -41,7 +41,7 @@ regidx.o: regidx.c config.h htslib/hts.h \
  /usr/include/x86_64-linux-gnu/bits/posix2_lim.h htslib/regidx.h \
  /usr/include/inttypes.h
 
-config.h:
+../config.h:
 
 htslib/hts.h:
 

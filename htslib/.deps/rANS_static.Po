@@ -1,4 +1,4 @@
-rANS_static.o: cram/rANS_static.c config.h \
+rANS_static.o: cram/rANS_static.c ../config.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h /usr/include/stdint.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -39,7 +39,7 @@ rANS_static.o: cram/rANS_static.c config.h \
  /usr/include/x86_64-linux-gnu/sys/time.h cram/rANS_static.h \
  cram/rANS_byte.h
 
-config.h:
+../config.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h:
 

@@ -1,4 +1,4 @@
-cram_external.o: cram/cram_external.c config.h htslib/hfile.h \
+cram_external.o: cram/cram_external.c ../config.h htslib/hfile.h \
  /usr/include/string.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -46,7 +46,7 @@ cram_external.o: cram/cram_external.c config.h htslib/hfile.h \
  cram/cram_decode.h cram/cram_stats.h cram/cram_codecs.h \
  cram/cram_index.h htslib/cram.h
 
-config.h:
+../config.h:
 
 htslib/hfile.h:
 

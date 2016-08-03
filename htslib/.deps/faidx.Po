@@ -1,4 +1,4 @@
-faidx.o: faidx.c config.h /usr/include/ctype.h /usr/include/features.h \
+faidx.o: faidx.c ../config.h /usr/include/ctype.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -47,7 +47,7 @@ faidx.o: faidx.c config.h /usr/include/ctype.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/unistd.h htslib/hts_defs.h \
  htslib/faidx.h htslib/hfile.h htslib/khash.h htslib/kstring.h
 
-config.h:
+../config.h:
 
 /usr/include/ctype.h:
 

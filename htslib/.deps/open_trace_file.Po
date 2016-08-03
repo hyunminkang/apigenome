@@ -1,5 +1,6 @@
-open_trace_file.o: cram/open_trace_file.c config.h /usr/include/stdlib.h \
- /usr/include/features.h /usr/include/x86_64-linux-gnu/bits/predefs.h \
+open_trace_file.o: cram/open_trace_file.c ../config.h \
+ /usr/include/stdlib.h /usr/include/features.h \
+ /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
  /usr/include/x86_64-linux-gnu/gnu/stubs.h \
@@ -46,7 +47,7 @@ open_trace_file.o: cram/open_trace_file.c config.h /usr/include/stdlib.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h cram/open_trace_file.h \
  cram/mFILE.h cram/misc.h htslib/hfile.h htslib/hts_defs.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 

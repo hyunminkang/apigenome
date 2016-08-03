@@ -1,4 +1,4 @@
-tbx.o: tbx.c config.h /usr/include/stdlib.h /usr/include/features.h \
+tbx.o: tbx.c ../config.h /usr/include/stdlib.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/predefs.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -44,7 +44,7 @@ tbx.o: tbx.c config.h /usr/include/stdlib.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/bits/confname.h /usr/include/getopt.h \
  /usr/include/x86_64-linux-gnu/bits/unistd.h htslib/khash.h
 
-config.h:
+../config.h:
 
 /usr/include/stdlib.h:
 
