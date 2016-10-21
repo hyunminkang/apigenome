@@ -34,9 +34,20 @@ bin_PROGRAMS = vcfast tinyfast bcfast cramore
 noinst_LIBRARIES = libtabix.a
 
 ## vcfast files
-cramore_SOURCES = cramore.cpp Error.cpp PhredHelper.cpp params.cpp dropseq.cpp hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp nuclear_pedigree.cpp genotype_concordance.cpp filter.cpp
+cramore_SOURCES = cramore.cpp \
+	Error.cpp PhredHelper.cpp params.cpp \
+	dropseq.cpp \
+	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp \
+	bam_ordered_reader.cpp \
+	nuclear_pedigree.cpp \
+	genotype_concordance.cpp \
+	filter.cpp \
+	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp \
+	cmd_cram_simul_contam.cpp cmd_cram_verify_pair_id.cpp cmd_cram_sparse_genotype.cpp cmd_cram_flagstat.cpp \
+	cmd_cram_procap_detect.cpp \
+	cmd_sc_multinom_em.cpp cmd_sc_map_stamps.cpp cmd_sc_kallisto_count.cpp 
 cramore_LDADD = ../htslib/libhts.a -lpthread
-cramore_LDFLAGS = -fopenmp
+#cramore_LDFLAGS = -fopenmp
 
 ## vcfast files
 bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp

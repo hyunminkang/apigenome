@@ -31,8 +31,11 @@
 autom4te.cache
 autom4te.cache/*
 src/.deps/
+src/.deps/*
 htslib/.deps/
+htslib/.deps/*
 libnmf/.deps/
+libnmf/.deps/*
 
 # Binaries
 src/bcfast

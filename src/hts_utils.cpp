@@ -23,6 +23,7 @@
 
 #include "hts_utils.h"
 #include "hfile.h"
+#include "Error.h"
 
 /********
  *General
@@ -61,7 +62,7 @@ char *faidx_fetch_uc_seq(const faidx_t *fai, const char *c_name, int p_beg_i, in
     if ( ret<0 )
     {
         *len = -1;
-        fprintf(stderr, "[fai_fetch_seq] Error: fai_fetch failed. (Seeking in a compressed, .gzi unindexed, file?)\n");
+        fprintf(stderr,"[fai_fetch_seq] Error: fai_fetch failed. (Seeking in a compressed, .gzi unindexed, file?)\n");
         return NULL;
     }
     l = 0;
@@ -104,7 +105,7 @@ bool str_ends_with(std::string& file_name, const char* ext)
 void bam_hdr_transfer_contigs_to_bcf_hdr(const bam_hdr_t *sh, bcf_hdr_t *vh)
 {
     kstring_t s = {0,0,0};
-    for (size_t i=0; i<bam_hdr_get_n_targets(sh); ++i)
+    for (size_t i=0; i<(size_t)bam_hdr_get_n_targets(sh); ++i)
     {
         s.l = 0;
         ksprintf(&s, "##contig=<ID=%s,length=%d>", bam_hdr_get_target_name(sh)[i], bam_hdr_get_target_len(sh)[i]);
@@ -233,7 +234,7 @@ void bam_get_cigar_expanded_string(bam1_t *s, kstring_t *cigar_expanded_string)
             }
 
             int32_t count = atoi(token.s);
-            for (uint32_t j=0; j<count; ++j)
+            for (int32_t j=0; j<count; ++j)
                 kputc(c, cigar_expanded_string);
             token.l = 0;;
         }
@@ -340,7 +341,7 @@ void bam_print(bam_hdr_t *h, bam1_t *s)
     bam_get_cigar_string(s, &cigar_string);
     kstring_t cigar_expanded_string = {0,0,0};
     bam_get_cigar_expanded_string(s, &cigar_expanded_string);
-    uint16_t flag = bam_get_flag(s);
+    //uint16_t flag = bam_get_flag(s);
     uint32_t mapq = bam_get_mapq(s);
 
     std::cerr << "##################" << "\n";
@@ -493,7 +494,7 @@ bcf_hdr_t *bcf_alt_hdr_read(htsFile *fp)
     }
     else
     {
-        fprintf(stderr, "[I:%s:%d %s] read alternative header for %s\n", __FILE__, __LINE__, __FUNCTION__, fp->fn);
+        fprintf(stderr,"[I:%s:%d %s] read alternative header for %s\n", __FILE__, __LINE__, __FUNCTION__, fp->fn);
         fclose(file);
         htsFile *alt_hdr = hts_open(alt_hdr_fn.s, "r");
         h = bcf_hdr_read(alt_hdr);
@@ -849,7 +850,7 @@ void bcf_variant2string_sorted(bcf_hdr_t *h, bcf1_t *v, kstring_t *var)
         }
         std::qsort(temp, bcf_get_n_allele(v), sizeof(char*), cmpstr);
         kputs(bcf_get_alt(v, 0), var);
-        for (size_t i=0; i<v->n_allele-1; ++i)
+        for (int32_t i=0; i<v->n_allele-1; ++i)
         {
             kputc(',', var);
             kputs(temp[i], var);
@@ -926,13 +927,12 @@ const char* bcf_get_chrom(bcf_hdr_t *h, bcf1_t *v)
 {
     if (v->rid >= h->n[BCF_DT_CTG])
     {
-        fprintf(stderr, "[E:%s:%d %s] rid '%d' does not have an associated contig defined in the header.  Try tabix workaround or just add the header.\n", __FILE__, __LINE__, __FUNCTION__, v->rid);
-        exit(1);
+      error("[E:%s:%d %s] rid '%d' does not have an associated contig defined in the header.  Try tabix workaround or just add the header.\n", __FILE__, __LINE__, __FUNCTION__, v->rid);
+      //exit(1);
+      //return NULL;
     }
-    else
-    {
-        return h->id[BCF_DT_CTG][v->rid].key;
-    }
+    
+    return h->id[BCF_DT_CTG][v->rid].key;
 }
 
 /**
@@ -944,7 +944,7 @@ void bcf_set_chrom(bcf_hdr_t *h, bcf1_t *v, const char* chrom)
     khint_t k = kh_get(vdict, d, chrom);
     if (k == kh_end(d))
     {
-        fprintf(stderr, "[E:%s:%d %s] contig '%s' is not defined in the header\n", __FILE__, __LINE__, __FUNCTION__, chrom);
+        error("[E:%s:%d %s] contig '%s' is not defined in the header\n", __FILE__, __LINE__, __FUNCTION__, chrom);
         kstring_t contig = {0,0,0};
         ksprintf(&contig, "##contig=<ID=%s,length=2147483647>", chrom);
         bcf_hdr_append(h, contig.s);
@@ -973,7 +973,8 @@ void hprintf(htsFile* fp, const char * msg, ...) {
   va_start(ap, msg);
 
   kstring_t tmp = {0,0,0};
-  int l = kvsprintf(&tmp, msg, ap);
+  //int l =
+  kvsprintf(&tmp, msg, ap);
 
   int ret;
   if ( fp->format.compression != no_compression )
@@ -984,8 +985,7 @@ void hprintf(htsFile* fp, const char * msg, ...) {
   free(tmp.s);
 
   if ( ret < 0 ) {
-    fprintf(stderr,"hprintf failed. Aborting..");
-    abort();
+    error("[E:%s:%d %s] hprintf failed. Aborting..", __FILE__, __LINE__, __FUNCTION__);
   }
 
   va_end(ap);
@@ -1029,4 +1029,99 @@ void parse_intervals(std::vector<GenomeInterval>& intervals, std::string interva
             intervals.push_back(interval);
         }
     }
+}
+
+std::string bam_hdr_get_sample_name(bam_hdr_t* hdr) {
+  if ( !hdr )
+    error("[E:%s:%d %s] Failed to read the BAM header",__FILE__, __LINE__, __FUNCTION__);
+
+  const char *p = hdr->text;
+  const char *q, *r;
+  int32_t n = 0;
+  std::string sm;
+  while( ( q = strstr(p, "@RG" ) ) != 0 ) {
+    p = q + 3;
+    r = q = 0;
+    if ( ( q = strstr(p, "\tID:" ) ) != 0 ) q += 4;
+    if ( ( r = strstr(p, "\tSM:" ) ) != 0 ) r += 4;
+    if ( r && q ) {
+      char *u, *v;
+      for (u = (char*)q; *u && *u != '\t' && *u != '\n'; ++u);
+      for (v = (char*)r; *v && *v != '\t' && *v != '\n'; ++v);
+      *u = *v = '\0';
+      if ( sm.empty() )
+	sm = r;
+      else if ( sm.compare(r) != 0 ) {
+	error("[E:%s:%d %s] Multiple sample IDs are included in one BAM file - %s, %s", __FILE__, __LINE__, __FUNCTION__, sm.c_str(), r);
+	//abort();
+      }
+    }
+    else break;
+    p = q > r ? q : r;
+    ++n;
+  }
+  if ( sm.empty() ) {
+    error("[E:%s:%d %s] Sample ID information cannot be found",__FILE__, __LINE__, __FUNCTION__);
+  }
+  return sm;
+}
+
+int32_t bam_get_unclipped_start(bam1_t* b) {
+  uint32_t* cigar = bam_get_cigar(b);
+  bam1_core_t* c = &b->core;
+  int32_t i, y;
+  for(i = y =0; i < c->n_cigar; ++i) {
+    int j, l = cigar[i]>>4, op = cigar[i]&0xf;
+    if ( ( op == BAM_CSOFT_CLIP ) || ( op == BAM_CHARD_CLIP ) )
+      y += l;
+    else
+      return ( c->pos - y );
+  }
+  return ( c->pos - y );
+}
+
+int32_t bam_get_unclipped_end(bam1_t* b) {
+  uint32_t* cigar = bam_get_cigar(b);
+  bam1_core_t* c = &b->core;
+  int32_t i, y;
+  for(i = y = 0; i < c->n_cigar; ++i) {
+    int j, l = cigar[i]>>4, op = cigar[i]&0xf;
+    switch( op ) {
+    case BAM_CMATCH:
+    case BAM_CEQUAL:
+    case BAM_CDIFF:
+    case BAM_CDEL:
+    case BAM_CREF_SKIP:      
+    case BAM_CSOFT_CLIP:
+    case BAM_CHARD_CLIP:      
+      y += l;
+      //case BAM_CINS:
+      //case BAM_CPAD:
+      //case BAM_CBACK:
+    }
+  }
+  return ( c->pos + y );  
+}
+
+int32_t bam_get_clipped_end(bam1_t* b) {
+  uint32_t* cigar = bam_get_cigar(b);
+  bam1_core_t* c = &b->core;
+  int32_t i, y;
+  for(i = y = 0; i < c->n_cigar; ++i) {
+    int j, l = cigar[i]>>4, op = cigar[i]&0xf;
+    switch( op ) {
+    case BAM_CMATCH:
+    case BAM_CEQUAL:
+    case BAM_CDIFF:
+    case BAM_CDEL:
+    case BAM_CREF_SKIP:      
+      //case BAM_CSOFT_CLIP:
+      //case BAM_CHARD_CLIP:      
+      y += l;
+      //case BAM_CINS:
+      //case BAM_CPAD:
+      //case BAM_CBACK:
+    }
+  }
+  return ( c->pos + y );  
 }

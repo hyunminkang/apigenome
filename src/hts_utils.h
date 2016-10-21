@@ -35,6 +35,7 @@
 #include <map>
 #include <queue>
 #include <sys/stat.h>
+#include "htslib/kseq.h"
 #include "htslib/kstring.h"
 #include "htslib/khash.h"
 #include "htslib/hts.h"
@@ -494,5 +495,11 @@ void hprintf(htsFile* fp, const char * msg, ...);
 
 class GenomeInterval;
 void parse_intervals(std::vector<GenomeInterval>& intervals, std::string interval_list, std::string interval_string);
+
+std::string bam_hdr_get_sample_name(bam_hdr_t* hdr);
+
+int32_t bam_get_unclipped_start(bam1_t* b);
+int32_t bam_get_unclipped_end(bam1_t* b);
+int32_t bam_get_clipped_end(bam1_t* b);
 
 #endif
