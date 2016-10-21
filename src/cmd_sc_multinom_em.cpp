@@ -10,6 +10,7 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   int32_t nRestarts = 1;    // Number of restarts to pick the best model
   int32_t seed = 0;         // random seed
   int32_t nCollapseGenes = 0; // collapse genes into a specific number
+  double fracSubsample = 1;   // fraction of samples to thin the data
 
   paramList pl;
 
@@ -25,7 +26,8 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     LONG_INT_PARAM("restarts",&nRestarts, "Number of restarts to pick the best model")
     LONG_INT_PARAM("max-iter",&maxIter, "Number of maximum E-M iterations")
     LONG_INT_PARAM("collapse-genes",&nCollapseGenes,"Number of genes to be collapsed into to reduce parameter space")
-    LONG_INT_PARAM("seed",&seed, "Seed for random number generator (default uses clock)")        
+    LONG_INT_PARAM("seed",&seed, "Seed for random number generator (default uses clock)")
+    LONG_DOUBLE_PARAM("frac-subsample",&fracSubsample, "Fraction of samples to thin the data")
   END_LONG_PARAMS();
 
   pl.Add(new longParams("Available Options", longParameters));
@@ -34,6 +36,14 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
 
   if ( nClust == 0 ) {
     error("--k is a required parameter");
+  }
+
+  if ( outPrefix.empty() ) {
+    error("--out is a required parameter");
+  }
+
+  if ( inMatrix.empty() ) {
+    error("--in is a required parameter");
   }
 
   htsFile* wf = hts_open((outPrefix+".pis").c_str(),"w");
@@ -93,6 +103,17 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     int64_t rowSum = 0;
     for(int32_t i=1; i < nfields; ++i) {
       cnts[i-1] = atoi(&str.s[fields[i]]);
+
+      if ( fracSubsample < 1 ) {
+	int32_t tot = cnts[i-1];
+	int32_t sampled = 0;
+	for(int32_t j=0; j < tot; ++j) {
+	  if ( (rand()+0.5) / (RAND_MAX+1.) < fracSubsample )
+	    ++sampled;
+	}
+	cnts[i-1] = sampled;
+      }
+      
       if ( cnts[i-1] == 0 ) ++nZero;
       else {
 	rowSum += cnts[i-1];
@@ -398,7 +419,7 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
 	iBest = k;
     }
 
-    hprintf(wf, "%s\t%d",hdrs[c].c_str(), iBest+1);
+    hprintf(wf, "%s\t%d\t%d",hdrs[c].c_str(), colSums[c], iBest+1);
     for(int32_t k=0; k < nClust; ++k)
       hprintf(wf, "\t%.5lg",Zs[c*nCxR + k*nRestarts + iMin]/sumZ);
     hprintf(wf, "\n");
