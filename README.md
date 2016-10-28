@@ -4,7 +4,7 @@
 
 APIGenome is a collection of libraries and command-line utilities for big data genomics analysis. It contains a mixture of mature and nascent software tools actively used by research groups. APIGenome provides a useful software framework for developers to self-document their tools. Currently, it is developed and maintained by Hyun Min Kang's group.
 
-As APIGenome will be continuously updated with new tools, it will be always UNDER CONSTRUCTION. Many nascent utilities will be partially documented, and may contain bugs.
+As APIGenome will be continuously updated with new tools, it will be always **UNDER CONSTRUCTION**. Many preliminary utilities will be partially documented, and may contain bugs.
 
 ### Installing APIGenome
 
@@ -26,16 +26,24 @@ APIGenome contains a list of many self-documented command line utilities. To und
 <pre>
 $ [path/to/apigenome]/bin/[utility-name] -man </pre>
 
-### List of stable APIGenome utilities
+### List of available APIGenome utilities
 
-APIGenome contains many utilities that are not finished and maybe for internal use. You may use them at your own risk too, but the software tools listed below should be mature enough to get assistance from the developers when help is needed.
+The complete list of APIGenome Utility can be found at 
+<pre>$(INSTALL_DIR)/bin/</pre> 
+Some of these utilities that are not finished and maybe under development for internal use. You may use them at your own risk, but the software tools listed below should be relatively more mature enough to get assistance from the developers when help is needed.
 
-List of currently provided utilities:
+Each software tool is self-documented, and you can see the detailed document by typing
+<pre>$(INSTALL_DIR)/bin/$(PROGRAM_NAME) -man</pre>
+
+For C++ program, such as <code>cramore</code> contains multiple programs inside it, and the documentation can be found by typing
+<pre>$(INSTALL_DIR)/bin/cramore $(COMMAND_NAME) -help</pre>
+
+The list of currently provided utilities include:
 
 | Category | Utility Name  | Description |
 | :-----: |:--------------:| :----------------------- |
 | 
-| Sequence Reads | demux-fastq | Demultiplex barcoded FASTQ for single-ended sequence data |
+| Sequence Reads | demux-fastq | Demultiplex barcoded FASTQ for single-ended sequence data in DropSeq format |
 |                | bam-quick-peek-batch | Produce simple summary statistics for a list of BAM files |
 |                | now-seq-batch | Produce a summary of QC metrics from outputs of GotCloud alignment pipeline |
 | Variant Calls | vcfast | Fast command line utility for processing VCF files (in C++) |
