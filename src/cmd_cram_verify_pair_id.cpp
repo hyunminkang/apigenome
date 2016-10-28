@@ -21,15 +21,15 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   BEGIN_LONG_PARAMS(longParameters)
     LONG_PARAM_GROUP("Options for input SAM/BAM/CRAM", NULL)
     LONG_STRING_PARAM("sam",&inSam, "Input SAM/BAM/CRAM file. Must be sorted by coordinates and indexed")
-    LONG_STRING_PARAM("tag-group",&tagGroup, "Tag representing readgroup or cell barcodes, in the case to partition the BAM file into multiple groups")
-    LONG_STRING_PARAM("tag-UMI",&tagUMI, "Tag representing UMIs")
+    LONG_STRING_PARAM("tag-group",&tagGroup, "Tag representing readgroup or cell barcodes, in the case to partition the BAM file into multiple groups. For 10x genomics, use CB")
+    LONG_STRING_PARAM("tag-UMI",&tagUMI, "Tag representing UMIs. For 10x genomiucs, use UB")
 
     LONG_PARAM_GROUP("Options for input VCF/BCF", NULL)
-    LONG_STRING_PARAM("vcf",&inVcf, "Input VCF/BCF file")
+    LONG_STRING_PARAM("vcf",&inVcf, "Input VCF/BCF file, containing the individual genotypes as GT field")
     LONG_MULTI_STRING_PARAM("sm",&smIDs, "List of sample IDs to compare to (default: use all)")    
 
     LONG_PARAM_GROUP("Output Options", NULL)
-    LONG_STRING_PARAM("out",&outPrefix,"Out prefix")
+    LONG_STRING_PARAM("out",&outPrefix,"Output file prefix")
 
     LONG_PARAM_GROUP("Analysis Options", NULL)
     LONG_INT_PARAM("cap-BQ", &capBQ, "Maximum base quality (higher BQ will be capped)")
@@ -39,7 +39,7 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
     LONG_INT_PARAM("excl-flag", &qcExclFlag, "SAM/BAM FLAGs to be excluded")    
     LONG_MULTI_INT_PARAM("alpha",&gridAlpha, "Grid of alpha to search for (default is 0, 0.1, 0.2, 0.3, 0.4  0.5)")
     LONG_MULTI_INT_PARAM("ase",&gridASE, "Grid of allele-specific expression to search for (default is 0, 0.2, 0.3, 0.4, 0.5) -- Not implemented")
-    LONG_DOUBLE_PARAM("verbose",&verbose, "Verbose message frequency")
+    LONG_INT_PARAM("verbose",&verbose, "Verbose message frequency")
   END_LONG_PARAMS();
 
   pl.Add(new longParams("Available Options", longParameters));

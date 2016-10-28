@@ -176,11 +176,15 @@ int32_t main(int32_t argc, char** argv) {
     printf("cramore -- Fast analytic tools for analyzing and manipulating SAM/BAM/CRAM files\n");
     printf("Copyright (c) 2016 Hyun Min Kang and Adrian Tan\n");
     printf("Usage : %s [command] [options]\n",argv[0]);
-    //printf("\tType one of the following commands below to get detailed usage\n");
-    //printf("\t%s kallisto-count [options] : Count digital expressions from kallisto-aligned dropseq data\n",argv[0]);
-    //printf("\t%s sparse-genotypes [options] : Sparse genotyping from BAM files\n",argv[0]);
-    //printf("\t%s mendel-dup-conc [options] : Mendelian/Duplicate genotype concordance\n",argv[0]);
-    //printf("\t%s vcf-sample-summary [options] : Sample level summary of VCF file\n",argv[0]);
+    printf("\tType one of the following commands below to get detailed usage. Type %s [command] -help for more detailed descriptions\n",argv[0]);
+    printf("\t%s cram-sparse-genotypes [options] : Sparse genotyping from BAM files\n",argv[0]);
+    printf("\t%s kallisto-count [options] : Count digital expressions from kallisto-aligned dropseq data\n",argv[0]);    
+    printf("\t%s sc-map-stamps [options] : Map STAMPs in DropSeq cell-UMI barcode FASTQ files\n",argv[0]);
+    printf("\t%s sc-multinom-em [options] : Perform multinomial EM algorithm for digital expression data\n",argv[0]);        
+    printf("\t%s vcf-mendel-dup-conc [options] : Mendelian/Duplicate genotype concordance\n",argv[0]);
+    printf("\t%s vcf-sample-summary [options] : Sample level summary of VCF file\n",argv[0]);
+    printf("\t%s vcf-squeeze [options] : Simplify VCF file by stripped out unessential fields\n",argv[0]);
+    printf("\t%s verify-pair-id [options] : Verify identify of cell barcodes, including doublets from SAM/BAM/CRAM files\n",argv[0]);        
   }
   else {
     std::string cmd(argv[1]);
