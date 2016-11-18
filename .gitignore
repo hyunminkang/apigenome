@@ -30,8 +30,6 @@
 # Automake related
 autom4te.cache
 autom4te.cache/*
-m4
-m4/*
 compile
 src/.deps/
 src/.deps/*
