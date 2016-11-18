@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.65])
+AC_PREREQ([2.63])
 AC_INIT([apigenome], [0.0.3], [hmkang@umich.edu])
 AM_INIT_AUTOMAKE(apigenome, 0.0.3)
 AC_CONFIG_HEADERS([config.h])
