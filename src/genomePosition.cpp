@@ -59,7 +59,7 @@ void genomePosition::loadFastaIndex(const char* fai) {
   uint64_t sz = 0, cum = 0;
   while( ( line = pf.getLine() ) != NULL ) {
     pFile::tokenizeLine(line," \t\r\n", tokens);
-    if ( tokens.size() < 2 ) error("Cannot parse fai file %s - observed line is '%s'",fai,line);
+    if ( tokens.size() < 2 ) error("[E:%s:%d %s] Cannot parse fai file %s - observed line is '%s'",__FILE__,__LINE__,__FUNCTION__,fai,line);
     sz = atoi(tokens[1].c_str());
     mChrs[tokens[0]] = (int)chrs.size();
     chrs.push_back(tokens[0]);
@@ -90,7 +90,7 @@ std::pair<std::string,int> genomePosition::toPos(uint64_t upos) {
       return std::pair<std::string,int> (chrs[i],(int)(upos-(cumChrs[i]-szChrs[i])));
     }
   }
-  error("UPOS %llu exceeds the size of the genome",upos);
+  error("[E:%s:%d %s] UPOS %llu exceeds the size of the genome",__FILE__,__LINE__,__FUNCTION__,upos);
   return std::pair<std::string,int> ("NA",0);
 }
 

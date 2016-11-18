@@ -2,7 +2,8 @@
 
 int32_t cmdCramCompareBQs(int32_t argc, char** argv) {
   std::string inSam1;    // SAM, BAM, or CRAM
-  std::string inSam2;    // SAM, BAM, or CRAM  
+  std::string inSam2;    // SAM, BAM, or CRAM
+  std::string refFasta;  // reference fasta file
   std::string outPrefix; // Output file name
   std::vector<std::string> exclVcfs; // positions to exclude as VCF files
   bool covCycle = false;
@@ -16,7 +17,8 @@ int32_t cmdCramCompareBQs(int32_t argc, char** argv) {
     LONG_PARAM_GROUP("Options for input SAM/BAM/CRAM", NULL)
     LONG_STRING_PARAM("sam1",&inSam1, "Input SAM/BAM/CRAM file. Must be sorted by coordinates and indexed")
     LONG_STRING_PARAM("sam2",&inSam2, "Input SAM/BAM/CRAM file. Must be sorted by coordinates and indexed")
-    LONG_MULTI_STRING_PARAM("excl-vcf",&exclVcfs, "Input VCF files")
+    LONG_STRING_PAKRAM("ref",&refFasta, "Reference FASTA file")
+    LONG_MULTI_STRING_PARAM("excl-vcf",&exclVcfs, "Input VCF files to exclude for empirical quality calculation")
 
     LONG_PARAM_GROUP("Output Options", NULL)
     LONG_PARAM("cov-cycle",&covCycle,"Use cycle as covariate")
@@ -33,133 +35,101 @@ int32_t cmdCramCompareBQs(int32_t argc, char** argv) {
   // load VCF files. This VCF should only contain hard genotypes in GT field
   std::vector<GenomeInterval> intervals;
   BCFOrderedReader odr(inVcf, intervals);
-  bcf1_t* iv = bcf_init();
 
-  samFile* in = NULL;
-  bam_hdr_t *header = NULL;
+  samFile* in1 = NULL, in2 = NULL;
+  bam_hdr_t *header1 = NULL, *header2 = NULL;
 
-  if ( ( in = sam_open(inSam.c_str(), "r") ) == 0 ) {
-    error("Cannot open file %s\n",inSam.c_str());    
+  if ( refFasta.empty() || outPrefix.empty() || inSam1.empty() || inSam2.empty() )
+    error("One of the required parameters, --sam1, --sam2, --ref, or --out is missing\n");
+
+  fastaMask fm(refFasta);
+  for(int32_t i=0; i < exclVcfs.size(); ++i)
+    fm.maskVcf(exclVcfs[i].c_str());
+
+  if ( ( in1 = sam_open(inSam1.c_str(), "r") ) == 0 ) {
+    error("Cannot open file %s\n",inSam1.c_str());    
   }
 
-  if ( ( header = sam_hdr_read(in) ) == 0 ) {
-    error("Cannot open header from %s\n",inSam.c_str());
+  if ( ( header1 = sam_hdr_read(in1) ) == 0 ) {
+    error("Cannot open header from %s\n",inSam1.c_str());
   }
 
-  if ( outPrefix.empty() )
-    error("--out parameter is missing");
-
-  bam1_t *b = bam_init1();
-  //int32_t r;    
-
-  int32_t nsamples = bcf_hdr_nsamples(odr.hdr);
-  std::vector< std::vector<uint8_t> > v_gts;
-  std::vector<double> v_afs;
-  std::vector<int32_t> v_rids;
-  std::vector<int32_t> v_poss;
-  std::vector<char> v_refs;
-  std::vector<char> v_alts;
-
-  
-  
-  samFile* in = NULL;
-  bam_hdr_t *header = NULL;
-
-  if ( inSam.empty() )
-    error("--sam parameter is missing");  
-
-  if ( ( in = sam_open(inSam.c_str(), "r") ) == 0 ) {
-    error("Cannot open file %s\n",inSam.c_str());    
+  if ( ( in2 = sam_open(inSam2.c_str(), "r") ) == 0 ) {
+    error("Cannot open file %s\n",inSam2.c_str());    
   }
 
-  if ( ( header = sam_hdr_read(in) ) == 0 ) {
-    error("Cannot open header from %s\n",inSam.c_str());
+  if ( ( header2 = sam_hdr_read(in2) ) == 0 ) {
+    error("Cannot open header from %s\n",inSam2.c_str());
   }
 
-  if ( outFile.empty() )
-    error("--out parameter is missing");
+  bam1_t *b1 = bam_init1();
+  bam1_t *b2 = bam_init1();  
 
-  bam1_t *b = bam_init1();
-  //int32_t r;    
-
-  //kstring_t readseq = {0,0,0};
-  //kstring_t readqual = {0,0,0};
-
-  notice("Reading SAM/BAM/CRAM records\n");
-
-  int32_t nFlags = 12;  
-  int32_t nFlagCodes = 65536;
-  uint64_t* flagCounts = (uint64_t*)calloc(nFlagCodes, sizeof(uint64_t));
-  int32_t ret;
-  int32_t nReads = 0;
-  while( ( ret = sam_read1(in, header, b) ) >= 0 ) {
-    ++(flagCounts[b->core.flag]);
-    ++nReads;
-  }
-
-  notice("Finished reading %d SAM/BAM/CRAM records. Now writing the full flagstat map", nReads);
-
-  const char* flagDesc[] = {"PAIRED_OR_MULTI","PROP_PAIR","THIS_UNMAPPED","NEXT_UNMAPPED","THIS_REVCOMP","NEXT_REVCOMP","FIRST_SEGMENT","LAST_SEGMENT","SECONDARY","QC_FAILED","DUPLICATE","SUPPLEMENTARY"};
-  int32_t i, j, k;
-
-  std::vector< int32_t > flagStatus(nFlags, 0); // 01 : has zero, 10 : has one, 11 : has both
-  for(i=0; i < nFlagCodes; ++i) {
-    if ( flagCounts[i] > 0 ) {
-      for(j=0; j < nFlags; ++j) {
-	bool isFlagJOn = ( ( i & ( 1 << j ) ) ? true : false );
-	if ( isFlagJOn ) {
-	  flagStatus[j] |= 0x02;
-	}
-	else {
-	  flagStatus[j] |= 0x01;
-	}
-      }
-    }    
-  }
-
-  std::map< int32_t, std::map<int32_t, uint64_t> > maskMap;
-  
-  std::vector< int32_t > possibleMasks(1, 0);
-  for(i=0; i < nFlags; ++i) {
-    if ( flagStatus[i] == 0x03 ) {  // both values exist
-      int size = (int)possibleMasks.size();
-      for(j=0; j < size; ++j) {
-	possibleMasks.push_back(possibleMasks[j] | (1 << i));
-      }
-    }
-    else if ( ( flagStatus[i] <= 0 ) || ( flagStatus[i] > 3 ) ) {
-      error("Cannot recognize flagStatus %d",flagStatus[i]);
-    }
-  }
-
-  notice("# Possible masks = %lu", possibleMasks.size());
-
-  for(i=0; i < nFlagCodes; ++i) {
-    if ( flagCounts[i] > 0 ) {
-      for(j=0; j < (int)possibleMasks.size(); ++j) {
-	k = (possibleMasks[j] | i);
-	maskMap[possibleMasks[j]][k] += flagCounts[i];
-      }
-    }
-  }
-    
   htsFile* wout = hts_open(outFile.c_str(), "w");
 
-  // print header info
-  for(j=0; j < nFlags; ++j) 
-    hprintf(wout, "##%03x\t%s\n", 1 << j, flagDesc[j]);
-  hprintf(wout, "#READ_COUNTS\tMASK\tMASKED\n");
-  for(std::map< int32_t, std::map<int32_t, uint64_t> >::iterator it = maskMap.begin(); it != maskMap.end(); ++it) {
-    for( std::map<int32_t, uint64_t>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-      hprintf(wout, "%15llu\t%03x\t%03x\n", it2->second, it->first, it2->first);
-    }
-    hprintf(wout,"\n");
-  }
+  int32_t ret1, ret2;
+  kstring_t qual1 = {0,0,0};
+  kstring_t qual2 = {0,0,0};
+  kstring_t cstr = {0,0,0};  
+  while( ( ret1 = sam_read1(in1, header1, b1) ) >= 0 ) {
+    ret2 = sam_read2(in2, header2, b2);
+    if ( ret1 != ret2 )
+      error("[E:%s:%d %s] ret1 = %d != ret2 = %d",__FILE__,__LINE__,__FUNCTION__,ret1,ret2);
 
-  notice("Finished writing output files");
+    bam1_core_t *c1 = b1->core;
+    int32_t rlen = c1->l_qseq;
+    uint32_t cpos = c1->pos;
+    int32_t tid = c1->tid;
+
+    bam1_core_t *c2 = b2->core;
+    if ( ( rlen != c2->l_qseq ) && ( cpos != c2->pos ) )
+      error("[E:%s:%d %s] SAM records are not identical between the files",__FILE__,__LINE__,__FUNCTION__);
+
+    bam_get_qual_string(b1, &qual1);
+    bam_get_qual_string(b2, &qual2);
+    bam_get_seq_string(b1, &read1);
+    bam_get_seq_string(b2, &read2);
+
+    char rc;
+
+    if ( c1->n_cigar ) {
+      uint32_t* cigar = bam_get_cigar(b1);
+      int32_t rpos = 0;
+      int32_t m1, m2;
+      for(uint32_t i=0; i < c1->n_cigar; ++i) {
+	char op = bam_cigar_opchr(cigar[i]);
+	cstr.l = 0;
+	kputw(bam_cigar_oplen(cigar[i]), &cstr);
+	char* stop;
+	uint32_t len = strtol(str.s, &stop, 10);
+	assert(stop);
+
+	if ( op == 'M' ) { // cpos..cposL-1
+	  for(uint32_t i=cpos; i < cpos+len; ++i) {
+	    switch(rc = fm.getMask(tid, i)) {
+	    case 'A': case 'C': case 'G': case 'T':
+	      m1 = ( read1[rpos] == rc ? 0 : 1 );
+	      m2 = ( read1[rpos] == rc ? 0 : 1 );	      
+	      break;
+	    case 'a': case 'c': case 'g': case 't':
+	      m1 = ( read1[rpos] == toupper(rc) ? 0 : 1 );
+	      m2 = ( read1[rpos] == toupper(rc) ? 0 : 1 );	      	      
+	      break;
+	    default:
+	      m1 = m2 = 2;
+	    }
+	  }
+	}
+	else if ( ( op == 'D' ) || ( op == 'N' ) ) {
+	}
+	else if ( ( op == 'S' ) || ( op == 'I' ) ) {
+	}
+      }
+    }
+  }  
 
   hts_close(wout);
-  free(flagCounts);
+  
   
   return 0;
 }

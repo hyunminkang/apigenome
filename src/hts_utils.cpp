@@ -927,7 +927,7 @@ const char* bcf_get_chrom(bcf_hdr_t *h, bcf1_t *v)
 {
     if (v->rid >= h->n[BCF_DT_CTG])
     {
-      error("[E:%s:%d %s] rid '%d' does not have an associated contig defined in the header.  Try tabix workaround or just add the header.\n", __FILE__, __LINE__, __FUNCTION__, v->rid);
+      error("[E:%s:%d %s] [E:%s:%d %s] rid '%d' does not have an associated contig defined in the header.  Try tabix workaround or just add the header.\n",__FILE__,__LINE__,__FUNCTION__, __FILE__, __LINE__, __FUNCTION__, v->rid);
       //exit(1);
       //return NULL;
     }
@@ -944,7 +944,7 @@ void bcf_set_chrom(bcf_hdr_t *h, bcf1_t *v, const char* chrom)
     khint_t k = kh_get(vdict, d, chrom);
     if (k == kh_end(d))
     {
-        error("[E:%s:%d %s] contig '%s' is not defined in the header\n", __FILE__, __LINE__, __FUNCTION__, chrom);
+      error("[E:%s:%d %s] [E:%s:%d %s] contig '%s' is not defined in the header\n",__FILE__,__LINE__,__FUNCTION__, __FILE__, __LINE__, __FUNCTION__, chrom);
         kstring_t contig = {0,0,0};
         ksprintf(&contig, "##contig=<ID=%s,length=2147483647>", chrom);
         bcf_hdr_append(h, contig.s);
@@ -985,7 +985,7 @@ void hprintf(htsFile* fp, const char * msg, ...) {
   free(tmp.s);
 
   if ( ret < 0 ) {
-    error("[E:%s:%d %s] hprintf failed. Aborting..", __FILE__, __LINE__, __FUNCTION__);
+    error("[E:%s:%d %s] [E:%s:%d %s] hprintf failed. Aborting..",__FILE__,__LINE__,__FUNCTION__, __FILE__, __LINE__, __FUNCTION__);
   }
 
   va_end(ap);
@@ -1033,7 +1033,7 @@ void parse_intervals(std::vector<GenomeInterval>& intervals, std::string interva
 
 std::string bam_hdr_get_sample_name(bam_hdr_t* hdr) {
   if ( !hdr )
-    error("[E:%s:%d %s] Failed to read the BAM header",__FILE__, __LINE__, __FUNCTION__);
+    error("[E:%s:%d %s] [E:%s:%d %s] Failed to read the BAM header",__FILE__,__LINE__,__FUNCTION__,__FILE__, __LINE__, __FUNCTION__);
 
   const char *p = hdr->text;
   const char *q, *r;
@@ -1052,7 +1052,7 @@ std::string bam_hdr_get_sample_name(bam_hdr_t* hdr) {
       if ( sm.empty() )
 	sm = r;
       else if ( sm.compare(r) != 0 ) {
-	error("[E:%s:%d %s] Multiple sample IDs are included in one BAM file - %s, %s", __FILE__, __LINE__, __FUNCTION__, sm.c_str(), r);
+	error("[E:%s:%d %s] [E:%s:%d %s] Multiple sample IDs are included in one BAM file - %s, %s",__FILE__,__LINE__,__FUNCTION__, __FILE__, __LINE__, __FUNCTION__, sm.c_str(), r);
 	//abort();
       }
     }
@@ -1061,7 +1061,7 @@ std::string bam_hdr_get_sample_name(bam_hdr_t* hdr) {
     ++n;
   }
   if ( sm.empty() ) {
-    error("[E:%s:%d %s] Sample ID information cannot be found",__FILE__, __LINE__, __FUNCTION__);
+    error("[E:%s:%d %s] [E:%s:%d %s] Sample ID information cannot be found",__FILE__,__LINE__,__FUNCTION__,__FILE__, __LINE__, __FUNCTION__);
   }
   return sm;
 }

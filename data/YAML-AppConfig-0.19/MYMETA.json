@@ -4,7 +4,7 @@
       "Matthew O'Connor <matthew@canonical.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "ExtUtils::MakeMaker version 6.92, CPAN::Meta::Converter version 2.140640, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "ExtUtils::MakeMaker version 6.92, CPAN::Meta::Converter version 2.140640, CPAN::Meta::Converter version 2.150005",
    "license" : [
       "perl_5"
    ],
@@ -58,5 +58,6 @@
          "web" : "https://github.com/Xaerxess/YAML-AppConfig"
       }
    },
-   "version" : "0.19"
+   "version" : "0.19",
+   "x_serialization_backend" : "JSON::PP version 2.27300"
 }

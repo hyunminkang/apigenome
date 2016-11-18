@@ -18,7 +18,7 @@
 
 #include "IO.h"
 #include "TypeConversion.h"
-#include "GenomeSequence.h"
+//#include "GenomeSequence.h"
 #include "cdsStat.h"
 #include "ncStat.h"
 #include "bgzf.h"
@@ -257,7 +257,7 @@ int runSummary(int argc, char** argv) {
 
   // sanity check of input arguments
   if ( arg.vcf.empty() || arg.outf.empty()  ) {
-    error("--vcf, --out are required parameters (--indf are also recommended)");
+    error("[E:%s:%d %s] --vcf, --out are required parameters (--indf are also recommended)",__FILE__,__LINE__,__FUNCTION__);
   }
 
   fVcf tvcf;
@@ -403,7 +403,7 @@ int schr2nchr(const char* schr) {
   else if ( strcmp(schr,"XY") == 0 ) { return 25; }
   else if ( ( strcmp(schr,"MT") == 0 ) || ( strcmp(schr,"M") == 0 ) || ( strcmp(schr,"mt") == 0 ) ) { return 26; }
   else if ( strncmp(schr,"chr",3) == 0 ) { return schr2nchr(schr+3); }
-  else { error("Cannot convert chromosome %s into PLINK format",schr); return 0; }
+  else { error("[E:%s:%d %s] Cannot convert chromosome %s into PLINK format",__FILE__,__LINE__,__FUNCTION__,schr); return 0; }
 }
 
 // variable threshold test
@@ -455,7 +455,7 @@ int runConvert(int argc, char** argv) {
 
  // sanity check of input arguments
   if ( arg.vcf.empty() || arg.outf.empty()  ) {
-    error("--vcf, --out are required parameters (--indf are also recommended)");
+    error("[E:%s:%d %s] --vcf, --out are required parameters (--indf are also recommended)",__FILE__,__LINE__,__FUNCTION__);
   }
 
   if ( !( outvcf || outplink || outmatrix ) ) {
@@ -467,7 +467,7 @@ int runConvert(int argc, char** argv) {
   fVcf tvcf;
 
   if ( ( !arg.region.empty() ) && ( !markerId.empty() ) ) {
-    error("--region and --marker-id cannot be combined together");
+    error("[E:%s:%d %s] --region and --marker-id cannot be combined together",__FILE__,__LINE__,__FUNCTION__);
   }
 
   std::string markerIdRef, markerIdAlt;
@@ -482,7 +482,7 @@ int runConvert(int argc, char** argv) {
   }
 
   if ( ( !arg.region.empty() ) && ( !arg.bedf.empty() ) ) {
-    error("--region and --bedf cannot be combined together");
+    error("[E:%s:%d %s] --region and --bedf cannot be combined together",__FILE__,__LINE__,__FUNCTION__);
   }
 
   tvcf.load(arg.vcf.c_str(), arg.region.c_str(), arg.field.c_str(), arg.rule.c_str(), !arg.ignoreFilter, arg.indf.empty() ? NULL : arg.indf.c_str());
@@ -491,8 +491,8 @@ int runConvert(int argc, char** argv) {
   int i,m,j,k;
   wFile *bimf = NULL;
   if ( outplink) {
-    if ( !gtFlag ) error("--field GT must be set with --outplink option");
-    //error("--outplink is not implemented yet");
+    if ( !gtFlag ) error("[E:%s:%d %s] --field GT must be set with --outplink option",__FILE__,__LINE__,__FUNCTION__);
+    //error("[E:%s:%d %s] --outplink is not implemented yet",__FILE__,__LINE__,__FUNCTION__);
     bimf = new wFile((arg.outf+".bim").c_str());
     wFile famf((arg.outf+".fam").c_str());
     for(i=0; i < n; ++i) {
@@ -503,7 +503,7 @@ int runConvert(int argc, char** argv) {
   }
   wFile wf(arg.outf.c_str());
   if ( outplink ) {
-    //error("--outplink is not implemented yet");
+    //error("[E:%s:%d %s] --outplink is not implemented yet",__FILE__,__LINE__,__FUNCTION__);
     // write headers
     char magicNumbers[3] = {0x6c,0x1b,0x01};
     wf.write(magicNumbers,3);
@@ -517,7 +517,7 @@ int runConvert(int argc, char** argv) {
     wf.printf("\n");
   }
   else if ( outvcf ) {
-    //error("--outvcf is not implemented yet");
+    //error("[E:%s:%d %s] --outvcf is not implemented yet",__FILE__,__LINE__,__FUNCTION__);
     // write headers
     for(j=0; j < (int)tvcf.headers.size(); ++j) {
       wf.printf("%s\n",tvcf.headers[j].c_str());
@@ -547,7 +547,7 @@ int runConvert(int argc, char** argv) {
     while( (line = bedf.getLine()) != NULL ) {
       pFile::tokenizeLine(line, " \t\r\n", tokens);
       if ( tokens.size() < 3 ) 
-	error("bed file must have three columns");
+	error("[E:%s:%d %s] bed file must have three columns",__FILE__,__LINE__,__FUNCTION__);
       
       if ( tokens[0].compare(0,3,"chr") == 0 ) {
 	tokens[0] = tokens[0].substr(3);
@@ -634,7 +634,7 @@ int runConvert(int argc, char** argv) {
 
 	    if ( ( winR2 == 0 ) || ( r2P[m % winR2] ) ) {
 	      if ( outplink ) {
-		//error("--outplink is not implemented yet");
+		//error("[E:%s:%d %s] --outplink is not implemented yet",__FILE__,__LINE__,__FUNCTION__);
 		for(j=0; j < n; ++j) {
 		  geno = tvcf.genos[j + n*i];
 		  ngeno = isnan(geno) ? 0 : ((int)floor(geno)+1);
@@ -679,7 +679,7 @@ int runConvert(int argc, char** argv) {
 		wf.printf("\n");
 	      }
 	      else if ( outvcf ) {
-		//error("--outvcf is not implemented yet");
+		//error("[E:%s:%d %s] --outvcf is not implemented yet",__FILE__,__LINE__,__FUNCTION__);
 		//fprintf(stderr,"foo %d\n",M);
 		tvcf.writeSubsetMarker(wf, tvcf.tf.peekLine());
 		//fprintf(stderr,"bar %d\n",M);
@@ -741,7 +741,7 @@ int runPairLD(int argc, char** argv) {
 
  // sanity check of input arguments
   if ( arg.vcf.empty() || arg.outf.empty()  ) {
-    error("--vcf, --out are required parameters (--indf are also recommended)");
+    error("[E:%s:%d %s] --vcf, --out are required parameters (--indf are also recommended)",__FILE__,__LINE__,__FUNCTION__);
   }
 
   bool gtFlag = (arg.field == "GT");
@@ -799,7 +799,7 @@ int runPairLD(int argc, char** argv) {
 	    phased = (gtFlag && (tvcf.phases[j + n*i] > 0) && (!ignorePhase));
 	    if ( phased ) {
  	      geno = tvcf.genos[j + n*i];
- 	      if ( isnan(geno) ) { error("Missing genotype was observed in phased VCF"); }
+ 	      if ( isnan(geno) ) { error("[E:%s:%d %s] Missing genotype was observed in phased VCF",__FILE__,__LINE__,__FUNCTION__); }
  	      ngeno = (int)geno;
  	      phase = tvcf.phases[j + n*i];
  	      switch(ngeno) {
@@ -809,13 +809,13 @@ int runPairLD(int argc, char** argv) {
  	      case 1:
  		if ( phase == 2 ) { r2G[offset+j+j] = h0; r2G[offset+j+j+1] = h1; }
  		else if ( phase == 3 ) { r2G[offset+j+j] = h1; r2G[offset+j+j+1] = h0; }
- 		else { error("Incompatible phase information %d at heterozygous genotypes",phase); }
+ 		else { error("[E:%s:%d %s] Incompatible phase information %d at heterozygous genotypes",__FILE__,__LINE__,__FUNCTION__,phase); }
  		break;
  	      case 2:
  		r2G[offset+j+j] = r2G[offset+j+j+1] = h1;
  		break;
  	      default:
- 		error("Incompatible genotype %d in phased VCF",ngeno);
+ 		error("[E:%s:%d %s] Incompatible genotype %d in phased VCF",__FILE__,__LINE__,__FUNCTION__,ngeno);
  	      }
  	    }
 	    else {
@@ -836,7 +836,7 @@ int runPairLD(int argc, char** argv) {
 // 	    sigma = sqrt(af*(1.-af));
 // 	    for(j=0; j < n; ++j) {
 // 	      geno = tvcf.genos[j + n*i];
-// 	      if ( isnan(geno) ) { error("Missing genotype was observed in phased VCF"); }
+// 	      if ( isnan(geno) ) { error("[E:%s:%d %s] Missing genotype was observed in phased VCF",__FILE__,__LINE__,__FUNCTION__); }
 // 	      ngeno = (int)geno;
 // 	      phase = tvcf.phases[j + n*i];
 // 	      switch(ngeno) {
@@ -846,13 +846,13 @@ int runPairLD(int argc, char** argv) {
 // 	      case 1:
 // 		if ( phase == 2 ) { r2G[offset+j+j] = (0-af)/sigma; r2G[offset+j+j+1] = (1.-af)/sigma; }
 // 		else if ( phase == 3 ) { r2G[offset+j+j] = (1.-af)/sigma; r2G[offset+j+j+1] = (0-af)/sigma; }
-// 		else { error("Incompatible phase information %d at heterozygous genotypes",phase); }
+// 		else { error("[E:%s:%d %s] Incompatible phase information %d at heterozygous genotypes",__FILE__,__LINE__,__FUNCTION__,phase); }
 // 		break;
 // 	      case 2:
 // 		r2G[offset+j+j] = r2G[offset+j+j+1] = (1.-af)/sigma;
 // 		break;
 // 	      default:
-// 		error("Incompatible genotype %d in phased VCF",ngeno);
+// 		error("[E:%s:%d %s] Incompatible genotype %d in phased VCF",__FILE__,__LINE__,__FUNCTION__,ngeno);
 // 	      }
 // 	    }
 // 	  }
@@ -941,7 +941,7 @@ int runIndexLD(int argc, char** argv) {
 
  // sanity check of input arguments
   if ( arg.vcf.empty() || index.empty() || arg.outf.empty()  ) {
-    error("--vcf, --index, --out are required parameters (--indf are also recommended)");
+    error("[E:%s:%d %s] --vcf, --index, --out are required parameters (--indf are also recommended)",__FILE__,__LINE__,__FUNCTION__);
   }
 
   fVcf tvcf;
@@ -949,7 +949,7 @@ int runIndexLD(int argc, char** argv) {
   // parse index SNP info and convert it into regions
   std::vector<std::string> tokens;
   pFile::tokenizeLine(index.c_str(), ":", tokens);
-  if ( tokens.size() != 2 ) { error("Cannot parse --indx %s parameter",index.c_str()); }
+  if ( tokens.size() != 2 ) { error("[E:%s:%d %s] Cannot parse --indx %s parameter",__FILE__,__LINE__,__FUNCTION__,index.c_str()); }
   std::string indexChr = tokens[0];
   std::string indexSPos = tokens[1];
   int indexNPos = atoi(indexSPos.c_str());
@@ -962,7 +962,7 @@ int runIndexLD(int argc, char** argv) {
   tvcf.tf.updateRegion(indexRegion.c_str(), arg.sepchr);
 
   if ( tvcf.readMarkers(1) == 0 ) {
-    error("Cannot find a SNP at marker position %s",index.c_str());
+    error("[E:%s:%d %s] Cannot find a SNP at marker position %s",__FILE__,__LINE__,__FUNCTION__,index.c_str());
   }
 
   int j, k, m;
@@ -985,7 +985,7 @@ int runIndexLD(int argc, char** argv) {
     geno = tvcf.genos[j];
     phased = (( tvcf.phases[j] > 0 ) && ( !ignorePhase ));
     if ( phased ) {
-      if ( isnan(geno) ) { error("Missing genotype was observed in phased VCF"); }
+      if ( isnan(geno) ) { error("[E:%s:%d %s] Missing genotype was observed in phased VCF",__FILE__,__LINE__,__FUNCTION__); }
       ngeno = (int)geno;
       phase = tvcf.phases[j];
       switch(ngeno) {
@@ -995,13 +995,13 @@ int runIndexLD(int argc, char** argv) {
       case 1:
 	if ( phase == 2 ) { iG[j+j] = h0; iG[j+j+1] = h1; }
 	else if ( phase == 3 ) { iG[j+j] = h1; iG[j+j+1] = h0; }
-	else { error("Incompatible phase information %d at heterozygous genotypes",phase); }
+	else { error("[E:%s:%d %s] Incompatible phase information %d at heterozygous genotypes",__FILE__,__LINE__,__FUNCTION__,phase); }
 	break;
       case 2:
 	iG[j+j] = iG[j+j+1] = h1;
 	break;
       default:
-	error("Incompatible genotype %d in phased VCF",ngeno);
+	error("[E:%s:%d %s] Incompatible genotype %d in phased VCF",__FILE__,__LINE__,__FUNCTION__,ngeno);
       }
       //af = (double)cd/(double)(ab+cd);
     }
@@ -1055,7 +1055,7 @@ int runIndexLD(int argc, char** argv) {
 	  geno = tvcf.genos[j + n*i];
 	  phased = (( tvcf.phases[j + n*i] > 0 ) && ( !ignorePhase ));
 	  if ( phased ) { // assume phased, non-missing genotypes
-	    if ( isnan(geno) ) { error("Missing genotype was observed in phased VCF"); }
+	    if ( isnan(geno) ) { error("[E:%s:%d %s] Missing genotype was observed in phased VCF",__FILE__,__LINE__,__FUNCTION__); }
 	    ngeno = (int)geno;
 	    phase = tvcf.phases[j + n*i];
 	    switch(ngeno) {
@@ -1065,13 +1065,13 @@ int runIndexLD(int argc, char** argv) {
 	    case 1:
 	      if ( phase == 2 ) { tG[j+j] = h0; tG[j+j+1] = h1; }
 	      else if ( phase == 3 ) { tG[j+j] = h1; tG[j+j+1] = h0; }
-	      else { error("Incompatible phase information %d at heterozygous genotypes",phase); }
+	      else { error("[E:%s:%d %s] Incompatible phase information %d at heterozygous genotypes",__FILE__,__LINE__,__FUNCTION__,phase); }
 	      break;
 	    case 2:
 	      tG[j+j] = tG[j+j+1] = h1;
 	      break;
 	    default:
-	      error("Incompatible genotype %d in phased VCF",ngeno);
+	      error("[E:%s:%d %s] Incompatible genotype %d in phased VCF",__FILE__,__LINE__,__FUNCTION__,ngeno);
 	    }
 	  }
 	  else {
@@ -1092,7 +1092,7 @@ int runIndexLD(int argc, char** argv) {
 	  //notice("%d\t%lf\t%lf",k,iG[k],tG[k]);
 	}
 	r /= (double)(n+n);
-	//error("r=%lf",r);
+	//error("[E:%s:%d %s] r=%lf",__FILE__,__LINE__,__FUNCTION__,r);
 	if ( r*r >= minR2 ) { // print out R2
 	  wf.printf("%s\t%d\t.\t%s\t%s\t%.5lf\t%.5lf\t%.5lf\n",tvcf.chroms[i].c_str(), tvcf.pos1s[i], tvcf.refs[i].c_str(), tvcf.alts[i].c_str(), af, r*r, r);
 	  ++nout;
@@ -1158,16 +1158,16 @@ int runPeakShift(int argc, char** argv) {
 
   // sanity check of input arguments
   if ( score.empty() || out.empty() ) {
-    error("--score and --out are required parameters");
+    error("[E:%s:%d %s] --score and --out are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
   if ( mpu.empty() && bed.empty() ) {
-    error("Either --mpu or --bed are required parameters");
+    error("[E:%s:%d %s] Either --mpu or --bed are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
   if ( !mpu.empty() && !bed.empty() ) {
-    error("Only one of --mpu or --bed are required parameters");
+    error("[E:%s:%d %s] Only one of --mpu or --bed are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
   if ( !region.empty() && !chrpos.empty() ) {
-    error("Only one of --region or --chrpos can be specified");
+    error("[E:%s:%d %s] Only one of --region or --chrpos can be specified",__FILE__,__LINE__,__FUNCTION__);
   }
 
   // open the score file first
@@ -1194,10 +1194,10 @@ int runPeakShift(int argc, char** argv) {
   const char* line = NULL;
   while( ( line = scoref.getLine() ) != NULL ) {
     pFile::tokenizeLine(line, " \t\r\n", tokens);
-    if ( tokens.size() < 3 ) error("bed file must have three columns");
+    if ( tokens.size() < 3 ) error("[E:%s:%d %s] bed file must have three columns",__FILE__,__LINE__,__FUNCTION__);
 
     if ( chr.empty() ) { chr = tokens[0]; }
-    else if ( chr != tokens[0] ) error("Multiple chromosomes - %s and %s - are not supported",chr.c_str(),tokens[0].c_str());
+    else if ( chr != tokens[0] ) error("[E:%s:%d %s] Multiple chromosomes - %s and %s - are not supported",__FILE__,__LINE__,__FUNCTION__,chr.c_str(),tokens[0].c_str());
     int bp = atoi(tokens[1].c_str());
     if ( minpos > bp ) minpos = bp;
     if ( maxpos < bp ) maxpos = bp;
@@ -1208,7 +1208,7 @@ int runPeakShift(int argc, char** argv) {
   sprintf(buf,"%s:%d-%d",bedchr.c_str(),minpos,maxpos);
   region = buf;
 
-  //error("%s:%d-%d",bedchr.c_str(),minpos,maxpos);
+  //error("[E:%s:%d %s] %s:%d-%d",__FILE__,__LINE__,__FUNCTION__,bedchr.c_str(),minpos,maxpos);
 
   // read BED file 
   std::map<std::string, genomeLoci> mLoci;  // BED regions with predicted category
@@ -1222,7 +1222,7 @@ int runPeakShift(int argc, char** argv) {
       std::string key("ALL");
       //double f = 1.;
       if ( tokens.size() < 3 ) {
-	error("BED file must have at least three columns");
+	error("[E:%s:%d %s] BED file must have at least three columns",__FILE__,__LINE__,__FUNCTION__);
       }
       else if ( tokens.size() > 3 ) {
 	key = tokens[3];
@@ -1245,7 +1245,7 @@ int runPeakShift(int argc, char** argv) {
     pFile mpuf(mpu.c_str(), region.c_str());
     while( ( line = mpuf.getLine() ) != NULL ) {
       if ( tokens.size() < 4 ) {
-	error("MPU file must have at least four columns");
+	error("[E:%s:%d %s] MPU file must have at least four columns",__FILE__,__LINE__,__FUNCTION__);
       }
       std::string key("ALL");
       int pos = atoi(tokens[1].c_str());
@@ -1323,7 +1323,7 @@ int runPeakShift(int argc, char** argv) {
       sumScores[it->first].push_back(noAvgFlag ? sum : sum/(num+1e-10));
       numScores[it->first].push_back(num);
     }
-    //error("offset = %d",offsets[i]);
+    //error("[E:%s:%d %s] offset = %d",__FILE__,__LINE__,__FUNCTION__,offsets[i]);
   }
 
   notice("Computing permutation-based p-values...");
@@ -1461,13 +1461,13 @@ int runBedEnrich(int argc, char** argv) {
 
   // sanity check of input arguments
   if ( score.empty() || out.empty() ) {
-    error("--score and --out are required parameters");
+    error("[E:%s:%d %s] --score and --out are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
   if ( bed.empty() ) {
-    error("--bed is required parameters");
+    error("[E:%s:%d %s] --bed is required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
   if ( !region.empty() && !chrpos.empty() ) {
-    error("Only one of --region or --chrpos can be specified");
+    error("[E:%s:%d %s] Only one of --region or --chrpos can be specified",__FILE__,__LINE__,__FUNCTION__);
   }
 
   // open the score file first
@@ -1503,7 +1503,7 @@ int runBedEnrich(int argc, char** argv) {
   // read the header line
   const char* line = scoref.getLine();
   if ( line[0] != '#' ) {
-    error("Cannot find the header line in %s",score.c_str());
+    error("[E:%s:%d %s] Cannot find the header line in %s",__FILE__,__LINE__,__FUNCTION__,score.c_str());
   }
 
   // determine the columns of PVALUE and MAF
@@ -1515,20 +1515,20 @@ int runBedEnrich(int argc, char** argv) {
   for(int i=0; i < (int)tokens.size(); ++i) {
     if ( tokens[i].compare(pvalcol) == 0 ) {
       if ( ipval == -1 ) ipval = i;
-      else error("Multiple %s column is defined",pvalcol.c_str());
+      else error("[E:%s:%d %s] Multiple %s column is defined",__FILE__,__LINE__,__FUNCTION__,pvalcol.c_str());
     }
     if ( tokens[i].compare(mafcol) == 0 ) {
       if ( imaf == -1 ) imaf = i;
-      else error("Multiple %s column is defined",mafcol.c_str());
+      else error("[E:%s:%d %s] Multiple %s column is defined",__FILE__,__LINE__,__FUNCTION__,mafcol.c_str());
     }
     if ( tokens[i].compare(weightcol) == 0 ) {
       if ( iweight == -1 ) iweight = i;
-      else error("Multiple %s column is defined",weightcol.c_str());
+      else error("[E:%s:%d %s] Multiple %s column is defined",__FILE__,__LINE__,__FUNCTION__,weightcol.c_str());
     }
   }
 
-  if ( ipval < 0 ) error("Cannot find PVALUE column from %s",score.c_str());
-  if ( imaf < 0 ) error("Cannot find MAF column from %s",score.c_str());
+  if ( ipval < 0 ) error("[E:%s:%d %s] Cannot find PVALUE column from %s",__FILE__,__LINE__,__FUNCTION__,score.c_str());
+  if ( imaf < 0 ) error("[E:%s:%d %s] Cannot find MAF column from %s",__FILE__,__LINE__,__FUNCTION__,score.c_str());
   if ( iweight < 0 ) warning("WEIGHT column is not found.. Assume 1 for every variant");
 
   // read the p-value files and convert them into posterior probability scale
@@ -1646,7 +1646,7 @@ int runBedEnrich(int argc, char** argv) {
     pFile::tokenizeLine(line, " \t\r\n", tokens);
     std::string key("ALL");
     if ( tokens.size() < 3 ) {
-      error("BED file must have at least three columns");
+      error("[E:%s:%d %s] BED file must have at least three columns",__FILE__,__LINE__,__FUNCTION__);
     }
     else if ( tokens.size() > 3 ) {
       key = tokens[3];
@@ -1659,7 +1659,7 @@ int runBedEnrich(int argc, char** argv) {
     if ( uend > maxupos ) uend = maxupos;
     if ( ubeg > uend ) {
       continue;
-      //error("Invalid interval %s",line);
+      //error("[E:%s:%d %s] Invalid interval %s",__FILE__,__LINE__,__FUNCTION__,line);
     }
     sz += (uend-ubeg+1);
 
@@ -1683,7 +1683,7 @@ int runBedEnrich(int argc, char** argv) {
     //notice("%s\t%llu",it->first.c_str(),it->second.totalLength());
     it->second.resolveOverlaps();
     //notice("%s\t%llu",it->first.c_str(),it->second.totalLength());
-    //error("%s\t%llu",it->first.c_str(),it->second.totalLength());
+    //error("[E:%s:%d %s] %s\t%llu",__FILE__,__LINE__,__FUNCTION__,it->first.c_str(),it->second.totalLength());
   }
 
   if ( maxShift == 0 ) {
@@ -1847,47 +1847,47 @@ int runBGZIndex(int argc, char** argv) {
 
   // sanity check of input arguments
   if ( gzf.empty() ) {
-    error("--in are required parameters");
+    error("[E:%s:%d %s] --in are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
   if ( ( forceFlag ) && ( readFlag ) ) {
-    error("--force option is unavailable when --read is on");
+    error("[E:%s:%d %s] --force option is unavailable when --read is on",__FILE__,__LINE__,__FUNCTION__);
   }
 
   if ( indexFlag ) {
     FILE* fp = fopen(gzf.c_str(), "r");
-    if ( fp == NULL ) error("Error in reading BGZF file %s",gzf.c_str());
+    if ( fp == NULL ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
 
     std::string idxf = gzf + ".bgi";
     if ( !forceFlag ) {
       FILE* ftmp = fopen(idxf.c_str(), "r");
-      if ( ftmp != NULL ) error("BGZF Index %s already exists. Use --force option to overwrite",idxf.c_str());
+      if ( ftmp != NULL ) error("[E:%s:%d %s] BGZF Index %s already exists. Use --force option to overwrite",__FILE__,__LINE__,__FUNCTION__,idxf.c_str());
     }
     FILE* wp = fopen(idxf.c_str(), "w");
-    if ( wp == NULL ) error("Cannot write to %s",idxf.c_str());
+    if ( wp == NULL ) error("[E:%s:%d %s] Cannot write to %s",__FILE__,__LINE__,__FUNCTION__,idxf.c_str());
     
     uint8_t u8;
     uint16_t u16;
     uint32_t u32;
 
-    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 31 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 139 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 8 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 4 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u32, sizeof(uint32_t), 1, fp) != 1 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) ) error("Error in reading BGZF file %s",gzf.c_str());
-    if ( ( fread(&u16, sizeof(uint16_t), 1, fp) != 1 ) ) error("Error in reading BGZF file %s",gzf.c_str());
+    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 31 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 139 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 8 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 4 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u32, sizeof(uint32_t), 1, fp) != 1 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
+    if ( ( fread(&u16, sizeof(uint16_t), 1, fp) != 1 ) ) error("[E:%s:%d %s] Error in reading BGZF file %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
     //if ( u16 > 0 ) fseek(fp, u16, SEEK_CUR);
 
     uint64_t sz = 0;
     for(int i=0;; ++i) {
-      if ( fwrite(&sz, sizeof(uint64_t), 1, wp) != 1 ) error("Error in writing BGZF Index %s",idxf.c_str());
+      if ( fwrite(&sz, sizeof(uint64_t), 1, wp) != 1 ) error("[E:%s:%d %s] Error in writing BGZF Index %s",__FILE__,__LINE__,__FUNCTION__,idxf.c_str());
 
       if ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) break;
-      else if ( u8 != 66 ) error("Error1 in reading BGZF file %s at block %d %u",gzf.c_str(),i,u8);
-      if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 67 ) ) error("Error3 in reading BGZF file %s at block %d",gzf.c_str(),i);
-      if ( ( fread(&u16, sizeof(uint16_t), 1, fp) != 1 ) || ( u16 != 2 ) ) error("Error4 in reading BGZF file %s at block %d",gzf.c_str(),i);
-      if ( ( fread(&u16, sizeof(uint16_t), 1, fp) != 1 ) ) error("Error5 in reading BGZF file %s at block %d",gzf.c_str(),i);
+      else if ( u8 != 66 ) error("[E:%s:%d %s] Error1 in reading BGZF file %s at block %d %u",__FILE__,__LINE__,__FUNCTION__,gzf.c_str(),i,u8);
+      if ( ( fread(&u8, sizeof(uint8_t), 1, fp) != 1 ) || ( u8 != 67 ) ) error("[E:%s:%d %s] Error3 in reading BGZF file %s at block %d",__FILE__,__LINE__,__FUNCTION__,gzf.c_str(),i);
+      if ( ( fread(&u16, sizeof(uint16_t), 1, fp) != 1 ) || ( u16 != 2 ) ) error("[E:%s:%d %s] Error4 in reading BGZF file %s at block %d",__FILE__,__LINE__,__FUNCTION__,gzf.c_str(),i);
+      if ( ( fread(&u16, sizeof(uint16_t), 1, fp) != 1 ) ) error("[E:%s:%d %s] Error5 in reading BGZF file %s at block %d",__FILE__,__LINE__,__FUNCTION__,gzf.c_str(),i);
       sz += (u16+1);
       //fprintf(stderr,"sz=%lu\n",sz);
       if ( fseek(fp, u16-5, SEEK_CUR) != 0 ) break;
@@ -1904,10 +1904,10 @@ int runBGZIndex(int argc, char** argv) {
     if ( block > 0 ) {
       std::string idxf = gzf + ".bgi";
       FILE* fp = fopen(idxf.c_str(), "r");
-      if ( fp == NULL ) error("Cannot open %s",idxf.c_str());
+      if ( fp == NULL ) error("[E:%s:%d %s] Cannot open %s",__FILE__,__LINE__,__FUNCTION__,idxf.c_str());
       fseek(fp, block * sizeof(uint64_t), SEEK_SET);
       if ( fread(&cblock, sizeof(uint64_t), 1, fp) != 1 ) 
-	error("Cannot read from %s",idxf.c_str());
+	error("[E:%s:%d %s] Cannot read from %s",__FILE__,__LINE__,__FUNCTION__,idxf.c_str());
       fclose(fp);
     }
 
@@ -1928,12 +1928,12 @@ int runBGZIndex(int argc, char** argv) {
     wFile wf(outf.c_str());
     int c;
     
-    if (bgzf_seek(bp, start, SEEK_SET) < 0) error("Cannot perform bgzf_seek in %s to %ld",gzf.c_str(),start);
+    if (bgzf_seek(bp, start, SEEK_SET) < 0) error("[E:%s:%d %s] Cannot perform bgzf_seek in %s to %ld",__FILE__,__LINE__,__FUNCTION__,gzf.c_str(),start);
     while (1) {
       if (end < 0) c = bgzf_read(bp, buffer, WINDOW_SIZE);
       else c = bgzf_read(bp, buffer, (end - start > WINDOW_SIZE)? WINDOW_SIZE:(end - start));
       if (c == 0) break;
-      if (c < 0) error("Cannot perform bgzf_seek in %s",gzf.c_str());
+      if (c < 0) error("[E:%s:%d %s] Cannot perform bgzf_seek in %s",__FILE__,__LINE__,__FUNCTION__,gzf.c_str());
       start += c;
       for(int i=0; i < c; i += szelem) {
 	if ( uint8_t_Flag ) {
@@ -1970,7 +1970,7 @@ int runBGZIndex(int argc, char** argv) {
 	  wf.printf("%g\n",*(const double*)(buffer+i));
 	}
 	else {
-	  error("Unrecognized output type");
+	  error("[E:%s:%d %s] Unrecognized output type",__FILE__,__LINE__,__FUNCTION__);
 	}
       }
       //write(f_dst, buffer, c);
@@ -2018,7 +2018,7 @@ int main(int argc, char** argv) {
     //  return runBGZIndex(argc-1,argv+1);
     //}
     else {
-      error("Unrecognized command %s\n",argv[0]);
+      error("[E:%s:%d %s] Unrecognized command %s\n",__FILE__,__LINE__,__FUNCTION__,argv[0]);
     }
   }
   return 0;

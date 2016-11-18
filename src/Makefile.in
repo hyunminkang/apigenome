@@ -382,7 +382,7 @@ noinst_HEADERS = hDist.h \
 	boolParser.h \
 	cdsStat.h ncStat.h \
 	TypeConversion.h \
-	Constant.h GenomeSequence.h \
+	Constant.h \
 	kseq.h pException.h tabix.h \
 	Error.h \
 	ksort.h pFile.h \
@@ -398,7 +398,7 @@ noinst_LIBRARIES = libtabix.a
 cramore_SOURCES = cramore.cpp \
 	Error.cpp PhredHelper.cpp params.cpp \
 	dropseq.cpp \
-	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp \
+	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp reference_sequence_cpp \
 	bam_ordered_reader.cpp \
 	nuclear_pedigree.cpp \
 	genotype_concordance.cpp \

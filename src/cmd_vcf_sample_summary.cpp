@@ -49,7 +49,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
   
   // sanity check of input arguments
   if ( inVcf.empty() || out.empty() ) {
-    error("--in-vcf, --out are required parameters");
+    error("[E:%s:%d %s] --in-vcf, --out are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
 
 
@@ -79,7 +79,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
       filter_logic |= FLT_INCLUDE;      
     }
     else {
-      error("Cannot use both --include-expr and --exclude-expr options");
+      error("[E:%s:%d %s] Cannot use both --include-expr and --exclude-expr options",__FILE__,__LINE__,__FUNCTION__);
     }    
   }
 
@@ -250,7 +250,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
       
       // extract genotype and apply genotype level filter
       if ( bcf_get_genotypes(odr.hdr, iv, &p_gt, &n_gt) < 0 ) {
-	error("Cannot find the field GT from the VCF file at position %s:%d", bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
+	error("[E:%s:%d %s] Cannot find the field GT from the VCF file at position %s:%d",__FILE__,__LINE__,__FUNCTION__, bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
       }
       for(int32_t i=0; i < nsamples; ++i) {
 	int32_t g1 = p_gt[2*i];
@@ -269,7 +269,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
 
       if ( gfilt.minDP > 0 ) {
 	if ( bcf_get_format_int32(odr.hdr, iv, "DP", &p_fld, &n_fld) < 0 ) {
-	  error("Cannot find the field DP from the VCF file at position %s:%d", bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
+	  error("[E:%s:%d %s] Cannot find the field DP from the VCF file at position %s:%d",__FILE__,__LINE__,__FUNCTION__, bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
 
 	}
 	for(int32_t i=0; i < nsamples; ++i) {
@@ -279,7 +279,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
 
       if ( gfilt.minGQ > 0 ) {
 	if ( bcf_get_format_int32(odr.hdr, iv, "GQ", &p_fld, &n_fld) < 0 ) {
-	  error("Cannot find the field GQ from the VCF file at position %s:%d", bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
+	  error("[E:%s:%d %s] Cannot find the field GQ from the VCF file at position %s:%d",__FILE__,__LINE__,__FUNCTION__, bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
 
 	}
 	for(int32_t i=0; i < nsamples; ++i) {
@@ -304,13 +304,13 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
     // perform sumField tasks
     for(int32_t i=0; i < (int32_t)sumFields.size(); ++i) {
       if ( bcf_get_format_int32(odr.hdr, iv, sumFields[i].c_str(), &p_fld, &n_fld) < 0 ) {
-	error("Cannot find the field %s from the VCF file at position %s:%d", sumFields[i].c_str(), bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
+	error("[E:%s:%d %s] Cannot find the field %s from the VCF file at position %s:%d",__FILE__,__LINE__,__FUNCTION__, sumFields[i].c_str(), bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);
       }
       if ( nsamples != n_fld )
-	error("Field %s has multiple elements",sumFields[i].c_str());
+	error("[E:%s:%d %s] Field %s has multiple elements",__FILE__,__LINE__,__FUNCTION__,sumFields[i].c_str());
       std::vector<int64_t>& v = mapFieldSums[sumFields[i]];
       if ( (int32_t)v.size() != nsamples )
-	error("mapFieldSums object does not have %s as key",sumFields[i].c_str());
+	error("[E:%s:%d %s] mapFieldSums object does not have %s as key",__FILE__,__LINE__,__FUNCTION__,sumFields[i].c_str());
 
       for(int32_t j=0; j < nsamples; ++j) {
 	//if ( p_fld[j] != bcf_int32_missing ) {

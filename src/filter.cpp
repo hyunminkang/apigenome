@@ -765,7 +765,7 @@ static void set_sum(filter_t *flt, bcf1_t *line, token_t *tok)
 }
 static void set_abs(filter_t *flt, bcf1_t *line, token_t *tok)
 {
-    if ( tok->is_str ) error("ABS() can be applied only on numeric values\n");
+  if ( tok->is_str ) error("[E:%s:%d %s] ABS() can be applied only on numeric values\n",__FILE__,__LINE__,__FUNCTION__);
     int i;
     for (i=0; i<tok->nvalues; i++)
         tok->values[i] = fabs(tok->values[i]);
@@ -976,7 +976,7 @@ static int vector_logic_or(token_t *atok, token_t *btok, int or_type)
 
 #define CMP_MISSING(atok,btok,CMP_OP,ret) \
 { \
-    if ( (atok)->nsamples || (btok)->nsamples ) error("todo: Querying of missing values in FORMAT\n"); \
+  if ( (atok)->nsamples || (btok)->nsamples ) error("[E:%s:%d %s] todo: Querying of missing values in FORMAT\n",__FILE__,__LINE__,__FUNCTION__); \
     token_t *tok = (atok)->is_missing ? (btok) : (atok); \
     (ret) = ( tok->nvalues CMP_OP 1 ) ? 0 : 1; \
 }
@@ -1077,7 +1077,7 @@ static int cmp_vector_strings(token_t *atok, token_t *btok, int logic)    // log
         {
             // any field can match: [*]
             if ( atok->idx==-2 && btok->idx==-2 )
-                error("fixme: Expected at least one scalar value [%s %s %s]\n", atok->tag ? atok->tag : btok->tag, atok->str_value,btok->str_value);
+	      error("[E:%s:%d %s] fixme: Expected at least one scalar value [%s %s %s]\n",__FILE__,__LINE__,__FUNCTION__, atok->tag ? atok->tag : btok->tag, atok->str_value,btok->str_value);
             token_t *xtok, *ytok;   // xtok is scalar, ytok array
             if ( btok->idx==-2 ) { xtok = atok; ytok = btok; }
             else { xtok = btok; ytok = atok; }
@@ -1142,7 +1142,7 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
     if ( str[0]=='"' || str[0]=='\'' )
     {
         int quote = str[0];
-        if ( str[len-1] != quote ) error("TODO: [%s]\n", filter->str);
+        if ( str[len-1] != quote ) error("[E:%s:%d %s] TODO: [%s]\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
         tok->key = (char*) calloc(len-1,sizeof(char));
         hts_expand(float,1,tok->mvalues,tok->values);
         tok->values[0] = len-2;
@@ -1162,10 +1162,10 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
         tok->tag[len] = 0;
         wordexp_t wexp;
         wordexp(tok->tag+1, &wexp, 0);
-        if ( !wexp.we_wordc ) error("No such file: %s\n", tok->tag+1);
+        if ( !wexp.we_wordc ) error("[E:%s:%d %s] No such file: %s\n",__FILE__,__LINE__,__FUNCTION__, tok->tag+1);
         int i, n;
         char **list = hts_readlist(wexp.we_wordv[0], 1, &n);
-        if ( !list ) error("Could not read: %s\n", wexp.we_wordv[0]);
+        if ( !list ) error("[E:%s:%d %s] Could not read: %s\n",__FILE__,__LINE__,__FUNCTION__, wexp.we_wordv[0]);
         wordfree(&wexp);
         tok->hash = khash_str2int_init();
         for (i=0; i<n; i++)
@@ -1264,7 +1264,7 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
             {
                 char *end;
                 tok->idx = strtol(tmp.s+is_array, &end, 10);
-                if ( *end!=']' ) error("Could not parse the index: %s[%s\n", tmp.s,tmp.s+is_array);
+                if ( *end!=']' ) error("[E:%s:%d %s] Could not parse the index: %s[%s\n",__FILE__,__LINE__,__FUNCTION__, tmp.s,tmp.s+is_array);
             }
         }
     }
@@ -1289,19 +1289,19 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
         else if ( is_fmt )
         {
             if ( !bcf_hdr_idinfo_exists(filter->hdr,BCF_HL_FMT,tok->hdr_id) )
-                error("No such FORMAT field: %s\n", tmp.s);
+	      error("[E:%s:%d %s] No such FORMAT field: %s\n",__FILE__,__LINE__,__FUNCTION__, tmp.s);
             if ( bcf_hdr_id2number(filter->hdr,BCF_HL_FMT,tok->hdr_id)!=1 && !is_array )
-                error("Error: FORMAT vectors must be subscripted, e.g. %s[0] or %s[*]\n", tmp.s, tmp.s);
+	      error("[E:%s:%d %s] Error: FORMAT vectors must be subscripted, e.g. %s[0] or %s[*]\n",__FILE__,__LINE__,__FUNCTION__, tmp.s, tmp.s);
             switch ( bcf_hdr_id2type(filter->hdr,BCF_HL_FMT,tok->hdr_id) )
             {
                 case BCF_HT_INT:  tok->setter = &filters_set_format_int; break;
                 case BCF_HT_REAL: tok->setter = &filters_set_format_float; break;
                 case BCF_HT_STR:  tok->setter = &filters_set_format_string; tok->is_str = 1; break;
-                default: error("[%s:%d %s] FIXME\n", __FILE__,__LINE__,__FUNCTION__);
+	    default: error("[E:%s:%d %s] [%s:%d %s] FIXME\n",__FILE__,__LINE__,__FUNCTION__, __FILE__,__LINE__,__FUNCTION__);
             }
         }
         else if ( !bcf_hdr_idinfo_exists(filter->hdr,BCF_HL_INFO,tok->hdr_id) )
-            error("No such INFO field: %s\n", tmp.s);
+	  error("[E:%s:%d %s] No such INFO field: %s\n",__FILE__,__LINE__,__FUNCTION__, tmp.s);
         else
         {
             if ( bcf_hdr_id2type(filter->hdr,BCF_HL_INFO,tok->hdr_id) == BCF_HT_FLAG )
@@ -1318,7 +1318,7 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
                         case BCF_HT_INT:  tok->setter = &filters_set_info_int; break;
                         case BCF_HT_REAL: tok->setter = &filters_set_info_float; break;
                         case BCF_HT_STR:  tok->setter = &filters_set_info_string; tok->is_str = 1; break;
-                        default: error("[%s:%d %s] FIXME\n", __FILE__,__LINE__,__FUNCTION__);
+		    default: error("[E:%s:%d %s] [%s:%d %s] FIXME\n",__FILE__,__LINE__,__FUNCTION__, __FILE__,__LINE__,__FUNCTION__);
                     }
                     if(!is_array) tok->idx = -2;
                 }
@@ -1377,7 +1377,7 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
     char *end;
     errno = 0;
     tok->threshold = strtod(tmp.s, &end);
-    if ( errno!=0 || end!=tmp.s+len ) error("[%s:%d %s] Error: the tag \"INFO/%s\" is not defined in the VCF header\n", __FILE__,__LINE__,__FUNCTION__,tmp.s);
+    if ( errno!=0 || end!=tmp.s+len ) error("[E:%s:%d %s] [%s:%d %s] Error: the tag \",__FILE__,__LINE__,__FUNCTION__INFO/%s\" is not defined in the VCF header\n", __FILE__,__LINE__,__FUNCTION__,tmp.s);
 
     if ( tmp.s ) free(tmp.s);
     return 0;
@@ -1424,7 +1424,7 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
     {
         int len, ret;
         ret = filters_next_token(&tmp, &len);
-        if ( ret==-1 ) error("Missing quotes in: %s\n", str);
+        if ( ret==-1 ) error("[E:%s:%d %s] Missing quotes in: %s\n",__FILE__,__LINE__,__FUNCTION__, str);
 
         //fprintf(stderr,"token=[%c] .. [%s] %d\n", TOKEN_STRING[ret], tmp, len);
         //int i; for (i=0; i<nops; i++) fprintf(stderr," .%c.", TOKEN_STRING[ops[i]]); fprintf(stderr,"\n");
@@ -1444,7 +1444,7 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
                 out[nout-1].tok_type = ops[nops-1];
                 nops--;
             }
-            if ( nops<=0 ) error("Could not parse: %s\n", str);
+            if ( nops<=0 ) error("[E:%s:%d %s] Could not parse: %s\n",__FILE__,__LINE__,__FUNCTION__, str);
             nops--;
         }
         else if ( ret!=TOK_VAL )    // one of the operators
@@ -1477,7 +1477,7 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
         }
         else if ( !len )
         {
-            if ( *tmp && !isspace(*tmp) ) error("Could not parse the expression: [%s]\n", str);
+	  if ( *tmp && !isspace(*tmp) ) error("[E:%s:%d %s] Could not parse the expression: [%s]\n",__FILE__,__LINE__,__FUNCTION__, str);
             break;     // all tokens read
         }
         else           // annotation name or filtering value
@@ -1491,7 +1491,7 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
     }
     while ( nops>0 )
     {
-        if ( ops[nops-1]==TOK_LFT || ops[nops-1]==TOK_RGT ) error("Could not parse the expression: [%s]\n", filter->str);
+      if ( ops[nops-1]==TOK_LFT || ops[nops-1]==TOK_RGT ) error("[E:%s:%d %s] Could not parse the expression: [%s]\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
         nout++;
         hts_expand0(token_t, nout, mout, out);
         out[nout-1].tok_type = ops[nops-1];
@@ -1523,32 +1523,32 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
         {
             int j = i-1;
             if ( !out[j].key )
-                error("Could not parse the expression, wrong value for regex operator: %s\n", filter->str);
+	      error("[E:%s:%d %s] Could not parse the expression, wrong value for regex operator: %s\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
             out[j].regex = (regex_t *) malloc(sizeof(regex_t));
             if ( regcomp(out[j].regex, out[j].key, REG_ICASE|REG_NOSUB) )
-                error("Could not compile the regex expression \"%s\": %s\n", out[j].key,filter->str);
+                error("[E:%s:%d %s] Could not compile the regex expression \",__FILE__,__LINE__,__FUNCTION__%s\": %s\n", out[j].key,filter->str);
         }
         if ( out[i].tok_type!=TOK_VAL ) continue;
         if ( !out[i].tag ) continue;
         if ( !strcmp(out[i].tag,"TYPE") )
         {
-            if ( i+1==nout ) error("Could not parse the expression: %s\n", filter->str);
+	  if ( i+1==nout ) error("[E:%s:%d %s] Could not parse the expression: %s\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
             int j = i+1;
             if ( out[j].tok_type==TOK_EQ || out[j].tok_type==TOK_NE ) j = i - 1;
-            if ( out[j].tok_type!=TOK_VAL || !out[j].key ) error("[%s:%d %s] Could not parse the expression: %s\n",  __FILE__,__LINE__,__FUNCTION__, filter->str);
+            if ( out[j].tok_type!=TOK_VAL || !out[j].key ) error("[E:%s:%d %s] [%s:%d %s] Could not parse the expression: %s\n",__FILE__,__LINE__,__FUNCTION__,  __FILE__,__LINE__,__FUNCTION__, filter->str);
             if ( !strcasecmp(out[j].key,"snp") || !strcasecmp(out[j].key,"snps") ) { out[j].threshold = VCF_SNP; out[j].is_str = 0; }
             else if ( !strcasecmp(out[j].key,"indel") || !strcasecmp(out[j].key,"indels") ) { out[j].threshold = VCF_INDEL; out[j].is_str = 0; }
             else if ( !strcasecmp(out[j].key,"mnp") || !strcasecmp(out[j].key,"mnps") ) { out[j].threshold = VCF_MNP; out[j].is_str = 0; }
             else if ( !strcasecmp(out[j].key,"other") ) { out[j].threshold = VCF_OTHER; out[j].is_str = 0; }
             else if ( !strcasecmp(out[j].key,"ref") ) { out[j].threshold = VCF_REF; out[j].is_str = 0; }
-            else error("The type \"%s\" not recognised: %s\n", out[j].key, filter->str);
+            else error("[E:%s:%d %s] The type \",__FILE__,__LINE__,__FUNCTION__%s\" not recognised: %s\n", out[j].key, filter->str);
             out[j].tag = out[j].key; out[j].key = NULL;
             i = j;
             continue;
         }
         if ( !strcmp(out[i].tag,"FILTER") )
         {
-            if ( i+1==nout ) error("Could not parse the expression: %s\n", filter->str);
+	  if ( i+1==nout ) error("[E:%s:%d %s] Could not parse the expression: %s\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
             int j = i+1;
             if ( out[j].tok_type==TOK_EQ || out[j].tok_type==TOK_NE ) j = i - 1;    // the expression has "value"=FILTER rather than FILTER="value"
             if ( out[j].tok_type==TOK_LIKE ) out[j].tok_type = TOK_EQ;              // for FILTER, ~ and !~ work the same way as = and !=
@@ -1556,12 +1556,12 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
             if ( out[j+1].tok_type==TOK_LIKE ) out[j+1].tok_type = TOK_EQ;
             if ( out[j+1].tok_type==TOK_NLIKE ) out[j+1].tok_type = TOK_NE;
             if ( out[j].tok_type!=TOK_VAL || !out[j].key )
-                error("[%s:%d %s] Could not parse the expression, an unquoted string value perhaps? %s\n", __FILE__,__LINE__,__FUNCTION__, filter->str);
+	      error("[E:%s:%d %s] [%s:%d %s] Could not parse the expression, an unquoted string value perhaps? %s\n",__FILE__,__LINE__,__FUNCTION__, __FILE__,__LINE__,__FUNCTION__, filter->str);
             if ( strcmp(".",out[j].key) )
             {
                 out[j].hdr_id = bcf_hdr_id2int(filter->hdr, BCF_DT_ID, out[j].key);
                 if ( !bcf_hdr_idinfo_exists(filter->hdr,BCF_HL_FLT,out[j].hdr_id) )
-                    error("The filter \"%s\" not present in the VCF header\n", out[j].key);
+                    error("[E:%s:%d %s] The filter \",__FILE__,__LINE__,__FUNCTION__%s\" not present in the VCF header\n", out[j].key);
             }
             else
                 out[j].hdr_id = -1;
@@ -1658,14 +1658,14 @@ int filter_test(filter_t *filter, bcf1_t *line, const uint8_t **samples)
             continue;
         }
         if ( nstack<2 )
-            error("Error occurred while processing the filter \"%s\" (1:%d)\n", filter->str,nstack);  // too few values left on the stack
+            error("[E:%s:%d %s] Error occurred while processing the filter \",__FILE__,__LINE__,__FUNCTION__%s\" (1:%d)\n", filter->str,nstack);  // too few values left on the stack
 
         int is_str  = filter->flt_stack[nstack-1]->is_str + filter->flt_stack[nstack-2]->is_str;
 
         if ( filter->filters[i].tok_type == TOK_OR || filter->filters[i].tok_type == TOK_OR_VEC )
         {
             if ( filter->flt_stack[nstack-1]->pass_site<0 || filter->flt_stack[nstack-2]->pass_site<0 )
-                error("Error occurred while processing the filter \"%s\" (%d %d OR)\n", filter->str,filter->flt_stack[nstack-2]->pass_site,filter->flt_stack[nstack-1]->pass_site);
+                error("[E:%s:%d %s] Error occurred while processing the filter \",__FILE__,__LINE__,__FUNCTION__%s\" (%d %d OR)\n", filter->str,filter->flt_stack[nstack-2]->pass_site,filter->flt_stack[nstack-1]->pass_site);
             filter->flt_stack[nstack-2]->pass_site = vector_logic_or(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1], filter->filters[i].tok_type);
             nstack--;
             continue;
@@ -1673,7 +1673,7 @@ int filter_test(filter_t *filter, bcf1_t *line, const uint8_t **samples)
         if ( filter->filters[i].tok_type == TOK_AND || filter->filters[i].tok_type == TOK_AND_VEC )
         {
             if ( filter->flt_stack[nstack-1]->pass_site<0 || filter->flt_stack[nstack-2]->pass_site<0 )
-                error("Error occurred while processing the filter \"%s\" (%d %d AND)\n", filter->str,filter->flt_stack[nstack-2]->pass_site,filter->flt_stack[nstack-1]->pass_site);
+                error("[E:%s:%d %s] Error occurred while processing the filter \",__FILE__,__LINE__,__FUNCTION__%s\" (%d %d AND)\n", filter->str,filter->flt_stack[nstack-2]->pass_site,filter->flt_stack[nstack-1]->pass_site);
             filter->flt_stack[nstack-2]->pass_site = vector_logic_and(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1], filter->filters[i].tok_type);
             nstack--;
             continue;
@@ -1727,7 +1727,7 @@ int filter_test(filter_t *filter, bcf1_t *line, const uint8_t **samples)
             else if ( is_str==2 )   // both are strings
                 is_true = cmp_vector_strings(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1],TOK_EQ);
             else if ( is_str==1 )
-                error("Comparing string to numeric value: %s\n", filter->str);
+	      error("[E:%s:%d %s] Comparing string to numeric value: %s\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
             else
                 CMP_VECTORS(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1],==,is_true);
         }
@@ -1740,7 +1740,7 @@ int filter_test(filter_t *filter, bcf1_t *line, const uint8_t **samples)
             else if ( is_str==2 )
                 is_true = cmp_vector_strings(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1],TOK_NE);
             else if ( is_str==1 )
-                error("Comparing string to numeric value: %s\n", filter->str);
+	      error("[E:%s:%d %s] Comparing string to numeric value: %s\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
             else
                 CMP_VECTORS(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1],!=,is_true);
         }
@@ -1752,10 +1752,10 @@ int filter_test(filter_t *filter, bcf1_t *line, const uint8_t **samples)
                 if ( filter->filters[i].tok_type == TOK_NLIKE ) is_true = is_true ? 0 : 1;
             }
             else
-                error("The regex operator can be used on strings only: %s\n", filter->str);
+	      error("[E:%s:%d %s] The regex operator can be used on strings only: %s\n",__FILE__,__LINE__,__FUNCTION__, filter->str);
         }
         else if ( is_str>0 )
-            error("Wrong operator in string comparison: %s [%s,%s]\n", filter->str, filter->flt_stack[nstack-1]->str_value, filter->flt_stack[nstack-2]->str_value);
+	  error("[E:%s:%d %s] Wrong operator in string comparison: %s [%s,%s]\n",__FILE__,__LINE__,__FUNCTION__, filter->str, filter->flt_stack[nstack-1]->str_value, filter->flt_stack[nstack-2]->str_value);
         else if ( filter->filters[i].tok_type == TOK_LE )
             CMP_VECTORS(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1],<=,is_true)
         else if ( filter->filters[i].tok_type == TOK_LT )
@@ -1765,12 +1765,12 @@ int filter_test(filter_t *filter, bcf1_t *line, const uint8_t **samples)
         else if ( filter->filters[i].tok_type == TOK_BE )
             CMP_VECTORS(filter->flt_stack[nstack-2],filter->flt_stack[nstack-1],>=,is_true)
         else
-            error("FIXME: did not expect this .. tok_type %d = %d\n", i, filter->filters[i].tok_type);
+	  error("[E:%s:%d %s] FIXME: did not expect this .. tok_type %d = %d\n",__FILE__,__LINE__,__FUNCTION__, i, filter->filters[i].tok_type);
 
         filter->flt_stack[nstack-2]->pass_site = is_true;
         nstack--;
     }
-    if ( nstack>1 ) error("Error occurred while processing the filter \"%s\" (2:%d)\n", filter->str,nstack);    // too few values left on the stack
+    if ( nstack>1 ) error("[E:%s:%d %s] Error occurred while processing the filter \",__FILE__,__LINE__,__FUNCTION__%s\" (2:%d)\n", filter->str,nstack);    // too few values left on the stack
     if ( samples )
     {
         *samples = filter->max_unpack&BCF_UN_FMT ? filter->flt_stack[0]->pass_samples : NULL;

@@ -13,6 +13,7 @@ my $sepchr = "";
 my $keep = "";
 my $binbgzip = "$FindBin::Bin/bgzip";
 my $bintabix = "$FindBin::Bin/tabix";
+my $bcftools = "/usr/cluster/bin/bcftools";
 my $binliftOver = "/net/fantasia/home/hmkang/tools/ucsc_tools/executables/liftOver";
 my $chain = "";
 
@@ -22,13 +23,15 @@ wGetOptions(
     "vcf=s",[\$vcf,"Input VCF file"],
     "out=s",[\$out,"Output file. STDOUT if unspecified"],
     "chain=s",[\$chain,"liftOver chain file"],
-    "liftover=s",[\$binliftOver,"Binary to liftOver tool (downloadable from UCSC)"],
+    "liftover=s",[\$binliftOver,"Path to binary of liftOver tool (downloadable from UCSC)"],
+    "bcftools=s",[\$bcftools,"Path to binary of bcftools"],    
     ) || wpod2usage(2);
 
 
 wpod2usage(2) unless ( ( $vcf ) && ( $out ) && ( $chain ) && ( $binliftOver) ) ;
 
-if ( $vcf =~ /\.gz$/ ) { open(VCF,"zcat $vcf|") || die "Cannot open file\n"; }
+if ( $vcf =~ /\.bcf$/ ) { open(VCF, "$bcftools view $vcf|") || die "Cannot open file\n"; }
+elsif ( $vcf =~ /\.gz$/ ) { open(VCF,"zcat $vcf|") || die "Cannot open file\n"; }
 else { open(VCF,$vcf) || die "Cannot open file\n"; }
 
 open(BED,">$out.old.bed") || die "Cannot write $out.old.bed";

@@ -78,15 +78,15 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   bam_hdr_t *header = NULL;
 
   if ( ( in = sam_open(inSam.c_str(), "r") ) == 0 ) {
-    error("Cannot open file %s\n",inSam.c_str());    
+    error("[E:%s:%d %s] Cannot open file %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());    
   }
 
   if ( ( header = sam_hdr_read(in) ) == 0 ) {
-    error("Cannot open header from %s\n",inSam.c_str());
+    error("[E:%s:%d %s] Cannot open header from %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());
   }
 
   if ( outPrefix.empty() )
-    error("--out parameter is missing");
+    error("[E:%s:%d %s] --out parameter is missing",__FILE__,__LINE__,__FUNCTION__);
 
   bam1_t *b = bam_init1();
   //int32_t r;    
@@ -152,10 +152,10 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
     
     // extract genotypes fpr selected individuals
     if ( bcf_get_genotypes(odr.hdr, iv, &p_gts, &n_gts) < 0 ) {
-      error("Cannot extract genotypes at %s:%d %c/%c", bcf_hdr_id2name(odr.hdr, rid), pos, ref, alt);
+      error("[E:%s:%d %s] Cannot extract genotypes at %s:%d %c/%c",__FILE__,__LINE__,__FUNCTION__, bcf_hdr_id2name(odr.hdr, rid), pos, ref, alt);
     }
     if ( n_gts != nsamples * 2 ) {
-      error("Cannot extract %d genotypes at %s:%d %c/%c. Extracted only %d", nsamples * 2, bcf_hdr_id2name(odr.hdr, rid), pos, ref, alt, n_gts); 
+      error("[E:%s:%d %s] Cannot extract %d genotypes at %s:%d %c/%c. Extracted only %d",__FILE__,__LINE__,__FUNCTION__, nsamples * 2, bcf_hdr_id2name(odr.hdr, rid), pos, ref, alt, n_gts); 
     }
 
     v_gts.resize( v_gts.size() + 1 );
@@ -209,7 +209,7 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   
   hts_idx_t *idx = sam_index_load(in, inSam.c_str());
   if ( idx == NULL )
-    error("Cannot load index file for %s",inSam.c_str());
+    error("[E:%s:%d %s] Cannot load index file for %s",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());
 
   std::vector< std::vector<uint8_t> > bqs;
   std::vector< std::vector<uint8_t> > alleles; // 0 - REF, 1 - ALT, 2 - OTHER
@@ -232,7 +232,7 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
     gtag[1] = tagGroup.at(1);    
   }
   else {
-    error("Cannot recognize group tag %s. It is suppose to be a length 2 string",tagGroup.c_str());
+    error("[E:%s:%d %s] Cannot recognize group tag %s. It is suppose to be a length 2 string",__FILE__,__LINE__,__FUNCTION__,tagGroup.c_str());
   }
 
   if ( tagUMI.empty() ) { // do nothing
@@ -242,7 +242,7 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
     utag[1] = tagUMI.at(1);    
   }
   else {
-    error("Cannot recognize UMI tag %s. It is suppose to be a length 2 string",tagUMI.c_str());
+    error("[E:%s:%d %s] Cannot recognize UMI tag %s. It is suppose to be a length 2 string",__FILE__,__LINE__,__FUNCTION__,tagUMI.c_str());
   }  
   
   for(int32_t j=0; j < (int32_t)v_poss.size(); ++j) {  // process each marker separately
@@ -373,7 +373,7 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   hprintf(wbest,   "BARCODE\tSM1_ID\tSM2_ID\tALPHA\tN_READS\tN_SNPS\tLLK12\tLLK1\tLLK0\tLLK10\tLLK00\n");    
 
   if ( ( wbest == NULL ) || ( wpair == NULL ) || ( wsingle == NULL ) )
-    error("Cannot create %s.single, %s.pair, and %s.best files",outPrefix.c_str(), outPrefix.c_str());
+    error("[E:%s:%d %s] Cannot create %s.single, %s.pair, and %s.best files",__FILE__,__LINE__,__FUNCTION__,outPrefix.c_str(), outPrefix.c_str());
   
   int32_t nbcd = (int32_t)bcMap.size();
   std::vector<double> llks(nbcd * nv, 0);

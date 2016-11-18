@@ -35,24 +35,24 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   pl.Status();
 
   if ( nClust == 0 ) {
-    error("--k is a required parameter");
+    error("[E:%s:%d %s] --k is a required parameter",__FILE__,__LINE__,__FUNCTION__);
   }
 
   if ( outPrefix.empty() ) {
-    error("--out is a required parameter");
+    error("[E:%s:%d %s] --out is a required parameter",__FILE__,__LINE__,__FUNCTION__);
   }
 
   if ( inMatrix.empty() ) {
-    error("--in is a required parameter");
+    error("[E:%s:%d %s] --in is a required parameter",__FILE__,__LINE__,__FUNCTION__);
   }
 
   htsFile* wf = hts_open((outPrefix+".pis").c_str(),"w");
   if ( wf == NULL )
-    error("Cannot open file %s for writing", (outPrefix+".pis").c_str());
+    error("[E:%s:%d %s] Cannot open file %s for writing",__FILE__,__LINE__,__FUNCTION__, (outPrefix+".pis").c_str());
 
   htsFile* hp = hts_open(inMatrix.c_str(), "r");
   if ( hp == NULL )
-    error("Cannot open file %s for reading",inMatrix.c_str());
+    error("[E:%s:%d %s] Cannot open file %s for reading",__FILE__,__LINE__,__FUNCTION__,inMatrix.c_str());
 
   kstring_t str = {0,0,0};  
   int32_t lstr = 0;
@@ -60,7 +60,7 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   // read and parse header columns
   lstr = hts_getline(hp, KS_SEP_LINE, &str);
   if ( lstr < 0 )
-    error("Cannot find header line from %s",inMatrix.c_str());
+    error("[E:%s:%d %s] Cannot find header line from %s",__FILE__,__LINE__,__FUNCTION__,inMatrix.c_str());
 
   
   int32_t nfields = 0;
@@ -96,7 +96,7 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     }
     else {
       if ( ( nfields != (int32_t)hdrs.size() + 1 ) && ( nfields != (int32_t)hdrs.size() + 0 ) )
-	error("Inconsistent number of headers. Expected %d but observed %d",(int32_t)hdrs.size()+1, nfields);
+	error("[E:%s:%d %s] Inconsistent number of headers. Expected %d but observed %d",__FILE__,__LINE__,__FUNCTION__,(int32_t)hdrs.size()+1, nfields);
     }
 
     int32_t* cnts = (int32_t*)malloc(sizeof(int32_t)*(nfields-1));

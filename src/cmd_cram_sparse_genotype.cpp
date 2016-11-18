@@ -53,17 +53,17 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
   
   // sanity check of input arguments
   if ( inVcf.empty() || out.empty() || ( inCrams.empty() && inCramList.empty() ) ) {
-    error("--in-vcf, --out, --in-cram (or --in-cram-list) are required parameters");
+    error("[E:%s:%d %s] --in-vcf, --out, --in-cram (or --in-cram-list) are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
 
   if ( ( !inCrams.empty() ) && ( ! inCramList.empty() ) ) {
-    error("--in-cram-list and --in-cram options cannot be used together");
+    error("[E:%s:%d %s] --in-cram-list and --in-cram options cannot be used together",__FILE__,__LINE__,__FUNCTION__);
   }
 
   if ( ! inCramList.empty() ) {
     htsFile* fp = hts_open(inCramList.c_str(),"r");
     if ( fp == NULL )
-      error("Cannot open file %s for reading", inCramList.c_str());
+      error("[E:%s:%d %s] Cannot open file %s for reading",__FILE__,__LINE__,__FUNCTION__, inCramList.c_str());
 
 
     int32_t lstr = 0;
@@ -74,7 +74,7 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
     while( ( lstr = hts_getline(fp, KS_SEP_LINE, &str) ) >= 0 ) {
       fields = ksplit(&str, 0, &n);
       if ( n > 1 )
-	error("in-cram-list file %s contains whitespace - # fields = %d, (%s, %s)", inCramList.c_str(), n, str.s + fields[0], str.s + fields[1]);
+	error("[E:%s:%d %s] in-cram-list file %s contains whitespace - # fields = %d, (%s, %s)",__FILE__,__LINE__,__FUNCTION__, inCramList.c_str(), n, str.s + fields[0], str.s + fields[1]);
       inCrams.push_back(std::string(str.s));
     }
     hts_close(fp);
@@ -184,10 +184,10 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
     int32_t rpos;
     
     if ( ( in = sam_open(inCrams[i].c_str(), "r") ) == 0 ) 
-      error("Cannot open SAM/BAM/CRAM file %s",inCrams[i].c_str());
+      error("[E:%s:%d %s] Cannot open SAM/BAM/CRAM file %s",__FILE__,__LINE__,__FUNCTION__,inCrams[i].c_str());
     
     if ( ( hdr = sam_hdr_read(in) ) == 0 )
-      error("Cannot open header from %s\n",inCrams[i].c_str());
+      error("[E:%s:%d %s] Cannot open header from %s\n",__FILE__,__LINE__,__FUNCTION__,inCrams[i].c_str());
 
     v_sms[i] = bam_hdr_get_sample_name(hdr);
 
@@ -200,7 +200,7 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
     
     hts_idx_t *idx = sam_index_load(in, inCrams[i].c_str());
     if ( idx == NULL )
-      error("Cannot load index file for %s",inCrams[i].c_str());
+      error("[E:%s:%d %s] Cannot load index file for %s",__FILE__,__LINE__,__FUNCTION__,inCrams[i].c_str());
     int32_t numReads = 0;
 
     // read sam

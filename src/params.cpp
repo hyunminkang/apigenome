@@ -119,7 +119,7 @@ int longParams::TranslateExtras(const char * cstr, const char * extras)
     longParamList* ptr = it->second;
     switch(ptr->type) {
     case LP_BOOL_PARAM:
-      if ( ptr->touched )          error("Redundant use of option --%s or its exclusive neighbor is not allowed",cstr);
+      if ( ptr->touched )          error("[E:%s:%d %s] Redundant use of option --%s or its exclusive neighbor is not allowed",__FILE__,__LINE__,__FUNCTION__,cstr);
       if ( *(bool*)ptr->value == true )
 	message("Option --%s specified when it is [ON] by default. The argument has no effect and the variable will be still [ON]",cstr);
       *(bool *) ptr->value = true;
@@ -136,42 +136,42 @@ int longParams::TranslateExtras(const char * cstr, const char * extras)
       }
       return 0;
     case LP_INT_PARAM:
-      if ( !CheckInteger(extras) ) error("Invalid argument --%s %s. Integer was expected", cstr, extras);
-      else if ( ptr->touched )          error("Redundant use of option --%s is not allowed",cstr);
+      if ( !CheckInteger(extras) ) error("[E:%s:%d %s] Invalid argument --%s %s. Integer was expected",__FILE__,__LINE__,__FUNCTION__, cstr, extras);
+      else if ( ptr->touched )          error("[E:%s:%d %s] Redundant use of option --%s is not allowed",__FILE__,__LINE__,__FUNCTION__,cstr);
       else {
 	*(int *) ptr->value = atoi(extras);
 	ptr->touched = true;
       }
       return 1;
     case LP_DOUBLE_PARAM:
-      if ( !CheckDouble(extras) ) error("Invalid argument --%s %s. Double was expected", cstr, extras);
-      else if ( ptr->touched )         error("Redundant use of option --%s is not allowed",cstr);
+      if ( !CheckDouble(extras) ) error("[E:%s:%d %s] Invalid argument --%s %s. Double was expected",__FILE__,__LINE__,__FUNCTION__, cstr, extras);
+      else if ( ptr->touched )         error("[E:%s:%d %s] Redundant use of option --%s is not allowed",__FILE__,__LINE__,__FUNCTION__,cstr);
       else {
 	*(double *) ptr->value = atof(extras);
 	ptr->touched = true;      
       }
       return 1;
     case LP_STRING_PARAM:
-      if ( extras == NULL ) error("Invalid argument --%s %s. String was expected", cstr, extras);
-      else if ( ptr->touched )         error("Redundant use of option --%s is not allowed",cstr);
+      if ( extras == NULL ) error("[E:%s:%d %s] Invalid argument --%s %s. String was expected",__FILE__,__LINE__,__FUNCTION__, cstr, extras);
+      else if ( ptr->touched )         error("[E:%s:%d %s] Redundant use of option --%s is not allowed",__FILE__,__LINE__,__FUNCTION__,cstr);
       else {
 	*(std::string *) ptr->value = extras;
 	ptr->touched = true;      
       }
       return 1;
     case LP_MULTI_INT_PARAM:
-      if ( !CheckInteger(extras) ) error("Invalid argument --%s %s. Integer was expected", cstr, extras);
+      if ( !CheckInteger(extras) ) error("[E:%s:%d %s] Invalid argument --%s %s. Integer was expected",__FILE__,__LINE__,__FUNCTION__, cstr, extras);
       else
 	((std::vector<int> *) ptr->value)->push_back(atoi(extras));
       return 1;
     case LP_MULTI_DOUBLE_PARAM:
-      if ( !CheckDouble(extras) ) error("Invalid argument --%s %s. Double was expected", cstr, extras);
+      if ( !CheckDouble(extras) ) error("[E:%s:%d %s] Invalid argument --%s %s. Double was expected",__FILE__,__LINE__,__FUNCTION__, cstr, extras);
       else 
 	((std::vector<double> *) ptr->value)->push_back(atof(extras));
       return 1;
     case LP_MULTI_STRING_PARAM:
       if ( extras == NULL ) 
-	error("Invalid argument --%s %s. String was expected", cstr, extras);
+	error("[E:%s:%d %s] Invalid argument --%s %s. String was expected",__FILE__,__LINE__,__FUNCTION__, cstr, extras);
       else 
       ((std::vector<std::string> *) ptr->value)->push_back(extras);
       return 1;
@@ -281,7 +281,7 @@ void longParams::Status(longParamList * ptr, int & line_len, bool & need_a_comma
 	break;
       }
     default:
-      error("Cannot recognize the parameter type %d",ptr->type);
+      error("[E:%s:%d %s] Cannot recognize the parameter type %d",__FILE__,__LINE__,__FUNCTION__,ptr->type);
     }
     
     int item_len = 3 + strlen(ptr->desc) + need_a_comma + state.size();
@@ -396,7 +396,7 @@ void longParams::HelpMessage(longParamList * ptr)
 	break;
       }
     default:
-      error("Cannot recognize the parameter type %d",ptr->type);
+      error("[E:%s:%d %s] Cannot recognize the parameter type %d",__FILE__,__LINE__,__FUNCTION__,ptr->type);
     }
     
 
@@ -536,7 +536,7 @@ void paramList::HelpMessage()
 
   if (errors.size())
     {
-      ::error("Problems encountered parsing command line:\n\n%s",
+      error("[E:%s:%d %s] Problems encountered parsing command line:\n\n%s",__FILE__,__LINE__,__FUNCTION__,
 		errors.c_str());
       errors.clear();
     }
@@ -561,7 +561,7 @@ void paramList::Status()
 
   if (errors.size())
     {
-      ::error("Problems encountered parsing command line:\n\n%s",
+      error("[E:%s:%d %s] Problems encountered parsing command line:\n\n%s",__FILE__,__LINE__,__FUNCTION__,
 		errors.c_str());
       errors.clear();
     }

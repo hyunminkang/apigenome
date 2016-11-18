@@ -21,7 +21,7 @@ void FamilyConcordance::addGenotype(int32_t gDad, int32_t gMom, std::vector<int3
   for(int32_t i=0; i < (int32_t)gKids.size()+2; ++i) {
     int32_t g = (i == 0) ? gDad : ( (i == 1) ? gMom : gKids[i-2] );
     if ( ( g < 0 ) || ( g > 3 ) )
-      error("Cannot recognize genotype %d - i=%d.. from FamilyConcordance::addGenotype(%d,%d,%d,..)",g,i,gDad,gMom,gKids[i-2]);
+      error("[E:%s:%d %s] Cannot recognize genotype %d - i=%d.. from FamilyConcordance::addGenotype(%d,%d,%d,..)",__FILE__,__LINE__,__FUNCTION__,g,i,gDad,gMom,gKids[i-2]);
     
     cell = ( ( cell << 2 ) | g );
   }
@@ -34,7 +34,7 @@ void FamilyConcordance::addGenotype(std::vector<int32_t>& gFams) {
   for(int32_t i=0; i < (int)gFams.size(); ++i) {
     int32_t g = gFams[i];
     if ( ( g < 0 ) || ( g > 3 ) )
-      error("Cannot recognize genotype %d - i=%d.. from FamilyConcordance::addGenotype(%d,%d,%d,...)",g,i,gFams[0],gFams[1],gFams[i]);      
+      error("[E:%s:%d %s] Cannot recognize genotype %d - i=%d.. from FamilyConcordance::addGenotype(%d,%d,%d,...)",__FILE__,__LINE__,__FUNCTION__,g,i,gFams[0],gFams[1],gFams[i]);      
     
     cell = ( ( cell << 2 ) | g );
   }
@@ -84,7 +84,7 @@ void DupConcordance::addGenotype(std::vector<int32_t>& gDups) {
   for(int32_t i=0; i < (int)gDups.size(); ++i) {
     int32_t g = gDups[i];
     if ( ( g < 0 ) || ( g > 3 ) )
-      error("Cannot recognize genotype %d - i=%d.. from DupConcordance::addGenotype(%d..%d)",g,i,gDups[0],gDups[i]);
+      error("[E:%s:%d %s] Cannot recognize genotype %d - i=%d.. from DupConcordance::addGenotype(%d..%d)",__FILE__,__LINE__,__FUNCTION__,g,i,gDups[0],gDups[i]);
     
     cell = ( ( cell << 2 ) | g );
   }

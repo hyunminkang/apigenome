@@ -33,14 +33,14 @@ typedef struct drop_count drop_count_t;
 drop_read_t* bam_drop_read(bam_hdr_t* h, bam1_t* b, const char* NH, const char* NM) {
   uint8_t* s = bam_aux_get(b, NH);
   if ( !s ) {
-    error("Cannot find %c%c tag in record\n", NH[0], NH[1]);
+    error("[E:%s:%d %s] Cannot find %c%c tag in record\n",__FILE__,__LINE__,__FUNCTION__, NH[0], NH[1]);
     return NULL;
   }
   int32_t vNH = bam_aux2i(s);
     
   s = bam_aux_get(b, NM);
   if ( !s ) {
-    error("Cannot find %c%c tag in record\n", NM[0], NM[1]);
+    error("[E:%s:%d %s] Cannot find %c%c tag in record\n",__FILE__,__LINE__,__FUNCTION__, NM[0], NM[1]);
     return NULL;
   }
   int32_t vNM = bam_aux2i(s);
@@ -97,18 +97,18 @@ int32_t cmdScKallistoCount(int32_t argc, char** argv) {
   
   // sanity check of input arguments
   if ( inFile.empty() || outPrefix.empty()  ) {
-    error("--sam, --out are required parameters");
+    error("[E:%s:%d %s] --sam, --out are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
 
   samFile* in = NULL;
   bam_hdr_t *header = NULL;
   
   if ( ( in = sam_open(inFile.c_str(), "r") ) == 0 ) {
-    error("Cannot open file %s\n",inFile.c_str());    
+    error("[E:%s:%d %s] Cannot open file %s\n",__FILE__,__LINE__,__FUNCTION__,inFile.c_str());    
   }
 
   if ( ( header = sam_hdr_read(in) ) == 0 ) {
-    error("Cannot open header from %s\n",inFile.c_str());
+    error("[E:%s:%d %s] Cannot open header from %s\n",__FILE__,__LINE__,__FUNCTION__,inFile.c_str());
   }
 
   bam1_t *b = bam_init1();
@@ -125,17 +125,17 @@ int32_t cmdScKallistoCount(int32_t argc, char** argv) {
 
   while( ( r = sam_read1(in, header, b) ) >= 0 ) {
     drop_read_t* rd = bam_drop_read(header, b, NH, NM);
-    if ( rd == NULL ) error("Cannot extract a read from a BAM");
+    if ( rd == NULL ) error("[E:%s:%d %s] Cannot extract a read from a BAM",__FILE__,__LINE__,__FUNCTION__);
     v_reads.push_back(rd);
     int32_t minNM = rd->nm;
     if ( rd->nh > 1 ) {
       for(int32_t i=1; i < rd->nh; ++i) {
 	if ( ( r = sam_read1(in, header, b) ) < 0 ) {
-	  error("No more read observed despite NH tag");
+	  error("[E:%s:%d %s] No more read observed despite NH tag",__FILE__,__LINE__,__FUNCTION__);
 	}
 	drop_read_t* rd2 = bam_drop_read(header, b, NH, NM);
 	if ( ( rd->barcode != rd2->barcode ) || ( rd->umi != rd2->umi ) ) {
-	  error("Barcode or UMI does not match\n");
+	  error("[E:%s:%d %s] Barcode or UMI does not match\n",__FILE__,__LINE__,__FUNCTION__);
 	}
 	if ( minNM > rd2->nm )
 	  minNM = rd2->nm;
@@ -168,17 +168,17 @@ int32_t cmdScKallistoCount(int32_t argc, char** argv) {
 
   FILE* fpCT = fopen((outPrefix+".cell.tx.cnts").c_str(), "w");
   if ( fpCT == NULL )
-    error("Cannot write file");
+    error("[E:%s:%d %s] Cannot write file",__FILE__,__LINE__,__FUNCTION__);
   fprintf(fpCT,"#Cell\tTx\tUMIs\tReads\tfUMIs\n");
   
   FILE* fpC = fopen((outPrefix+".cell.cnts").c_str(), "w");
   if ( fpC == NULL )
-    error("Cannot write file");    
+    error("[E:%s:%d %s] Cannot write file",__FILE__,__LINE__,__FUNCTION__);    
   fprintf(fpC,"#Cell\tUMIs\tReads\tfUMIs\tnTx\tumiENST\t%%ENST\n");
 
   FILE* fpT = fopen((outPrefix+".tx.cnts").c_str(), "w");
   if ( fpT == NULL )
-    error("Cannot write file");    
+    error("[E:%s:%d %s] Cannot write file",__FILE__,__LINE__,__FUNCTION__);    
   fprintf(fpT,"#Tx\tUMIs\tReads\tfUMIs\tnCell\n");
 
   std::map<int32_t,drop_count_t> t2cnt;

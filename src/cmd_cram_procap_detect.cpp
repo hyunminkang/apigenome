@@ -1,5 +1,6 @@
 #include "cramore.h"
 #include "bam_ordered_reader.h"
+#include "hts_utils.h"
 
 class procapPeak {
 public:
@@ -30,6 +31,78 @@ public:
   }
 };
 
+class proCapQueue {
+public:
+  int32_t winPrev;  
+  int32_t winNext;
+  int32_t curTid;
+  int32_t curPos;
+  std::vector<proCapBase> plQueue;
+  std::vector<proCapBase> mnQueue;
+  
+  htsFile* fpBase;
+  bam_hdr_t* hdr;
+
+  proCapQueue(int32_t _winPrev, int32_t _winNext, htsFile* _fpBase, bam_hdr_t* _hdr) {
+    init(_winPrev, _winNext, _fpBase, _hdr);
+  }
+  
+  void init(int32_t _winPrev, int32_t _winNext, htsFile* _fpBase, bam_hdr_t* _hdr) {
+    curTid = -1;
+    curPos = 0;
+    winPrev = _winPrev;
+    winNext = _winNext;
+    fpBase = _fpBase;
+    hdr = _hdr;
+
+    plQueue.resize(winPrev + winNext);
+    mnQueue.resize(winPrev + winNext);
+  }
+
+  void advancePos(int32_t pos) {
+    int32_t endPos = ( pos > curPos + winPrev + winNext ) ? curPos + winPrev + winNext : pos;
+    for(int32_t i=curPos; i < endPos; ++i) {
+      int32_t b = i % (winPrev + winNext);
+      
+      if ( plQueue[b].uniqCount() > 0 ) {
+	hprintf(fpBase, "%s\t%d\t+\t%d\t%d\n", hdr->target_name[curTid], i+1, plQueue[b].uniqCount(), plQueue[b].totalCount);
+	plQueue[b].clear();
+      }
+      
+      if ( mnQueue[b].uniqCount() > 0 ) {
+	hprintf(fpBase, "%s\t%d\t-\t%d\t%d\n", hdr->target_name[curTid], i+1, mnQueue[b].uniqCount(), mnQueue[b].totalCount);
+	mnQueue[b].clear();
+      }      
+    }
+  }
+  
+  bool addRead(int32_t tid, int32_t pos, int32_t end5, bool fwd, const std::string& umi ) {
+    //notice("addRead(%d, %d, %d, %s)",tid,pos,fwd,umi.c_str());
+    if ( curTid < tid ) {
+      if ( curTid >= 0 ) advancePos( INT_MAX );
+      curTid = tid;
+      curPos = pos;
+    }
+    else if ( ( curTid == tid ) && ( curPos < pos ) ) {
+      advancePos( pos );
+      curPos = pos;
+    }
+    else if ( curPos != pos ) {
+      error("Cannot move back from %d:%d to %d:%d", curTid, curPos, tid, curPos);
+    }
+
+    if ( end5 > pos + winNext )
+      error("The read length %d is greater than winNext=%d", end5-pos, winNext);
+
+    if ( fwd )
+      plQueue[ end5 % (winPrev + winNext) ].add(umi);
+    else
+      mnQueue[ end5 % (winPrev + winNext) ].add(umi);
+    return true;
+  }
+};
+
+/*
 // procapWindow class (could be moved to separate header files later on)
 // This contains 5'end sites from each strand of procap reads, up to a certain window size
 // It also maintains a structure of bipartite graph 
@@ -47,13 +120,14 @@ public:
   std::vector<procapPeak> mnPeaks;
 
   bam_hdr_t* hdr;
+  htsFile* fbases;
   htsFile* fpeaks;
   htsFile* fpairs;
 
   int32_t thresBaseDepth;
   double thresIntegralDepth;  
   
-  proCapWindow(int32_t baseWidth, int32_t pairWidth, bam_hdr_t* bamHdr, htsFile* fp_peaks, htsFile* fp_pairs, int32_t thresB, double thresI) : pairWindow(pairWidth * 2 + 1), baseWindow(baseWidth * 2 + 1), curTid(-1), curPos(-1), hdr(bamHdr), fpeaks(fp_peaks), fpairs(fp_pairs), thresBaseDepth(thresB), thresIntegralDepth(thresI) {
+  proCapWindow(int32_t baseWidth, int32_t pairWidth, bam_hdr_t* bamHdr, htsFile* fp_bases, htsFile* fp_peaks, htsFile* fp_pairs, int32_t thresB, double thresI) : pairWindow(pairWidth * 2 + 1), baseWindow(baseWidth * 2 + 1), curTid(-1), curPos(-1), hdr(bamHdr), fbases(fp_bases), fpeaks(fp_peaks), fpairs(fp_pairs), thresBaseDepth(thresB), thresIntegralDepth(thresI) {
     plBases.resize(baseWindow);
     mnBases.resize(baseWindow);
   };
@@ -115,7 +189,8 @@ public:
       
       else if ( plPeaks[ipl].integralDepth > mnPeaks[imn].integralDepth ) { // plus has stronger signals
 	if ( abs(plPeaks[ipl].pos-mnPeaks[imn2].pos) > pairWindow )
-	  error("ipl-imn2 > pairWindow : ipl = %d/%d, imn = %d/%d, ipl2 = %d/%d, imn2 = %d/%d, pos=%d",
+	  error("[E:%s:%d %s] ipl-imn2 > pairWindow : ipl = %d/%d, imn = %d/%d, ipl2 = %d/%d, imn2 = %d/%d, pos=%d",
+		__FILE__, __LINE__, __FUNCTION__, 
 		ipl, plPeaks[ipl].pos,
 		imn, mnPeaks[imn].pos,
 		ipl2, plPeaks[ipl2].pos,
@@ -127,7 +202,7 @@ public:
       }
       else {
 	if ( abs(plPeaks[ipl2].pos-mnPeaks[imn].pos) > pairWindow )
-	  error("ipl2-imn > pairWindow : ipl = %d/%d, imn = %d/%d, ipl2 = %d/%d, imn2 = %d/%d, pos=%d, plPeaks.size() = %u, mnPeaks.size() = %u",
+	  error("[E:%s:%d %s] ipl2-imn > pairWindow : ipl = %d/%d, imn = %d/%d, ipl2 = %d/%d, imn2 = %d/%d, pos=%d, plPeaks.size() = %u, mnPeaks.size() = %u", __FILE__, __LINE__, __FUNCTION__,
 		ipl, plPeaks[ipl].pos,
 		imn, mnPeaks[imn].pos,
 		ipl2, plPeaks[ipl2].pos,
@@ -229,12 +304,14 @@ public:
 
       int32_t pc = plBases[(i+1) % baseWindow].uniqCount();
       if ( pc > 0 ) {
+	hprintf(fbases, "%s\t%d\t%d\t+\n", hdr->target_name[curTid], i+1, pc);
 	if ( plHist[pc] == 1 ) plHist.erase(pc);
 	else --plHist[pc];
       }
 
       int32_t mc = mnBases[(i+1) % baseWindow].uniqCount();
       if ( mc > 0 ) {
+	hprintf(fbases, "%s\t%d\t%d\t-\n", hdr->target_name[curTid], i+1, mc);	
 	if ( mnHist[mc] == 1 ) mnHist.erase(mc);
 	else --mnHist[mc];
       }
@@ -277,6 +354,7 @@ public:
     printf("\n");
   }
 };
+*/
 
 int32_t cmdCramProcapDetect(int32_t argc, char** argv) {
   std::string inSam;
@@ -314,6 +392,11 @@ int32_t cmdCramProcapDetect(int32_t argc, char** argv) {
     error("Missing required option --out");    
   }
 
+  htsFile* fp_base = hts_open( (outPrefix + ".bases.txt.gz").c_str(), "wz" );
+  if ( fp_base == NULL )
+    error("Cannot open output file %s for writing\n",(outPrefix+".bases.txt.gz").c_str());  
+
+  /*
   htsFile* fp_peak = hts_open( (outPrefix + ".peaks.bed.gz").c_str(), "wz" );
   if ( fp_peak == NULL )
     error("Cannot open output file %s for writing\n",(outPrefix+".peaks.bed.gz").c_str());
@@ -321,6 +404,7 @@ int32_t cmdCramProcapDetect(int32_t argc, char** argv) {
   htsFile* fp_pair = hts_open( (outPrefix + ".pairs.bed.gz").c_str(), "wz" );
   if ( fp_peak == NULL )
     error("Cannot open output file %s for writing\n",(outPrefix+".paris.bed.gz").c_str());  
+  */
 
   std::vector<GenomeInterval> intervals;
   if ( !region.empty() ) {
@@ -329,7 +413,8 @@ int32_t cmdCramProcapDetect(int32_t argc, char** argv) {
   BAMOrderedReader odr(inSam, intervals);
   bam1_t *b = bam_init1();
 
-  proCapWindow pcw(peakWindow, pairWindow, odr.hdr, fp_peak, fp_pair, thresBaseDepth, thresIntegralDepth);
+  proCapQueue pcq(peakWindow, peakWindow, fp_base, odr.hdr);
+  //proCapWindow pcw(peakWindow, pairWindow, odr.hdr, fp_base, fp_peak, fp_pair, thresBaseDepth, thresIntegralDepth);
   std::string umi;
 
   while( odr.read(b) ) {
@@ -343,17 +428,22 @@ int32_t cmdCramProcapDetect(int32_t argc, char** argv) {
       prn = ptmp+1;
     }
     umi.assign(prn);
-    pcw.addRead( b->core.tid, b->core.pos, fwd, umi );
+    if ( fwd ) {
+      pcq.addRead( b->core.tid, b->core.pos, b->core.pos, fwd, umi );
+    }
+    else {
+      pcq.addRead( b->core.tid, b->core.pos, bam_get_end_pos1(b), fwd, umi );      
+    }
   }
-  pcw.resolvePeaks(INT_MAX );
+  pcq.advancePos(INT_MAX);
 
-  hts_close(fp_peak);
-  hts_close(fp_pair);  
+  hts_close(fp_base);
+  //hts_close(fp_peak);
+  //hts_close(fp_pair);  
   odr.close();  
 
-  if ( tbx_index_build((outPrefix + ".peaks.bed.gz").c_str(), 0, &tbx_conf_bed) )
-    error("Failed building tabix index for %s",(outPrefix + ".peaks.bed.gz").c_str());
-
+  //if ( tbx_index_build((outPrefix + ".peaks.bed.gz").c_str(), 0, &tbx_conf_bed) )
+  //  error("Failed building tabix index for %s",(outPrefix + ".peaks.bed.gz").c_str());
 
   return 0;
 }

@@ -23,18 +23,18 @@ int32_t cmdCramFlagStat(int32_t argc, char** argv) {
   bam_hdr_t *header = NULL;
 
   if ( inSam.empty() )
-    error("--sam parameter is missing");  
+    error("[E:%s:%d %s] --sam parameter is missing",__FILE__,__LINE__,__FUNCTION__);  
 
   if ( ( in = sam_open(inSam.c_str(), "r") ) == 0 ) {
-    error("Cannot open file %s\n",inSam.c_str());    
+    error("[E:%s:%d %s] Cannot open file %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());    
   }
 
   if ( ( header = sam_hdr_read(in) ) == 0 ) {
-    error("Cannot open header from %s\n",inSam.c_str());
+    error("[E:%s:%d %s] Cannot open header from %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());
   }
 
   if ( outFile.empty() )
-    error("--out parameter is missing");
+    error("[E:%s:%d %s] --out parameter is missing",__FILE__,__LINE__,__FUNCTION__);
 
   bam1_t *b = bam_init1();
   //int32_t r;    
@@ -85,7 +85,7 @@ int32_t cmdCramFlagStat(int32_t argc, char** argv) {
       }
     }
     else if ( ( flagStatus[i] <= 0 ) || ( flagStatus[i] > 3 ) ) {
-      error("Cannot recognize flagStatus %d",flagStatus[i]);
+      error("[E:%s:%d %s] Cannot recognize flagStatus %d",__FILE__,__LINE__,__FUNCTION__,flagStatus[i]);
     }
   }
 

@@ -60,7 +60,7 @@ int32_t cmdVcfMendelDupConc(int32_t argc, char** argv) {
   
   // sanity check of input arguments
   if ( inPed.empty() || outf.empty() || inVcf.empty() ) {
-    error("--vcf, --out, --ped are required parameters");
+    error("[E:%s:%d %s] --vcf, --out, --ped are required parameters",__FILE__,__LINE__,__FUNCTION__);
   }
 
   notice("Loading pedigree file %s",inPed.c_str());
@@ -181,15 +181,15 @@ int32_t cmdVcfMendelDupConc(int32_t argc, char** argv) {
 
     // extract GT and AD/DP field
     if ( bcf_get_genotypes(odr.hdr, iv, &p_gt, &np_gt) < 0 )
-      error("Cannot parse GT field");
+      error("[E:%s:%d %s] Cannot parse GT field",__FILE__,__LINE__,__FUNCTION__);
 
     if ( minDP > 0 ) {
       if ( bcf_get_format_int32(odr.hdr, iv, "DP", &p_dp, &np_dp) < 0 ) {
 	if ( bcf_get_format_int32(odr.hdr, iv, "AD", &p_dp, &np_dp) < 0 ) {
-	  error("Cannot parse AD or DP field");	
+	  error("[E:%s:%d %s] Cannot parse AD or DP field",__FILE__,__LINE__,__FUNCTION__);	
 	}
 	else if ( bcf_get_format_int32(odr.hdr, iv, "OD", &p_od, &np_od) < 0 ) {
-	  error("Cannot parse AD or DP field");		  
+	  error("[E:%s:%d %s] Cannot parse AD or DP field",__FILE__,__LINE__,__FUNCTION__);		  
 	}
 	
 	// if AD field is available, use their sum as depth (assuming biallelics);

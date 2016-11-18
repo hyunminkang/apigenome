@@ -178,6 +178,7 @@ int32_t main(int32_t argc, char** argv) {
     printf("Usage : %s [command] [options]\n",argv[0]);
     printf("\tType one of the following commands below to get detailed usage. Type %s [command] -help for more detailed descriptions\n",argv[0]);
     printf("\t%s cram-sparse-genotypes [options] : Sparse genotyping from BAM files\n",argv[0]);
+    printf("\t%s cram-flagstat-all [options] : Present a comprehensive flagstat output of a CRAM file\n",argv[0]);    
     printf("\t%s kallisto-count [options] : Count digital expressions from kallisto-aligned dropseq data\n",argv[0]);    
     printf("\t%s sc-map-stamps [options] : Map STAMPs in DropSeq cell-UMI barcode FASTQ files\n",argv[0]);
     printf("\t%s sc-multinom-em [options] : Perform multinomial EM algorithm for digital expression data\n",argv[0]);        

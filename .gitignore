@@ -30,6 +30,9 @@
 # Automake related
 autom4te.cache
 autom4te.cache/*
+m4
+m4/*
+compile
 src/.deps/
 src/.deps/*
 htslib/.deps/
@@ -45,6 +48,9 @@ src/tinyfast
 src/bgzip
 src/tabix
 src/cramore
-src/cramor*
 htslib/bgzip
 htslib/tabix
+
+# Resources
+resources
+resources/*
