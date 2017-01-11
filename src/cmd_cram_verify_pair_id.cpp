@@ -15,6 +15,8 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   std::vector<double> gridAlpha;
   std::vector<double> gridASE;
   int32_t verbose = 10000;
+  //int32_t minMAC = 1;
+  //int32_t minCallRate = 0.9;
 
   paramList pl;
 
@@ -485,10 +487,10 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
 	for(int32_t l=0; l < 3; ++l) {  // 1-Alpha
 	  for(int32_t m=0; m < 3; ++m) { // Alpha
 	    double p = 0.5*l + (m-l)*0.5*gridAlpha[k]; // %A
-	    double* pG = &pGs[ibcd*16*nAlpha + k*16 + (l+1)*4 + m+1];
-	    *pG *= (pR * (1-p) + pA * p);
-	    if ( maxpG < *pG )
-	      maxpG = *pG;
+	    double& pG = pGs[ibcd*16*nAlpha + k*16 + (l+1)*4 + m+1];
+	    pG *= (pR * (1-p) + pA * p);
+	    if ( maxpG < pG )
+	      maxpG = pG;
 	  }
 	}
       }
@@ -530,8 +532,8 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   }
 
   for(int32_t i=0; i < nbcd; ++i) {
-    double jBest = -1;
-    double kBest = -1;
+    double jBest = 0;
+    double kBest = 0;
     double maxLLK = -1e300;
     for(int32_t j=0; j < nAlpha; ++j) {
       for(int32_t k=0; k < nv; ++k) {

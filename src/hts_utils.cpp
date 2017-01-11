@@ -1061,7 +1061,7 @@ std::string bam_hdr_get_sample_name(bam_hdr_t* hdr) {
     ++n;
   }
   if ( sm.empty() ) {
-    error("[E:%s:%d %s] [E:%s:%d %s] Sample ID information cannot be found",__FILE__,__LINE__,__FUNCTION__,__FILE__, __LINE__, __FUNCTION__);
+    warning("[W:%s:%d %s] Sample ID information cannot be found",__FILE__,__LINE__,__FUNCTION__);
   }
   return sm;
 }

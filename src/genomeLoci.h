@@ -5,17 +5,20 @@
 #include <cstdio>
 #include "Error.h"
 
+// A single genomic int32_terval
 class genomeLocus {
  public:
-  std::string chrom;
-  int beg1; // includes 1-based, excludes 0-based
-  int end0; // excludes 1-based, includes 0-based
+  std::string chrom; // chromosome name
+  int32_t beg1; // includes 1-based, excludes 0-based
+  int32_t end0; // excludes 1-based, includes 0-based
   char buf[255];
 
-  genomeLocus(const char* c, int b, int e) : chrom(c), beg1(b), end0(e) {
+  genomeLocus(const char* c, int32_t b, int32_t e) : chrom(c), beg1(b), end0(e) {
     sprintf(buf,"%s:%d-%d",c,b,e);
   }
 
+  // convert [chr]:[beg1]-[end0] string int32_to int32_terval
+  // 20:100-110 means [100,110] in 1-based [100,111) in 1-based [99,110) in 0-based
   genomeLocus(const char* region) {
     strcpy(buf,region);
     const char* pcolon = strchr(region,':');
@@ -31,6 +34,7 @@ class genomeLocus {
     return buf;
   }
 
+  // compare between genomeLocus
   bool operator< (const genomeLocus& l) const {
     if ( chrom == l.chrom ) {
       if ( beg1 == l.beg1 ) {
@@ -41,8 +45,8 @@ class genomeLocus {
       }
     }
     else {
-      int n1 = atoi(chrom.c_str());
-      int n2 = atoi(l.chrom.c_str());
+      int32_t n1 = atoi(chrom.c_str());
+      int32_t n2 = atoi(l.chrom.c_str());
       if ( ( n1 == 0 ) && ( n2 == 0 ) ) {
 	return chrom < l.chrom;
       }
@@ -55,8 +59,10 @@ class genomeLocus {
     }
   }
 
+  // length
   unsigned long length() const { return end0-beg1+1; }
 
+  // check overlap with other locus
   bool overlaps (const genomeLocus& l) const {
     if ( chrom == l.chrom ) {
       if ( ( beg1 <= l.end0 )  && ( l.beg1 <= end0 ) ) {
@@ -71,6 +77,7 @@ class genomeLocus {
     }
   }
 
+  // merge two locus if possible
   bool merge (const genomeLocus& l) {
     if ( chrom == l.chrom ) {
       if ( ( beg1-1 <= l.end0 )  && ( l.beg1-1 <= end0 ) ) {
@@ -87,9 +94,10 @@ class genomeLocus {
     }
   }
 
-  bool contains0(const char* chr, int pos0) const { return contains1(chr,pos0+1); }
+  // check if it contains pos
+  bool contains0(const char* chr, int32_t pos0) const { return contains1(chr,pos0+1); }
 
-  bool contains1(const char* chr, int pos1) const {
+  bool contains1(const char* chr, int32_t pos1) const {
     if ( chrom == chr ) {
       return ( ( pos1 >= beg1 ) && ( pos1 <= end0 ) );
     }
@@ -99,43 +107,55 @@ class genomeLocus {
   }
 };
 
+// Collection of genomic locus
 class genomeLoci {
  public:
   std::set<genomeLocus> loci;
   std::set<genomeLocus>::iterator it;
   bool overlapResolved;
+  int32_t maxLength;
 
-  genomeLoci() : overlapResolved(false) {}
+ genomeLoci() : overlapResolved(false), maxLength(0) {}
 
+  // functions for iterating each locus
   void rewind() { it = loci.begin(); }
   bool next() { ++it; return ( it != loci.end() ); }
   bool isend() { return ( it == loci.end() ); }
   const genomeLocus& currentLocus() { return (*it); }
+
+  // check the size 
   bool empty() { return loci.empty(); }
+  int32_t numLocus() const { return (int32_t)loci.size(); }
 
-  int numLocus() const { return (int)loci.size(); }
-
-  bool add(const char* chr, int beg1, int end0) {
+  // add a locus
+  bool add(const char* chr, int32_t beg1, int32_t end0) {
     overlapResolved = false;
+    if ( end0-beg1+1 > maxLength ) maxLength = end0-beg1+1;
     return loci.insert(genomeLocus(chr,beg1,end0)).second;
   }
 
+  // add a locus
   bool add(const char* region) {
     overlapResolved = false;
-    return loci.insert(genomeLocus(region)).second;
+    std::pair<std::set<genomeLocus>::iterator, bool> ret = loci.insert(genomeLocus(region));
+    int32_t l = ret.first->end0 - ret.first->beg1 + 1;
+    if ( l > maxLength ) maxLength = l;
+    return ret.second;
   }
 
-  int resolveOverlaps() {
+  // Resolve overlapping int32_tervals
+  int32_t resolveOverlaps() {
     if ( !overlapResolved ) {
       std::set<genomeLocus>::iterator it;
       std::set<genomeLocus>::iterator prev;
-      int numMerged = 0;
+      int32_t numMerged = 0;
       for(it = loci.begin(); it != loci.end(); ++it) {
 	if ( it != loci.begin() ) {
 	  if ( prev->overlaps(*it) ) {
 	    // if overlaps, erase both and insert merged one
 	    genomeLocus locus = *prev;
 	    locus.merge(*it);
+	    if ( (int32_t)locus.length() > maxLength ) maxLength = locus.length();
 	    loci.erase(it);
 	    loci.erase(prev);
 	    prev = it = loci.insert(locus).first;
@@ -161,14 +181,14 @@ class genomeLoci {
   unsigned long totalLength() const {
     //resolveOverlaps();
     unsigned long sz = 0;
-    std::set<genomeLocus>::iterator it;
-    for(it = loci.begin(); it != loci.end(); ++it) {
-      sz += it->length();
+    std::set<genomeLocus>::iterator it2;
+    for(it2 = loci.begin(); it2 != loci.end(); ++it2) {
+      sz += it2->length();
     }
     return sz;
   }
 
-  bool moveTo(const char* chr, int pos1) {
+  bool moveTo(const char* chr, int32_t pos1) {
     genomeLocus locus(chr, pos1, pos1);
     it = loci.lower_bound(locus);
     if ( it == loci.begin() ) { // do nothing
@@ -191,20 +211,46 @@ class genomeLoci {
     }
   }
 
-  bool contains1(const char* chr, int pos1) {
+  bool contains1(const char* chr, int32_t pos1) {
     genomeLocus locus(chr, pos1, pos1);
-    std::set<genomeLocus>::iterator i = loci.lower_bound(locus);
-    --i;
-    //std::set<genomeLocus>::iterator it = loci.lower_bound(locus);
-    if ( i != loci.end() ) {
-      //if ( ( i->chrom == chr ) && ( i->beg1 <= pos1 ) && ( i->end0 >= pos1 ) ) {
-      //notice("%s %s %d %d %d %d",i->chrom.c_str(), chr, i->beg1, i->end0, pos1, ( i->chrom == chr ) && ( i->beg1 <= pos1 ) && ( i->end0 >= pos1 ) );
-      //}
+    std::set<genomeLocus>::iterator it2 = loci.lower_bound(locus);
+    if ( it2 != loci.begin() ) --it2;
+    if ( it2->chrom != chr ) ++it2;    
+    while( it2 != loci.end() && ( it2->chrom == chr ) && ( it2->beg1 <= pos1 ) ) {
+      if ( it2->end0 >= pos1 ) return true;
+      ++it2;
+    }
+    return false;
+  }
 
-      return ( ( it->chrom == chr ) && ( it->beg1 <= pos1 ) && ( it->end0 >= pos1 ) );
+  bool overlaps(const char* chr, int32_t beg1, int32_t end0) {
+    genomeLocus locus(chr, beg1-maxLength, beg1-maxLength);
+    if ( loci.empty() ) return false;
+    std::set<genomeLocus>::iterator it2 = loci.lower_bound(locus);
+    if ( it2 != loci.begin() ) --it2;
+    if ( it2->chrom != chr ) ++it2;
+    while( it2 != loci.end() && ( it2->chrom == chr ) && ( it2->beg1 <= end0 ) ) {
+      if ( ( it2->beg1 <= end0 ) && ( beg1 <= it2->end0 ) )
+	return true;
+      ++it2;
     }
-    else {
-      return false;
+    //notice("%s:%d-%d",it2->chrom.c_str(),it2->beg1,it2->end0);
+    return false;
+  }
+
+  bool contains(const char* chr, int32_t beg1, int32_t end0) {
+    if ( loci.empty() ) return false;
+
+    resolveOverlaps();
+    genomeLocus locus(chr, beg1-maxLength, beg1-maxLength);
+    std::set<genomeLocus>::iterator it2 = loci.lower_bound(locus);
+    if ( it2 != loci.begin() ) --it2;
+    if ( it2->chrom != chr ) ++it2;    
+    while( it2 != loci.end() && ( it2->chrom == chr ) && ( it2->beg1 <= end0 ) ) {
+      if ( ( it2->beg1 <= beg1 ) && ( end0 <= it2->end0 ) )
+	return true;
+      ++it2;
     }
+    return false;    
   }
 };

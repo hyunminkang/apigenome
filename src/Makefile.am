@@ -37,14 +37,18 @@ noinst_LIBRARIES = libtabix.a
 cramore_SOURCES = cramore.cpp \
 	Error.cpp PhredHelper.cpp params.cpp \
 	dropseq.cpp \
-	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp reference_sequence_cpp \
+	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp \
+	bcf_ordered_writer.cpp reference_sequence.cpp \
 	bam_ordered_reader.cpp \
 	nuclear_pedigree.cpp \
 	genotype_concordance.cpp \
 	filter.cpp \
-	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp \
+	libsvm.cpp libsvm_gkm.cpp \
+	cmd_bed_delta_svm_train.cpp \
+	cmd_bed_matched_shuffle.cpp \
+	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp cmd_vcf_delta_svm.cpp \
 	cmd_cram_simul_contam.cpp cmd_cram_verify_pair_id.cpp cmd_cram_sparse_genotype.cpp cmd_cram_flagstat.cpp \
-	cmd_cram_procap_detect.cpp \
+	cmd_cram_procap_detect.cpp cmd_cram_context_indel_analysis.cpp \
 	cmd_sc_multinom_em.cpp cmd_sc_map_stamps.cpp cmd_sc_kallisto_count.cpp 
 cramore_LDADD = ../htslib/libhts.a -lpthread
 #cramore_LDFLAGS = -fopenmp

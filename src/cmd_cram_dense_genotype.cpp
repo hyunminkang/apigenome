@@ -1,7 +1,7 @@
 #include "cramore.h"
 #include "estimator.h"
 
-int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
+int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   std::string inVcf;
   std::vector<std::string> inCrams;
   std::string inCramList;
@@ -11,6 +11,7 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
   double gl_adj = 0.01;
   int32_t xStart = 2699520;
   int32_t xStop = 154931044;
+  std::string smID;
   std::string xLabel("X");
   std::string yLabel("Y");
   std::string mtLabel("MT");

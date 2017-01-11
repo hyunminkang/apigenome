@@ -99,6 +99,13 @@ class ReferenceSequence
      */
     int32_t fetch_seq_len(std::string& seq);
 
+    int32_t fetch_seq_len(const char* chrom) {
+      std::string s(chrom);
+      return fetch_seq_len(s);
+    }
+
+    
+
     /**
      * Get a base.
      */
@@ -114,7 +121,7 @@ class ReferenceSequence
      *
      * Retrieved sequence is in seq with the length of n.
      */
-    void fetch_seq(std::string& chrom, int32_t start1, int32_t end1, char* seq, int32_t n);
+    //void fetch_seq(std::string& chrom, int32_t start1, int32_t end1, char* seq, int32_t n);
 
     /**
      * Fetches sequence chrom:beg1-end1.

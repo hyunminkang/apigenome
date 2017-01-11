@@ -126,15 +126,20 @@ am_cramore_OBJECTS = cramore.$(OBJEXT) Error.$(OBJEXT) \
 	interval.$(OBJEXT) interval_tree.$(OBJEXT) utils.$(OBJEXT) \
 	genome_interval.$(OBJEXT) log_tool.$(OBJEXT) \
 	estimator.$(OBJEXT) bcf_ordered_writer.$(OBJEXT) \
-	bam_ordered_reader.$(OBJEXT) nuclear_pedigree.$(OBJEXT) \
-	genotype_concordance.$(OBJEXT) filter.$(OBJEXT) \
+	reference_sequence.$(OBJEXT) bam_ordered_reader.$(OBJEXT) \
+	nuclear_pedigree.$(OBJEXT) genotype_concordance.$(OBJEXT) \
+	filter.$(OBJEXT) libsvm.$(OBJEXT) libsvm_gkm.$(OBJEXT) \
+	cmd_bed_delta_svm_train.$(OBJEXT) \
+	cmd_bed_matched_shuffle.$(OBJEXT) \
 	cmd_vcf_mendel_dup_conc.$(OBJEXT) \
 	cmd_vcf_sample_summary.$(OBJEXT) cmd_vcf_squeeze.$(OBJEXT) \
-	cmd_cram_simul_contam.$(OBJEXT) \
+	cmd_vcf_delta_svm.$(OBJEXT) cmd_cram_simul_contam.$(OBJEXT) \
 	cmd_cram_verify_pair_id.$(OBJEXT) \
 	cmd_cram_sparse_genotype.$(OBJEXT) cmd_cram_flagstat.$(OBJEXT) \
-	cmd_cram_procap_detect.$(OBJEXT) cmd_sc_multinom_em.$(OBJEXT) \
-	cmd_sc_map_stamps.$(OBJEXT) cmd_sc_kallisto_count.$(OBJEXT)
+	cmd_cram_procap_detect.$(OBJEXT) \
+	cmd_cram_context_indel_analysis.$(OBJEXT) \
+	cmd_sc_multinom_em.$(OBJEXT) cmd_sc_map_stamps.$(OBJEXT) \
+	cmd_sc_kallisto_count.$(OBJEXT)
 cramore_OBJECTS = $(am_cramore_OBJECTS)
 cramore_DEPENDENCIES = ../htslib/libhts.a
 am_tinyfast_OBJECTS = tinyfast.$(OBJEXT) Error.$(OBJEXT) \
@@ -398,14 +403,18 @@ noinst_LIBRARIES = libtabix.a
 cramore_SOURCES = cramore.cpp \
 	Error.cpp PhredHelper.cpp params.cpp \
 	dropseq.cpp \
-	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp bcf_ordered_writer.cpp reference_sequence_cpp \
+	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp \
+	bcf_ordered_writer.cpp reference_sequence.cpp \
 	bam_ordered_reader.cpp \
 	nuclear_pedigree.cpp \
 	genotype_concordance.cpp \
 	filter.cpp \
-	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp \
+	libsvm.cpp libsvm_gkm.cpp \
+	cmd_bed_delta_svm_train.cpp \
+	cmd_bed_matched_shuffle.cpp \
+	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp cmd_vcf_delta_svm.cpp \
 	cmd_cram_simul_contam.cpp cmd_cram_verify_pair_id.cpp cmd_cram_sparse_genotype.cpp cmd_cram_flagstat.cpp \
-	cmd_cram_procap_detect.cpp \
+	cmd_cram_procap_detect.cpp cmd_cram_context_indel_analysis.cpp \
 	cmd_sc_multinom_em.cpp cmd_sc_map_stamps.cpp cmd_sc_kallisto_count.cpp 
 
 cramore_LDADD = ../htslib/libhts.a -lpthread
@@ -544,6 +553,9 @@ include ./$(DEPDIR)/bcf_ordered_writer.Po
 include ./$(DEPDIR)/bcfast.Po
 include ./$(DEPDIR)/bedidx.Po
 include ./$(DEPDIR)/bgzf.Po
+include ./$(DEPDIR)/cmd_bed_delta_svm_train.Po
+include ./$(DEPDIR)/cmd_bed_matched_shuffle.Po
+include ./$(DEPDIR)/cmd_cram_context_indel_analysis.Po
 include ./$(DEPDIR)/cmd_cram_flagstat.Po
 include ./$(DEPDIR)/cmd_cram_procap_detect.Po
 include ./$(DEPDIR)/cmd_cram_simul_contam.Po
@@ -552,6 +564,7 @@ include ./$(DEPDIR)/cmd_cram_verify_pair_id.Po
 include ./$(DEPDIR)/cmd_sc_kallisto_count.Po
 include ./$(DEPDIR)/cmd_sc_map_stamps.Po
 include ./$(DEPDIR)/cmd_sc_multinom_em.Po
+include ./$(DEPDIR)/cmd_vcf_delta_svm.Po
 include ./$(DEPDIR)/cmd_vcf_mendel_dup_conc.Po
 include ./$(DEPDIR)/cmd_vcf_sample_summary.Po
 include ./$(DEPDIR)/cmd_vcf_squeeze.Po
@@ -569,9 +582,12 @@ include ./$(DEPDIR)/interval.Po
 include ./$(DEPDIR)/interval_tree.Po
 include ./$(DEPDIR)/knetfile.Po
 include ./$(DEPDIR)/kstring.Po
+include ./$(DEPDIR)/libsvm.Po
+include ./$(DEPDIR)/libsvm_gkm.Po
 include ./$(DEPDIR)/log_tool.Po
 include ./$(DEPDIR)/nuclear_pedigree.Po
 include ./$(DEPDIR)/params.Po
+include ./$(DEPDIR)/reference_sequence.Po
 include ./$(DEPDIR)/tinyfast.Po
 include ./$(DEPDIR)/utils.Po
 include ./$(DEPDIR)/vcfast.Po

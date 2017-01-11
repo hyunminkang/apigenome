@@ -29,6 +29,7 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv);
 int32_t cmdCramCustomSort(int32_t argc, char** argv);
 int32_t cmdCramFlagStat(int32_t argc, char** argv);
 int32_t cmdCramCompareBQs(int32_t argc, char** argv);
+int32_t cmdCramContextIndelAnalysis(int32_t argc, char** argv);
 
 int32_t cmdScMultinomEM(int32_t argc, char** argv);
 int32_t cmdScMapSTAMPs(int32_t argc, char** argv);
@@ -37,6 +38,9 @@ int32_t cmdScKallistoCount(int32_t argc, char** argv);
 int32_t cmdVcfMendelDupConc(int32_t argc, char** argv);
 int32_t cmdVcfSampleSummary(int32_t argc, char** argv);
 int32_t cmdVcfSqueeze(int32_t argc, char** argv);
+int32_t cmdVcfDeltaSVM(int32_t argc, char** argv);
+int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv);
+int32_t cmdBedMatchedShuffle(int32_t argc, char** argv);
 
 int32_t cmdCramProcapDetect(int32_t argc, char** argv);
 
@@ -210,12 +214,24 @@ int32_t main(int32_t argc, char** argv) {
     else if ( cmd == "vcf-squeeze") {
       return cmdVcfSqueeze(argc-1,argv+1);      
     }
+    else if ( cmd == "vcf-delta-svm") {
+      return cmdVcfDeltaSVM(argc-1,argv+1);      
+    }
+    else if ( cmd == "bed-delta-svm-train") {
+      return cmdBedDeltaSVMTrain(argc-1,argv+1);      
+    }    
+    else if ( cmd == "bed-matched-shuffle") {
+      return cmdBedMatchedShuffle(argc-1,argv+1);      
+    }        
     else if ( ( cmd == "sc-multinom-em") || ( cmd == "multinom-em") ) {
       return cmdScMultinomEM(argc-1, argv+1);
     }
     else if ( cmd == "cram-simul-contam") {
       return cmdCramSimulContam(argc-1, argv+1);
     }
+    else if ( cmd == "cram-context-indel-analysis") {
+      return cmdCramContextIndelAnalysis(argc-1, argv+1);
+    }    
     else if ( cmd == "cram-flagstat-all") {
       return cmdCramFlagStat(argc-1, argv+1);
     }

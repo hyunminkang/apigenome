@@ -130,9 +130,9 @@ char ReferenceSequence::fetch_base(std::string& chrom, int32_t pos1)
  *
  * Retrieved sequence is in seq with the length of n.
  */
-void ReferenceSequence::fetch_seq(std::string& chrom, int32_t start1, int32_t end1, char* seq, int32_t n)
-{
-}
+//void ReferenceSequence::fetch_seq(std::string& chrom, int32_t start1, int32_t end1, char* seq, int32_t n)
+//{
+//}
 
 /**
  * Fetches sequence chrom:beg1-end1.

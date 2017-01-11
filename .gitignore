@@ -52,3 +52,5 @@ htslib/tabix
 # Resources
 resources
 resources/*
+test
+test/*

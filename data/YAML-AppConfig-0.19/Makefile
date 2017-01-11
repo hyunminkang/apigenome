@@ -16,10 +16,10 @@
 #     BUILD_REQUIRES => {  }
 #     CONFIGURE_REQUIRES => {  }
 #     LICENSE => q[perl_5]
-#     META_MERGE => { resources=>{ repository=>{ url=>q[git://github.com/Xaerxess/YAML-AppConfig.git], web=>q[https://github.com/Xaerxess/YAML-AppConfig], type=>q[git] }, bugtracker=>{ web=>q[https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig] } }, meta-spec=>{ version=>q[2] } }
+#     META_MERGE => { resources=>{ repository=>{ web=>q[https://github.com/Xaerxess/YAML-AppConfig], url=>q[git://github.com/Xaerxess/YAML-AppConfig.git], type=>q[git] }, bugtracker=>{ web=>q[https://rt.cpan.org/Dist/Display.html?Name=YAML-AppConfig] } }, meta-spec=>{ version=>q[2] } }
 #     MIN_PERL_VERSION => q[5.006000]
 #     NAME => q[YAML::AppConfig]
-#     PREREQ_PM => { strict=>q[0], Test::More=>q[0], Carp=>q[0], YAML=>q[0.38], Storable=>q[0], YAML::Syck=>q[0], warnings=>q[0] }
+#     PREREQ_PM => { YAML=>q[0.38], Storable=>q[0], strict=>q[0], Carp=>q[0], warnings=>q[0], YAML::Syck=>q[0], Test::More=>q[0] }
 #     TEST_REQUIRES => { Test::More=>q[0] }
 #     VERSION_FROM => q[lib/YAML/AppConfig.pm]
 #     test => { TESTS=>q[t/*.t] }
@@ -441,22 +441,22 @@ clean_subdirs :
 
 clean :: clean_subdirs
 	- $(RM_F) \
-	  so_locations mon.out \
-	  core.[0-9][0-9] tmon.out \
-	  *perl.core $(BOOTSTRAP) \
-	  $(BASEEXT).x lib$(BASEEXT).def \
-	  core.*perl.*.? *$(LIB_EXT) \
-	  core.[0-9][0-9][0-9][0-9][0-9] $(INST_ARCHAUTODIR)/extralibs.ld \
-	  core.[0-9][0-9][0-9][0-9] blibdirs.ts \
-	  pm_to_blib $(BASEEXT).bso \
-	  $(INST_ARCHAUTODIR)/extralibs.all core.[0-9][0-9][0-9] \
-	  $(BASEEXT).exp MYMETA.json \
-	  $(BASEEXT).def perl.exe \
-	  core core.[0-9] \
-	  perl perl$(EXE_EXT) \
-	  MYMETA.yml perlmain.c \
-	  $(MAKE_APERL_FILE) *$(OBJ_EXT) \
-	  pm_to_blib.ts 
+	  tmon.out *$(OBJ_EXT) \
+	  so_locations $(BASEEXT).def \
+	  perl$(EXE_EXT) $(MAKE_APERL_FILE) \
+	  core.[0-9][0-9][0-9] MYMETA.json \
+	  $(BASEEXT).x perl \
+	  lib$(BASEEXT).def blibdirs.ts \
+	  perl.exe *perl.core \
+	  core.[0-9][0-9][0-9][0-9][0-9] mon.out \
+	  core.*perl.*.? core \
+	  *$(LIB_EXT) $(BASEEXT).exp \
+	  core.[0-9][0-9] core.[0-9][0-9][0-9][0-9] \
+	  perlmain.c $(INST_ARCHAUTODIR)/extralibs.ld \
+	  pm_to_blib $(INST_ARCHAUTODIR)/extralibs.all \
+	  core.[0-9] $(BASEEXT).bso \
+	  pm_to_blib.ts MYMETA.yml \
+	  $(BOOTSTRAP) 
 	- $(RM_RF) \
 	  blib 
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
@@ -471,7 +471,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
+	  $(FIRST_MAKEFILE) $(MAKEFILE_OLD) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
 
