@@ -1,4 +1,7 @@
 #include "cramore.h"
+#include "bcf_filter_arg.h"
+#include "bcf_ordered_reader.h"
+#include "bcf_ordered_writer.h"
 
 int32_t cmdVcfSqueeze(int32_t argc, char** argv) {
   std::vector<std::string> inVcfs;

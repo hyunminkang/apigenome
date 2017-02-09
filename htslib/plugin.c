@@ -39,14 +39,6 @@ DEALINGS IN THE SOFTWARE.  */
 #define PLUGINPATH ""
 #endif
 
-#ifdef __APPLE__
-#define PLUGIN_EXT ".bundle"
-#define PLUGIN_EXT_LEN 7
-#else
-#define PLUGIN_EXT ".so"
-#define PLUGIN_EXT_LEN 3
-#endif
-
 static DIR *open_nextdir(struct hts_path_itr *itr)
 {
     DIR *dir;
@@ -82,7 +74,7 @@ void hts_path_itr_setup(struct hts_path_itr *itr, const char *path,
     itr->prefix_len = prefix_len;
 
     if (suffix) itr->suffix = suffix, itr->suffix_len = suffix_len;
-    else itr->suffix = PLUGIN_EXT, itr->suffix_len = PLUGIN_EXT_LEN;
+    else itr->suffix = PLUGIN_EXT, itr->suffix_len = strlen(PLUGIN_EXT);
 
     itr->path.l = itr->path.m = 0; itr->path.s = NULL;
     itr->entry.l = itr->entry.m = 0; itr->entry.s = NULL;
@@ -135,13 +127,35 @@ const char *hts_path_itr_next(struct hts_path_itr *itr)
     return NULL;
 }
 
+
+#ifndef RTLD_NOLOAD
+#define RTLD_NOLOAD 0
+#endif
+
 void *load_plugin(void **pluginp, const char *filename, const char *symbol)
 {
     void *lib = dlopen(filename, RTLD_NOW | RTLD_LOCAL);
     if (lib == NULL) goto error;
 
     void *sym = dlsym(lib, symbol);
-    if (sym == NULL) goto error;
+    if (sym == NULL) {
+        // Reopen the plugin with RTLD_GLOBAL and check for uniquified symbol
+        void *libg = dlopen(filename, RTLD_NOLOAD | RTLD_NOW | RTLD_GLOBAL);
+        if (libg == NULL) goto error;
+        dlclose(lib);
+        lib = libg;
+
+        kstring_t symbolg = { 0, 0, NULL };
+        kputs(symbol, &symbolg);
+        kputc('_', &symbolg);
+        const char *slash = strrchr(filename, '/');
+        const char *basename = slash? slash+1 : filename;
+        kputsn(basename, strcspn(basename, ".-+"), &symbolg);
+
+        sym = dlsym(lib, symbolg.s);
+        free(symbolg.s);
+        if (sym == NULL) goto error;
+    }
 
     *pluginp = lib;
     return sym;

@@ -24,6 +24,21 @@ typedef struct _bcf_gfilter_arg bcf_gfilter_arg;
 #define FLT_INCLUDE 1
 #define FLT_EXCLUDE 2
 
+class variantKeyS {
+ public:
+  std::string chrom;
+  int32_t pos;
+  int32_t rlen;
+  std::vector<std::string> alleles;
+
+  variantKeyS(bcf_hdr_t* hdr, bcf1_t* v) : chrom(bcf_get_chrom(hdr,v)), pos(v->pos), rlen(v->rlen) {
+    alleles.resize(v->n_allele);
+    for(int32_t i=0; i < v->n_allele; ++i) {
+      alleles[i].assign(v->d.allele[i]);
+    }   
+ }
+};
+
 class variantKey {
  public:
   int32_t rid;
@@ -37,7 +52,7 @@ class variantKey {
       alleles[i].assign(v->d.allele[i]);
     }
   }
-}
+};
 
 class variantPool {
  public:

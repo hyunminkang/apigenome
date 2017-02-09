@@ -128,7 +128,7 @@ int32_t bam_get_end_pos1(bam1_t *s)
     if (n_cigar_op)
     {
         uint32_t *cigar = bam_get_cigar(s);
-        for (int32_t i = 0; i < n_cigar_op; ++i)
+        for (int32_t i = 0; i < (int32_t)n_cigar_op; ++i)
         {
             int32_t opchr = bam_cigar_opchr(cigar[i]);
             
@@ -179,7 +179,7 @@ void bam_get_cigar_string(bam1_t *s, kstring_t *cigar_string)
     if (n_cigar_op)
     {
         uint32_t *cigar = bam_get_cigar(s);
-        for (int32_t i = 0; i < n_cigar_op; ++i)
+        for (int32_t i = 0; i < (int32_t)n_cigar_op; ++i)
         {
             kputw(bam_cigar_oplen(cigar[i]), cigar_string);
             kputc(bam_cigar_opchr(cigar[i]), cigar_string);
@@ -318,8 +318,15 @@ void bam_get_base_and_qual_and_read_and_qual(bam1_t *srec, uint32_t pos, char& b
             rpos = BAM_READ_INDEX_NA;
         }
     }
+    
     if ( str.s ) free(str.s);
 
+    if ( rpos >= rlen ) {
+      rpos = BAM_READ_INDEX_NA;
+      base = '.';
+    }
+
+    //if ( rand() % 1000 == 0 )
     //fprintf(stderr,", pos = %d, cpos = %d, b = %c, q = %c, rpos=%d, seq=%s, qual = %s\n", pos, cpos, base, qual, rpos, readseq->s, readqual->s);
     //    std::cout << "q: " << s[bpos-1] << " " << q << "\n";
 //    for (uint32_t i = 0; i < c->l_qseq; ++i) std::cerr << ((char)(s[i] + 33));
@@ -507,6 +514,15 @@ bcf_hdr_t *bcf_alt_hdr_read(htsFile *fp)
 
     if (alt_hdr_fn.m) free(alt_hdr_fn.s);
     return h;
+}
+
+int32_t bcf_hdr_sample_index(bcf_hdr_t* h, const char* id) {
+  return bcf_hdr_id2int(h, BCF_DT_SAMPLE, id);
+}
+
+const char* bcf_hdr_sample_id(bcf_hdr_t* h, int32_t idx) {
+  //return (const char*)(h->id[BCF_DT_SAMPLE][idx]);
+  return bcf_hdr_int2id(h, BCF_DT_SAMPLE, idx);
 }
 
 /**
@@ -1070,8 +1086,8 @@ int32_t bam_get_unclipped_start(bam1_t* b) {
   uint32_t* cigar = bam_get_cigar(b);
   bam1_core_t* c = &b->core;
   int32_t i, y;
-  for(i = y =0; i < c->n_cigar; ++i) {
-    int j, l = cigar[i]>>4, op = cigar[i]&0xf;
+  for(i = y =0; i < (int32_t)c->n_cigar; ++i) {
+    int l = cigar[i]>>4, op = cigar[i]&0xf;
     if ( ( op == BAM_CSOFT_CLIP ) || ( op == BAM_CHARD_CLIP ) )
       y += l;
     else
@@ -1084,8 +1100,8 @@ int32_t bam_get_unclipped_end(bam1_t* b) {
   uint32_t* cigar = bam_get_cigar(b);
   bam1_core_t* c = &b->core;
   int32_t i, y;
-  for(i = y = 0; i < c->n_cigar; ++i) {
-    int j, l = cigar[i]>>4, op = cigar[i]&0xf;
+  for(i = y = 0; i < (int32_t)c->n_cigar; ++i) {
+    int l = cigar[i]>>4, op = cigar[i]&0xf;
     switch( op ) {
     case BAM_CMATCH:
     case BAM_CEQUAL:
@@ -1107,8 +1123,8 @@ int32_t bam_get_clipped_end(bam1_t* b) {
   uint32_t* cigar = bam_get_cigar(b);
   bam1_core_t* c = &b->core;
   int32_t i, y;
-  for(i = y = 0; i < c->n_cigar; ++i) {
-    int j, l = cigar[i]>>4, op = cigar[i]&0xf;
+  for(i = y = 0; i < (int32_t)c->n_cigar; ++i) {
+    int l = cigar[i]>>4, op = cigar[i]&0xf;
     switch( op ) {
     case BAM_CMATCH:
     case BAM_CEQUAL:
@@ -1125,3 +1141,41 @@ int32_t bam_get_clipped_end(bam1_t* b) {
   }
   return ( c->pos + y );  
 }
+
+
+bool same_hrecs(bcf_hdr_t* dst_hdr, bcf_hrec_t* dst, bcf_hdr_t* src_hdr, bcf_hrec_t* src) {
+  // Check that both records are of the same type. The bcf_hdr_id2length
+  // macro cannot be used here because dst header is not synced yet.
+  vdict_t *d_src = (vdict_t*)src_hdr->dict[BCF_DT_ID];
+  vdict_t *d_dst = (vdict_t*)dst_hdr->dict[BCF_DT_ID];
+  khint_t k_src  = kh_get(vdict, d_src, src->vals[0]);
+  khint_t k_dst  = kh_get(vdict, d_dst, src->vals[0]);
+  if ( (kh_val(d_src,k_src).info[src->type]>>8 & 0xf) != (kh_val(d_dst,k_dst).info[dst->type]>>8 & 0xf) ) {
+    warning("Warning: trying to combine \"%s\" tag definitions of different lengths\n", src->vals[0]);
+    return false;
+  }
+  if ( (kh_val(d_src,k_src).info[src->type]>>4 & 0xf) != (kh_val(d_dst,k_dst).info[dst->type]>>4 & 0xf) ) {
+    warning("Warning: trying to combine \"%s\" tag definitions of different types\n", src->vals[0]);
+    return false;
+  }
+  return true;
+}
+
+char *samfaipath(const char *fn_ref)
+{
+    char *fn_list = 0;
+    if (fn_ref == 0) return 0;
+    fn_list = (char*) calloc(strlen(fn_ref) + 5, 1);
+    strcat(strcpy(fn_list, fn_ref), ".fai");
+    if (access(fn_list, R_OK) == -1) { // fn_list is unreadable
+        if (access(fn_ref, R_OK) == -1) {
+            fprintf(stderr, "[samfaipath] fail to read file %s.\n", fn_ref);
+        } else {
+            if (fai_build(fn_ref) == -1) {
+                fprintf(stderr, "[samfaipath] fail to build FASTA index.\n");
+                free(fn_list); fn_list = 0;
+            }
+        }
+    }
+    return fn_list;
+};

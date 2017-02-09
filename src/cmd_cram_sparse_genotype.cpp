@@ -1,5 +1,7 @@
 #include "cramore.h"
 #include "estimator.h"
+#include "bcf_ordered_reader.h"
+#include "bcf_ordered_writer.h"
 
 int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
   std::string inVcf;

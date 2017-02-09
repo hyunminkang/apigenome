@@ -25,6 +25,7 @@ typedef khash_t(vdict) vdict_t;
 
 int32_t cmdCramSimulContam(int32_t argc, char** argv);
 int32_t cmdCramVerifyPairID(int32_t argc, char** argv);
+int32_t cmdCramDemuxlet(int32_t argc, char** argv);
 int32_t cmdCramSparseGenotype(int32_t argc, char** argv);
 int32_t cmdCramCustomSort(int32_t argc, char** argv);
 int32_t cmdCramFlagStat(int32_t argc, char** argv);
@@ -39,6 +40,12 @@ int32_t cmdVcfMendelDupConc(int32_t argc, char** argv);
 int32_t cmdVcfSampleSummary(int32_t argc, char** argv);
 int32_t cmdVcfSqueeze(int32_t argc, char** argv);
 int32_t cmdVcfDeltaSVM(int32_t argc, char** argv);
+int32_t cmdVcfExtract(int32_t argc, char** argv);
+int32_t cmdVcfSVD(int32_t argc, char** argv);
+int32_t cmdVcfInferAncestry(int32_t argc, char** argv);
+int32_t cmdVcfInferISAF(int32_t argc, char** argv);
+int32_t cmdVcfUpdateSites(int32_t argc, char** argv);
+
 int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv);
 int32_t cmdBedMatchedShuffle(int32_t argc, char** argv);
 
@@ -202,6 +209,9 @@ int32_t main(int32_t argc, char** argv) {
     else if ( ( cmd == "verify-pair-id" ) || ( cmd == "cram-verify-pair-id" ) ) {
       return cmdCramVerifyPairID(argc-1,argv+1);  
     }
+    else if ( cmd == "demuxlet" ) {
+      return cmdCramDemuxlet(argc-1,argv+1);  
+    }    
     else if ( cmd == "cram-sparse-genotype" ) {
       return cmdCramSparseGenotype(argc-1,argv+1);
     }
@@ -217,6 +227,21 @@ int32_t main(int32_t argc, char** argv) {
     else if ( cmd == "vcf-delta-svm") {
       return cmdVcfDeltaSVM(argc-1,argv+1);      
     }
+    else if ( cmd == "vcf-extract" ) {
+      return cmdVcfExtract(argc-1,argv+1);
+    }
+    else if ( cmd == "vcf-svd" ) {
+      return cmdVcfSVD(argc-1,argv+1);
+    }
+    else if ( cmd == "vcf-infer-ancestry" ) {
+      return cmdVcfInferAncestry(argc-1,argv+1);
+    }
+    else if ( cmd == "vcf-infer-isaf" ) {
+      return cmdVcfInferISAF(argc-1,argv+1);
+    }
+    else if ( cmd == "vcf-update-sites" ) {
+      return cmdVcfUpdateSites(argc-1,argv+1);
+    }                
     else if ( cmd == "bed-delta-svm-train") {
       return cmdBedDeltaSVMTrain(argc-1,argv+1);      
     }    

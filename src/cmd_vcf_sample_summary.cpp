@@ -1,4 +1,6 @@
+#include "bcf_filter_arg.h"
 #include "cramore.h"
+#include "bcf_ordered_reader.h"
 
 int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
   std::string inVcf;

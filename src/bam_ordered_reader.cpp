@@ -23,6 +23,7 @@
 
 #include "bam_ordered_reader.h"
 
+/*
 char *samfaipath(const char *fn_ref)
 {
     char *fn_list = 0;
@@ -41,6 +42,7 @@ char *samfaipath(const char *fn_ref)
     }
     return fn_list;
 };
+*/
 
 /**
  * Initialize files, intervals and reference file.
@@ -92,7 +94,7 @@ BAMOrderedReader::BAMOrderedReader(std::string file_name, std::vector<GenomeInte
         index_loaded = true;
     }
 
-    str = {0,0,0};
+    str.l = str.m = 0; str.s = NULL; //str = {0,0,0};
 
     intervals_present =  intervals.size()!=0;
     interval_index = 0;

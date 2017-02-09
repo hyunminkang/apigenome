@@ -25,7 +25,6 @@ noinst_HEADERS = \
 	cram/rANS_static.h \
 	cram/sam_header.h \
 	cram/string_alloc.h \
-	cram/thread_pool.h \
 	cram/vlen.h \
 	cram/zfio.h \
 	hfile_internal.h \
@@ -36,6 +35,7 @@ noinst_HEADERS = \
 	htslib/hfile.h \
 	htslib/hts.h \
 	htslib/hts_defs.h \
+	htslib/hts_endian.h \
 	htslib/kbitset.h \
 	htslib/kfunc.h \
 	htslib/khash.h \
@@ -48,6 +48,8 @@ noinst_HEADERS = \
 	htslib/regidx.h \
 	htslib/sam.h \
 	htslib/synced_bcf_reader.h \
+	thread_pool_internal.h \
+	htslib/thread_pool.h \
 	htslib/tbx.h \
 	htslib/vcf.h \
 	htslib/vcf_sweep.h \
@@ -67,20 +69,30 @@ tabix_SOURCES = tabix.c
 tabix_LDADD = libhts.a -lpthread
 
 libhts_a_SOURCES = \
+	bgzf.c \
+	errmod.c \
+	faidx.c \
+	hfile.c \
+	hfile_gcs.c \
+	hfile_libcurl.c \
+	hfile_net.c \
+	hfile_s3.c \
+	hts.c \
 	kfunc.c \
 	knetfile.c \
 	kstring.c \
-	bgzf.c \
-	faidx.c \
-	hfile.c \
-	hfile_net.c \
-	hts.c \
 	md5.c \
+	multipart.c \
+	plugin.c \
+	probaln.c \
+	realn.c \
 	regidx.c \
 	sam.c \
 	synced_bcf_reader.c \
 	vcf_sweep.c \
 	tbx.c \
+	textutils.c \
+	thread_pool.c \
 	vcf.c \
 	vcfutils.c \
 	cram/cram_codecs.c \
@@ -98,6 +110,5 @@ libhts_a_SOURCES = \
 	cram/rANS_static.c \
 	cram/sam_header.c \
 	cram/string_alloc.c \
-	cram/thread_pool.c \
 	cram/vlen.c \
 	cram/zfio.c

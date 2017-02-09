@@ -37,6 +37,7 @@ DEALINGS IN THE SOFTWARE.  */
 #include "htslib/hfile.h"
 #include "htslib/khash.h"
 #include "htslib/kstring.h"
+#include "hts_internal.h"
 
 typedef struct {
     int32_t line_len, line_blen;
@@ -56,7 +57,7 @@ struct __faidx_t {
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 #endif
 
-static inline int fai_insert_index(faidx_t *idx, const char *name, int len, int line_len, int line_blen, uint64_t offset)
+static inline int fai_insert_index(faidx_t *idx, const char *name, int64_t len, int line_len, int line_blen, uint64_t offset)
 {
     if (!name) {
         fprintf(stderr, "[fai_build_core] malformed line\n");
@@ -179,11 +180,7 @@ void fai_save(const faidx_t *fai, FILE *fp)
         faidx1_t x;
         k = kh_get(s, fai->hash, fai->name[i]);
         x = kh_value(fai->hash, k);
-#ifdef _WIN32
-        fprintf(fp, "%s\t%d\t%ld\t%d\t%d\n", fai->name[i], (int)x.len, (long)x.offset, (int)x.line_blen, (int)x.line_len);
-#else
-        fprintf(fp, "%s\t%d\t%lld\t%d\t%d\n", fai->name[i], (int)x.len, (long long)x.offset, (int)x.line_blen, (int)x.line_len);
-#endif
+        fprintf(fp, "%s\t%"PRId64"\t%"PRIu64"\t%"PRId32"\t%"PRId32"\n", fai->name[i], x.len, x.offset, x.line_blen, x.line_len);
     }
 }
 
@@ -191,23 +188,16 @@ static faidx_t *fai_read(FILE *fp, const char *fname)
 {
     faidx_t *fai;
     char *buf, *p;
-    int len, line_len, line_blen;
-#ifdef _WIN32
-    long offset;
-#else
-    long long offset;
-#endif
+    int line_len, line_blen;
+    int64_t len;
+    uint64_t offset;
     fai = (faidx_t*)calloc(1, sizeof(faidx_t));
     fai->hash = kh_init(s);
     buf = (char*)calloc(0x10000, 1);
     while (fgets(buf, 0x10000, fp)) {
-        for (p = buf; *p && isgraph(*p); ++p);
+        for (p = buf; *p && isgraph_c(*p); ++p);
         *p = 0; ++p;
-#ifdef _WIN32
-        sscanf(p, "%d%ld%d%d", &len, &offset, &line_blen, &line_len);
-#else
-        sscanf(p, "%d%lld%d%d", &len, &offset, &line_blen, &line_len);
-#endif
+        sscanf(p, "%"SCNd64"%"SCNu64"%d%d", &len, &offset, &line_blen, &line_len);
         if (fai_insert_index(fai, buf, len, line_len, line_blen, offset) != 0) {
             free(buf);
             return NULL;
@@ -394,7 +384,7 @@ char *fai_fetch(const faidx_t *fai, const char *str, int *len)
     s = (char*)malloc(l+1);
     // remove space
     for (i = k = 0; i < l; ++i)
-        if (!isspace(str[i])) s[k++] = str[i];
+        if (!isspace_c(str[i])) s[k++] = str[i];
     s[k] = 0; l = k;
     // determine the sequence name
     for (i = l - 1; i >= 0; --i) if (s[i] == ':') break; // look for colon from the end
@@ -403,7 +393,7 @@ char *fai_fetch(const faidx_t *fai, const char *str, int *len)
         int n_hyphen = 0;
         for (i = name_end + 1; i < l; ++i) {
             if (s[i] == '-') ++n_hyphen;
-            else if (!isdigit(s[i]) && s[i] != ',') break;
+            else if (!isdigit_c(s[i]) && s[i] != ',') break;
         }
         if (i < l || n_hyphen > 1) name_end = l; // malformated region string; then take str as the name
         s[name_end] = 0;

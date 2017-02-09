@@ -1,8 +1,12 @@
+#ifndef __GENOME_LOCI_H
+#define __GENOME_LOCI_H
+
 #include <vector>
 #include <set>
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
+#include <climits>
 #include "Error.h"
 
 // A single genomic int32_terval
@@ -23,11 +27,16 @@ class genomeLocus {
     strcpy(buf,region);
     const char* pcolon = strchr(region,':');
     const char* pminus = strchr(pcolon+1,'-');
-    if ( ( pcolon == NULL ) || ( pminus == NULL ) ) 
+    //if ( ( pcolon == NULL ) || ( pminus == NULL ) )
+    if ( pcolon == NULL )
       error("Cannot parse %s in genomeLocus::genomeLocus()");
     chrom = std::string(region,0,pcolon-region);
     beg1 = atoi(pcolon+1);
-    end0 = atoi(pminus+1);
+    if ( pminus == NULL ) end0 = INT_MAX;
+    else {
+      end0 = atoi(pminus+1);
+      if ( end0 == 0 ) end0 = INT_MAX;
+    }
   }
 
   const char* toString() const { 
@@ -61,6 +70,20 @@ class genomeLocus {
 
   // length
   unsigned long length() const { return end0-beg1+1; }
+
+  bool overlaps(const char* _chrom, int32_t _beg1, int32_t _end0) const {
+    if ( chrom == _chrom ) {
+      if ( ( beg1 <= _end0 )  && ( _beg1 <= end0 ) ) {
+	return true;
+      }
+      else {
+	return false;
+      }
+    }
+    else {
+      return false;
+    }    
+  }
 
   // check overlap with other locus
   bool overlaps (const genomeLocus& l) const {
@@ -97,8 +120,8 @@ class genomeLocus {
   // check if it contains pos
   bool contains0(const char* chr, int32_t pos0) const { return contains1(chr,pos0+1); }
 
-  bool contains1(const char* chr, int32_t pos1) const {
-    if ( chrom == chr ) {
+  bool contains1(const char* chr = NULL, int32_t pos1 = INT_MAX) const {
+    if ( ( chr == NULL ) || ( chrom == chr ) ) {
       return ( ( pos1 >= beg1 ) && ( pos1 <= end0 ) );
     }
     else {
@@ -115,7 +138,11 @@ class genomeLoci {
   bool overlapResolved;
   int32_t maxLength;
 
- genomeLoci() : overlapResolved(false), maxLength(0) {}
+  genomeLoci() : overlapResolved(false), maxLength(0) {}
+  genomeLoci(const char* reg) : overlapResolved(false), maxLength(0) {
+    add(reg);
+    resolveOverlaps();
+  }
 
   // functions for iterating each locus
   void rewind() { it = loci.begin(); }
@@ -188,7 +215,10 @@ class genomeLoci {
     return sz;
   }
 
-  bool moveTo(const char* chr, int32_t pos1) {
+  bool moveTo(const char* chr = NULL, int32_t pos1 = INT_MAX) {
+    if ( it->contains1(chr, pos1) ) return true;
+				     
+    chr = it->chrom.c_str();
     genomeLocus locus(chr, pos1, pos1);
     it = loci.lower_bound(locus);
     if ( it == loci.begin() ) { // do nothing
@@ -224,7 +254,7 @@ class genomeLoci {
   }
 
   bool overlaps(const char* chr, int32_t beg1, int32_t end0) {
-    genomeLocus locus(chr, beg1-maxLength, beg1-maxLength);
+    genomeLocus locus(chr, overlapResolved ? beg1 : beg1-maxLength, overlapResolved ? beg1 : beg1-maxLength);
     if ( loci.empty() ) return false;
     std::set<genomeLocus>::iterator it2 = loci.lower_bound(locus);
     if ( it2 != loci.begin() ) --it2;
@@ -254,3 +284,5 @@ class genomeLoci {
     return false;    
   }
 };
+
+#endif

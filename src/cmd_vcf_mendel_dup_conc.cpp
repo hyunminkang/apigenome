@@ -1,6 +1,7 @@
 #include "cramore.h"
 #include "nuclear_pedigree.h"
 #include "genotype_concordance.h"
+#include "bcf_ordered_reader.h"
 
 int32_t getPersonGenoDepth( int32_t* gts, int32_t* dps, NuclearFamilyPerson* pPerson, std::vector<int>& genos, std::vector<int>& depths) {
   genos.clear();

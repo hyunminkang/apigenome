@@ -19,10 +19,10 @@
  *
  */
 
-#include <stdio.h>
+#include <cstdio>
 #include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <errno.h>
 
 #include "libsvm_gkm.h"

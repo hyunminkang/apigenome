@@ -35,6 +35,8 @@
 #include <map>
 #include <queue>
 #include <sys/stat.h>
+
+extern "C" {
 #include "htslib/kseq.h"
 #include "htslib/kstring.h"
 #include "htslib/khash.h"
@@ -43,6 +45,8 @@
 #include "htslib/vcf.h"
 #include "htslib/bgzf.h"
 #include "htslib/faidx.h"
+}
+
 #include "utils.h"
 #include "genome_interval.h"
 
@@ -114,6 +118,8 @@ void bam_hdr_transfer_contigs_to_bcf_hdr(const bam_hdr_t *sh, bcf_hdr_t *vh);
  * Gets the chromosome name of the tid.
  */
 #define bam_get_chrom(h, s) ((h)->target_name[(s)->core.tid])
+
+#define bam_get_chromi(h, i) ((h)->target_name[i])
 
 /**
  * Gets the 1 based start position of the first mapped base in the read.
@@ -476,6 +482,9 @@ void bcf_set_id(bcf1_t *v, char* id);
  */
 #define bcf_get_n_sample(v) ((v)->n_sample)
 
+const char* bcf_hdr_sample_id(bcf_hdr_t* h, int32_t idx);
+int32_t bcf_hdr_sample_index(bcf_hdr_t* h, const char* id);
+
 /**
  * Set number of samples in bcf record
  */
@@ -501,5 +510,9 @@ std::string bam_hdr_get_sample_name(bam_hdr_t* hdr);
 int32_t bam_get_unclipped_start(bam1_t* b);
 int32_t bam_get_unclipped_end(bam1_t* b);
 int32_t bam_get_clipped_end(bam1_t* b);
+
+bool same_hrecs(bcf_hdr_t* dst_hdr, bcf_hrec_t* dst, bcf_hdr_t* src_hdr, bcf_hrec_t* src);
+
+char *samfaipath(const char *fn_ref);
 
 #endif

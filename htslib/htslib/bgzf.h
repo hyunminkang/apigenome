@@ -1,5 +1,6 @@
-/* The MIT License
-
+/// @file htslib/bgzf.h
+/// Low-level routines for direct BGZF operations.
+/*
    Copyright (c) 2008 Broad Institute / Massachusetts Institute of Technology
                  2011, 2012 Attractive Chaos <attractor@live.co.uk>
    Copyright (C) 2009, 2013, 2014 Genome Research Ltd
@@ -47,17 +48,20 @@ extern "C" {
 #define BGZF_ERR_HEADER 2
 #define BGZF_ERR_IO     4
 #define BGZF_ERR_MISUSE 8
+#define BGZF_ERR_MT     16 // stream cannot be multi-threaded
 
 struct hFILE;
+struct hts_tpool;
 struct bgzf_mtaux_t;
 typedef struct __bgzidx_t bgzidx_t;
 
 struct BGZF {
-    unsigned errcode:16, is_write:2, is_be:2;
+    // Reserved bits should be written as 0; read as "don't care"
+    unsigned errcode:16, reserved:1, is_write:1, no_eof_block:1, is_be:1;
     signed compress_level:9;
-    unsigned is_compressed:2, is_gzip:1;
+    unsigned last_block_eof:1, is_compressed:1, is_gzip:1;
     int cache_size;
-    int block_length, block_offset;
+    int block_length, block_clength, block_offset;
     int64_t block_address, uncompressed_address;
     void *uncompressed_block, *compressed_block;
     void *cache; // a pointer to a hash table
@@ -141,6 +145,18 @@ typedef struct __kstring_t {
     ssize_t bgzf_write(BGZF *fp, const void *data, size_t length) HTS_RESULT_USED;
 
     /**
+     * Write _length_ bytes from _data_ to the file, the index will be used to
+     * decide the amount of uncompressed data to be writen to each bgzip block.
+     * If no I/O errors occur, the complete _length_ bytes will be written (or
+     * queued for writing).
+     * @param fp     BGZF file handler
+     * @param data   data array to write
+     * @param length size of data to write
+     * @return       number of bytes written (i.e., _length_); negative on error
+     */
+    ssize_t bgzf_block_write(BGZF *fp, const void *data, size_t length);
+
+    /**
      * Read up to _length_ bytes directly from the underlying stream without
      * decompressing.  Bypasses BGZF blocking, so must be used with care in
      * specialised circumstances only.
@@ -201,13 +217,25 @@ typedef struct __kstring_t {
      */
     int bgzf_check_EOF(BGZF *fp);
 
+    /** Return the file's compression format
+     *
+     * @param fp  BGZF file handle
+     * @return    A small integer matching the corresponding
+     *            `enum htsCompression` value:
+     *   - 0 / `no_compression` if the file is uncompressed
+     *   - 1 / `gzip` if the file is plain GZIP-compressed
+     *   - 2 / `bgzf` if the file is BGZF-compressed
+     * @since 1.4
+     */
+    int bgzf_compression(BGZF *fp);
+
     /**
      * Check if a file is in the BGZF format
      *
      * @param fn    file name
      * @return      1 if _fn_ is BGZF; 0 if not or on I/O error
      */
-     int bgzf_is_bgzf(const char *fn);
+    int bgzf_is_bgzf(const char *fn) HTS_DEPRECATED("Use bgzf_compression() or hts_detect_format() instead");
 
     /*********************
      * Advanced routines *
@@ -240,7 +268,7 @@ typedef struct __kstring_t {
      * @param fp     BGZF file handler
      * @param delim  delimitor
      * @param str    string to write to; must be initialized
-     * @return       length of the string; 0 on end-of-file; negative on error
+     * @return       length of the string; -1 on end-of-file; <= -2 on error
      */
     int bgzf_getline(BGZF *fp, int delim, kstring_t *str);
 
@@ -250,8 +278,18 @@ typedef struct __kstring_t {
     int bgzf_read_block(BGZF *fp) HTS_RESULT_USED;
 
     /**
-     * Enable multi-threading (only effective on writing and when the
-     * library was compiled with -DBGZF_MT)
+     * Enable multi-threading (when compiled with -DBGZF_MT) via a shared
+     * thread pool.  This means both encoder and decoder can balance
+     * usage across a single pool of worker jobs.
+     *
+     * @param fp          BGZF file handler; must be opened for writing
+     * @param pool        The thread pool (see hts_create_threads)
+     */
+    int bgzf_thread_pool(BGZF *fp, struct hts_tpool *pool, int qsize);
+
+    /**
+     * Enable multi-threading (only effective when the library was compiled
+     * with -DBGZF_MT)
      *
      * @param fp          BGZF file handler; must be opened for writing
      * @param n_threads   #threads used for writing

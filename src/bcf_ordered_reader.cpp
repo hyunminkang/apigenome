@@ -50,7 +50,7 @@ BCFOrderedReader::BCFOrderedReader(std::string file_name, std::vector<GenomeInte
         exit(1);
     }
 
-    s = {0, 0, 0};
+    s.l = s.m = 0; s.s = NULL; //s = {0, 0, 0};
     if (file==NULL) exit(1);
     hdr = bcf_alt_hdr_read(file);
     if (!hdr) exit(1);

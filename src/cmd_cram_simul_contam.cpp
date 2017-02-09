@@ -1,5 +1,7 @@
 #include "cramore.h"
 
+#include "bcf_ordered_reader.h"
+
 KHASH_MAP_INIT_STR(vdict, bcf_idinfo_t)
 typedef khash_t(vdict) vdict_t;
 

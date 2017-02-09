@@ -1,5 +1,6 @@
-/*  synced_bcf_reader.h -- stream through multiple VCF files.
-
+/// @file htslib/synced_bcf_reader.h
+/// Stream through multiple VCF files.
+/*
     Copyright (C) 2012-2014 Genome Research Ltd.
 
     Author: Petr Danecek <pd3@sanger.ac.uk>
@@ -46,6 +47,7 @@ DEALINGS IN THE SOFTWARE.  */
                 ...
             }
         }
+        if ( sr->errnum ) error("Error: %s\n", bcf_sr_strerror(sr->errnum));
         bcf_sr_destroy(sr);
 */
 
@@ -117,7 +119,7 @@ bcf_sr_t;
 typedef enum
 {
     open_failed, not_bgzf, idx_load_failed, file_type_error, api_usage_error,
-    header_error, no_eof
+    header_error, no_eof, no_memory, vcf_parse_error, bcf_read_error
 }
 bcf_sr_error;
 
@@ -146,6 +148,9 @@ typedef struct
     int targets_exclude;
     kstring_t tmps;
     int n_smpl;
+
+    int n_threads;      // Simple multi-threaded decoding / encoding.
+    htsThreadPool *p;   // Our pool, but it can be used by others if needed.
 }
 bcf_srs_t;
 
@@ -157,6 +162,17 @@ void bcf_sr_destroy(bcf_srs_t *readers);
 
 char *bcf_sr_strerror(int errnum);
 
+
+/**
+ * bcf_sr_set_threads() - allocates a thread-pool for use by the synced reader.
+ * @n_threads: size of thread pool
+ *
+ * Returns 0 if the call succeeded, or <0 on error.
+ */
+int bcf_sr_set_threads(bcf_srs_t *files, int n_threads);
+
+/** Deallocates thread memory, if owned by us. */
+void bcf_sr_destroy_threads(bcf_srs_t *files);
 
 /**
  *  bcf_sr_add_reader() - open new reader

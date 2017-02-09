@@ -1,4 +1,5 @@
 #include "cramore.h"
+#include "bcf_ordered_reader.h"
 
 int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
   std::string inSam; // SAM, BAM, or CRAM

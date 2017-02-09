@@ -1,6 +1,6 @@
 /*  sam.c -- SAM and BAM file I/O and manipulation.
 
-    Copyright (C) 2008-2010, 2012-2016 Genome Research Ltd.
+    Copyright (C) 2008-2010, 2012-2017 Genome Research Ltd.
     Copyright (C) 2010, 2012, 2013 Broad Institute.
 
     Author: Heng Li <lh3@sanger.ac.uk>
@@ -29,18 +29,23 @@ DEALINGS IN THE SOFTWARE.  */
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <ctype.h>
 #include <zlib.h>
+#include <assert.h>
 #include "htslib/sam.h"
 #include "htslib/bgzf.h"
 #include "cram/cram.h"
 #include "hts_internal.h"
 #include "htslib/hfile.h"
+#include "htslib/hts_endian.h"
 
 #include "htslib/khash.h"
 KHASH_DECLARE(s2i, kh_cstr_t, int64_t)
 
 typedef khash_t(s2i) sdict_t;
+
+#ifndef EOVERFLOW
+#define EOVERFLOW ERANGE
+#endif
 
 /**********************
  *** BAM header I/O ***
@@ -105,7 +110,7 @@ static bam_hdr_t *hdr_from_dict(sdict_t *d)
     for (k = kh_begin(d); k != kh_end(d); ++k) {
         if (!kh_exist(d, k)) continue;
         h->target_name[kh_val(d, k)>>32] = (char*)kh_key(d, k);
-        h->target_len[kh_val(d, k)>>32]  = kh_val(d, k)<<32>>32;
+        h->target_len[kh_val(d, k)>>32]  = kh_val(d, k) & 0xffffffffUL;
         kh_val(d, k) >>= 32;
     }
     return h;
@@ -369,39 +374,9 @@ static inline int aux_type2size(uint8_t type)
 
 static void swap_data(const bam1_core_t *c, int l_data, uint8_t *data, int is_host)
 {
-    uint8_t *s;
     uint32_t *cigar = (uint32_t*)(data + c->l_qname);
-    uint32_t i, n;
-    s = data + c->n_cigar*4 + c->l_qname + c->l_qseq + (c->l_qseq + 1)/2;
+    uint32_t i;
     for (i = 0; i < c->n_cigar; ++i) ed_swap_4p(&cigar[i]);
-    while (s < data + l_data) {
-        int size;
-        s += 2; // skip key
-        size = aux_type2size(*s); ++s; // skip type
-        switch (size) {
-        case 1: ++s; break;
-        case 2: ed_swap_2p(s); s += 2; break;
-        case 4: ed_swap_4p(s); s += 4; break;
-        case 8: ed_swap_8p(s); s += 8; break;
-        case 'Z':
-        case 'H':
-            while (*s) ++s;
-            ++s;
-            break;
-        case 'B':
-            size = aux_type2size(*s); ++s;
-            if (is_host) memcpy(&n, s, 4), ed_swap_4p(s);
-            else ed_swap_4p(s), memcpy(&n, s, 4);
-            s += 4;
-            switch (size) {
-            case 1: s += n; break;
-            case 2: for (i = 0; i < n; ++i, s += 2) ed_swap_2p(s); break;
-            case 4: for (i = 0; i < n; ++i, s += 4) ed_swap_4p(s); break;
-            case 8: for (i = 0; i < n; ++i, s += 8) ed_swap_8p(s); break;
-            }
-            break;
-        }
-    }
 }
 
 int bam_read1(BGZF *fp, bam1_t *b)
@@ -420,10 +395,11 @@ int bam_read1(BGZF *fp, bam1_t *b)
     }
     c->tid = x[0]; c->pos = x[1];
     c->bin = x[2]>>16; c->qual = x[2]>>8&0xff; c->l_qname = x[2]&0xff;
+    c->l_extranul = (c->l_qname%4 != 0)? (4 - c->l_qname%4) : 0;
     c->flag = x[3]>>16; c->n_cigar = x[3]&0xffff;
     c->l_qseq = x[4];
     c->mtid = x[5]; c->mpos = x[6]; c->isize = x[7];
-    b->l_data = block_len - 32;
+    b->l_data = block_len - 32 + c->l_extranul;
     if (b->l_data < 0 || c->l_qseq < 0 || c->l_qname < 1) return -4;
     if ((char *)bam_get_aux(b) - (char *)b->data > b->l_data)
         return -4;
@@ -434,8 +410,10 @@ int bam_read1(BGZF *fp, bam1_t *b)
         if (!b->data)
             return -4;
     }
-    if (bgzf_read(fp, b->data, b->l_data) != b->l_data) return -4;
-    //b->l_aux = b->l_data - c->n_cigar * 4 - c->l_qname - c->l_qseq - (c->l_qseq+1)/2;
+    if (bgzf_read(fp, b->data, c->l_qname) != c->l_qname) return -4;
+    for (i = 0; i < c->l_extranul; ++i) b->data[c->l_qname+i] = '\0';
+    c->l_qname += c->l_extranul;
+    if (bgzf_read(fp, b->data + c->l_qname, b->l_data - c->l_qname) != b->l_data - c->l_qname) return -4;
     if (fp->is_be) swap_data(c, b->l_data, b->data, 0);
     return 4 + block_len;
 }
@@ -443,11 +421,17 @@ int bam_read1(BGZF *fp, bam1_t *b)
 int bam_write1(BGZF *fp, const bam1_t *b)
 {
     const bam1_core_t *c = &b->core;
-    uint32_t x[8], block_len = b->l_data + 32, y;
+    uint32_t x[8], block_len = b->l_data - c->l_extranul + 32, y;
     int i, ok;
+    if (c->n_cigar >= 65536) {
+        if (hts_verbose >= 1)
+            fprintf(stderr, "[E::%s] too many CIGAR operations (%d >= 64K for QNAME \"%s\")\n", __func__, c->n_cigar, bam_get_qname(b));
+        errno = EOVERFLOW;
+        return -1;
+    }
     x[0] = c->tid;
     x[1] = c->pos;
-    x[2] = (uint32_t)c->bin<<16 | c->qual<<8 | c->l_qname;
+    x[2] = (uint32_t)c->bin<<16 | c->qual<<8 | (c->l_qname - c->l_extranul);
     x[3] = (uint32_t)c->flag<<16 | c->n_cigar;
     x[4] = c->l_qseq;
     x[5] = c->mtid;
@@ -463,7 +447,8 @@ int bam_write1(BGZF *fp, const bam1_t *b)
         if (ok) ok = (bgzf_write(fp, &block_len, 4) >= 0);
     }
     if (ok) ok = (bgzf_write(fp, x, 32) >= 0);
-    if (ok) ok = (bgzf_write(fp, b->data, b->l_data) >= 0);
+    if (ok) ok = (bgzf_write(fp, b->data, c->l_qname - c->l_extranul) >= 0);
+    if (ok) ok = (bgzf_write(fp, b->data + c->l_qname, b->l_data - c->l_qname) >= 0);
     if (fp->is_be) swap_data(c, b->l_data, b->data, 0);
     return ok? 4 + block_len : -1;
 }
@@ -507,13 +492,16 @@ err:
     return NULL;
 }
 
-int sam_index_build2(const char *fn, const char *fnidx, int min_shift)
+int sam_index_build3(const char *fn, const char *fnidx, int min_shift, int nthreads)
 {
     hts_idx_t *idx;
     htsFile *fp;
     int ret = 0;
 
     if ((fp = hts_open(fn, "r")) == 0) return -2;
+    if (nthreads)
+        hts_set_threads(fp, nthreads);
+
     switch (fp->format.format) {
     case cram:
         ret = cram_index_build(fp->fp.cram, fn, fnidx);
@@ -523,6 +511,7 @@ int sam_index_build2(const char *fn, const char *fnidx, int min_shift)
         idx = bam_index(fp->fp.bgzf, min_shift);
         if (idx) {
             ret = hts_idx_save_as(idx, fn, fnidx, (min_shift > 0)? HTS_FMT_CSI : HTS_FMT_BAI);
+            if (ret < 0) ret = -4;
             hts_idx_destroy(idx);
         }
         else ret = -1;
@@ -537,9 +526,14 @@ int sam_index_build2(const char *fn, const char *fnidx, int min_shift)
     return ret;
 }
 
+int sam_index_build2(const char *fn, const char *fnidx, int min_shift)
+{
+    return sam_index_build3(fn, fnidx, min_shift, 0);
+}
+
 int sam_index_build(const char *fn, int min_shift)
 {
-    return sam_index_build2(fn, NULL, min_shift);
+    return sam_index_build3(fn, NULL, min_shift, 0);
 }
 
 // Provide bam_index_build() symbol for binary compability with earlier HTSlib
@@ -618,6 +612,7 @@ static hts_itr_t *cram_itr_query(const hts_idx_t *idx, int tid, int beg, int end
 
     // Cons up a dummy iterator for which hts_itr_next() will simply invoke
     // the readrec function:
+    iter->is_cram = 1;
     iter->read_rest = 1;
     iter->off = NULL;
     iter->bins.a = NULL;
@@ -747,31 +742,44 @@ bam_hdr_t *sam_hdr_read(htsFile *fp)
         return cram_header_to_bam(fp->fp.cram->header);
 
     case sam: {
-        kstring_t str;
-        bam_hdr_t *h;
-        int has_SQ = 0;
-        str.l = str.m = 0; str.s = 0;
-        while (hts_getline(fp, KS_SEP_LINE, &fp->line) >= 0) {
+        kstring_t str = { 0, 0, NULL };
+        bam_hdr_t *h = NULL;
+        int ret, has_SQ = 0;
+        while ((ret = hts_getline(fp, KS_SEP_LINE, &fp->line)) >= 0) {
             if (fp->line.s[0] != '@') break;
             if (fp->line.l > 3 && strncmp(fp->line.s,"@SQ",3) == 0) has_SQ = 1;
             kputsn(fp->line.s, fp->line.l, &str);
             kputc('\n', &str);
         }
+        if (ret < -1) goto error;
         if (! has_SQ && fp->fn_aux) {
-            char line[2048];
-            FILE *f = fopen(fp->fn_aux, "r");
-            if (f == NULL) return NULL;
-            while (fgets(line, sizeof line, f)) {
-                const char *name = strtok(line, "\t");
-                const char *length = strtok(NULL, "\t");
-                ksprintf(&str, "@SQ\tSN:%s\tLN:%s\n", name, length);
+            kstring_t line = { 0, 0, NULL };
+            hFILE *f = hopen(fp->fn_aux, "r");
+            if (f == NULL) goto error;
+            while (line.l = 0, kgetline(&line, (kgets_func *) hgets, f) >= 0) {
+                char *tab = strchr(line.s, '\t');
+                if (tab == NULL) continue;
+                kputs("@SQ\tSN:", &str);
+                kputsn(line.s, tab - line.s, &str);
+                kputs("\tLN:", &str);
+                kputl(atol(tab), &str);
+                kputc('\n', &str);
             }
-            fclose(f);
+            free(line.s);
+            if (hclose(f) != 0) {
+                if (hts_verbose >= 2)
+                    fprintf(stderr, "[W::%s] closing \"%s\" failed\n", __func__, fp->fn_aux);
+            }
         }
         if (str.l == 0) kputsn("", 0, &str);
         h = sam_hdr_parse(str.l, str.s);
         h->l_text = str.l; h->text = str.s;
         return h;
+
+     error:
+        bam_hdr_destroy(h);
+        free(str.s);
+        return NULL;
         }
 
     default:
@@ -861,7 +869,9 @@ int sam_parse1(kstring_t *s, bam_hdr_t *h, bam1_t *b)
     _parse_warn(p - q <= 1, "empty query name");
     _parse_err(p - q > 255, "query name too long");
     kputsn_(q, p - q, &str);
-    c->l_qname = p - q;
+    for (c->l_extranul = 0; str.l % 4 != 0; c->l_extranul++)
+        kputc_('\0', &str);
+    c->l_qname = p - q + c->l_extranul;
     // flag
     c->flag = strtol(p, &p, 0);
     if (*p++ != '\t') goto err_ret; // malformated flag
@@ -888,10 +898,10 @@ int sam_parse1(kstring_t *s, bam_hdr_t *h, bam1_t *b)
         uint32_t *cigar;
         size_t n_cigar = 0;
         for (q = p; *p && *p != '\t'; ++p)
-            if (!isdigit(*p)) ++n_cigar;
+            if (!isdigit_c(*p)) ++n_cigar;
         if (*p++ != '\t') goto err_ret;
         _parse_err(n_cigar == 0, "no CIGAR operations");
-        _parse_err(n_cigar >= 65536, "too many CIGAR operations");
+        _parse_err(n_cigar >= 2147483647, "too many CIGAR operations");
         c->n_cigar = n_cigar;
         _get_mem(uint32_t, &cigar, &str, c->n_cigar * sizeof(uint32_t));
         for (i = 0; i < c->n_cigar; ++i, ++q) {
@@ -950,14 +960,20 @@ int sam_parse1(kstring_t *s, bam_hdr_t *h, bam1_t *b)
         for (i = 0; i < c->l_qseq; ++i) t[i] = q[i] - 33;
     } else memset(t, 0xff, c->l_qseq);
     // aux
-    // Note that (like the bam1_core_t fields) this aux data in b->data is
-    // stored in host endianness; so there is no byte swapping needed here.
     while (p < s->s + s->l) {
         uint8_t type;
         q = _read_token_aux(p); // FIXME: can be accelerated for long 'B' arrays
-        _parse_err(p - q - 1 < 6, "incomplete aux field");
+        _parse_err(p - q - 1 < 5, "incomplete aux field");
         kputsn_(q, 2, &str);
         q += 3; type = *q++; ++q; // q points to value
+        if (type != 'Z' && type != 'H') // the only zero length acceptable fields
+            _parse_err(p - q - 1 < 1, "incomplete aux field");
+
+        // Ensure str has enough space for a double + type allocated.
+        // This is so we can stuff bigger integers and floats directly into
+        // the kstring.  Sorry.
+        _parse_err(ks_resize(&str, str.l + 16), "out of memory");
+
         if (type == 'A' || type == 'a' || type == 'c' || type == 'C') {
             kputc_('A', &str);
             kputc_(*q, &str);
@@ -967,51 +983,79 @@ int sam_parse1(kstring_t *s, bam_hdr_t *h, bam1_t *b)
                 if (x >= INT8_MIN) {
                     kputc_('c', &str); kputc_(x, &str);
                 } else if (x >= INT16_MIN) {
-                    int16_t y = x;
-                    kputc_('s', &str); kputsn_((char*)&y, 2, &str);
+                    str.s[str.l++] = 's';
+                    i16_to_le(x, (uint8_t *) str.s + str.l);
+                    str.l += 2;
                 } else {
-                    int32_t y = x;
-                    kputc_('i', &str); kputsn_(&y, 4, &str);
+                    str.s[str.l++] = 'i';
+                    i32_to_le(x, (uint8_t *) str.s + str.l);
+                    str.l += 4;
                 }
             } else {
                 unsigned long x = strtoul(q, &q, 10);
                 if (x <= UINT8_MAX) {
                     kputc_('C', &str); kputc_(x, &str);
                 } else if (x <= UINT16_MAX) {
-                    uint16_t y = x;
-                    kputc_('S', &str); kputsn_(&y, 2, &str);
+                    str.s[str.l++] = 'S';
+                    u16_to_le(x, (uint8_t *) str.s + str.l);
+                    str.l += 2;
                 } else {
-                    uint32_t y = x;
-                    kputc_('I', &str); kputsn_(&y, 4, &str);
+                    str.s[str.l++] = 'I';
+                    u32_to_le(x, (uint8_t *) str.s + str.l);
+                    str.l += 4;
                 }
             }
         } else if (type == 'f') {
-            float x;
-            x = strtod(q, &q);
-            kputc_('f', &str); kputsn_(&x, 4, &str);
+            str.s[str.l++] = 'f';
+            float_to_le(strtod(q, &q), (uint8_t *) str.s + str.l);
+            str.l += sizeof(float);
         } else if (type == 'd') {
-            double x;
-            x = strtod(q, &q);
-            kputc_('d', &str); kputsn_(&x, 8, &str);
+            str.s[str.l++] = 'd';
+            double_to_le(strtod(q, &q), (uint8_t *) str.s + str.l);
+            str.l += sizeof(double);
         } else if (type == 'Z' || type == 'H') {
+            _parse_err(type == 'H' && !((p-q)&1),
+                       "hex field does not have an even number of digits");
             kputc_(type, &str);kputsn_(q, p - q, &str); // note that this include the trailing NULL
         } else if (type == 'B') {
-            int32_t n;
+            int32_t n, size;
+            size_t bytes;
             char *r;
             _parse_err(p - q - 1 < 3, "incomplete B-typed aux field");
             type = *q++; // q points to the first ',' following the typing byte
+
+            size = aux_type2size(type);
+            _parse_err(size <= 0 || size > 4, "unrecognized B type");
+
             for (r = q, n = 0; *r; ++r)
                 if (*r == ',') ++n;
-            kputc_('B', &str); kputc_(type, &str); kputsn_(&n, 4, &str);
-            // FIXME: to evaluate which is faster: a) aligned array and then memmove(); b) unaligned array; c) kputsn_()
+
+            // Ensure space for type + values
+            bytes = (size_t) n * (size_t) size;
+            _parse_err(bytes / size != n
+                       || ks_resize(&str, str.l + bytes + 2 + sizeof(uint32_t)),
+                       "out of memory");
+            str.s[str.l++] = 'B';
+            str.s[str.l++] = type;
+            i32_to_le(n, (uint8_t *) str.s + str.l);
+            str.l += sizeof(uint32_t);
+
+            // This ensures that q always ends up at the next comma after
+            // reading a number even if it's followed by junk.  It
+            // prevents the possibility of trying to read more than n items.
+#define _skip_to_comma(q, p) do { while ((q) < (p) && *(q) != ',') (q)++; } while (0)
+
             if (type == 'c')      while (q + 1 < p) { int8_t   x = strtol(q + 1, &q, 0); kputc_(x, &str); }
             else if (type == 'C') while (q + 1 < p) { uint8_t  x = strtoul(q + 1, &q, 0); kputc_(x, &str); }
-            else if (type == 's') while (q + 1 < p) { int16_t  x = strtol(q + 1, &q, 0); kputsn_(&x, 2, &str); }
-            else if (type == 'S') while (q + 1 < p) { uint16_t x = strtoul(q + 1, &q, 0); kputsn_(&x, 2, &str); }
-            else if (type == 'i') while (q + 1 < p) { int32_t  x = strtol(q + 1, &q, 0); kputsn_(&x, 4, &str); }
-            else if (type == 'I') while (q + 1 < p) { uint32_t x = strtoul(q + 1, &q, 0); kputsn_(&x, 4, &str); }
-            else if (type == 'f') while (q + 1 < p) { float    x = strtod(q + 1, &q);    kputsn_(&x, 4, &str); }
+            else if (type == 's') while (q + 1 < p) { i16_to_le(strtol(q + 1, &q, 0), (uint8_t *) str.s + str.l); str.l += 2; _skip_to_comma(q, p); }
+            else if (type == 'S') while (q + 1 < p) { u16_to_le(strtoul(q + 1, &q, 0), (uint8_t *) str.s + str.l); str.l += 2; _skip_to_comma(q, p); }
+            else if (type == 'i') while (q + 1 < p) { i32_to_le(strtol(q + 1, &q, 0), (uint8_t *) str.s + str.l); str.l += 4; _skip_to_comma(q, p); }
+            else if (type == 'I') while (q + 1 < p) { u32_to_le(strtoul(q + 1, &q, 0), (uint8_t *) str.s + str.l); str.l += 4; _skip_to_comma(q, p); }
+            else if (type == 'f') while (q + 1 < p) { float_to_le(strtod(q + 1, &q), (uint8_t *) str.s + str.l); str.l += 4; _skip_to_comma(q, p); }
             else _parse_err(1, "unrecognized type");
+
+#undef _skip_to_comma
+
         } else _parse_err(1, "unrecognized type");
     }
     b->data = (uint8_t*)str.s; b->l_data = str.l; b->m_data = str.m;
@@ -1052,7 +1096,7 @@ int sam_read1(htsFile *fp, bam_hdr_t *h, bam1_t *b)
 err_recover:
         if (fp->line.l == 0) {
             ret = hts_getline(fp, KS_SEP_LINE, &fp->line);
-            if (ret < 0) return -1;
+            if (ret < 0) return ret;
         }
         ret = sam_parse1(&fp->line, h, b);
         fp->line.l = 0;
@@ -1076,7 +1120,7 @@ int sam_format1(const bam_hdr_t *h, const bam1_t *b, kstring_t *str)
     const bam1_core_t *c = &b->core;
 
     str->l = 0;
-    kputsn(bam_get_qname(b), c->l_qname-1, str); kputc('\t', str); // query name
+    kputsn(bam_get_qname(b), c->l_qname-1-c->l_extranul, str); kputc('\t', str); // query name
     kputw(c->flag, str); kputc('\t', str); // flag
     if (c->tid >= 0) { // chr
         kputs(h->target_name[c->tid] , str);
@@ -1132,36 +1176,36 @@ int sam_format1(const bam_hdr_t *h, const bam1_t *b, kstring_t *str)
         } else if (type == 'S') {
             if (s+2 <= b->data + b->l_data) {
                 kputsn("i:", 2, str);
-                kputw(*(uint16_t*)s, str);
+                kputuw(le_to_u16(s), str);
                 s += 2;
             } else return -1;
         } else if (type == 's') {
             if (s+2 <= b->data + b->l_data) {
                 kputsn("i:", 2, str);
-                kputw(*(int16_t*)s, str);
+                kputw(le_to_i16(s), str);
                 s += 2;
             } else return -1;
         } else if (type == 'I') {
             if (s+4 <= b->data + b->l_data) {
                 kputsn("i:", 2, str);
-                kputuw(*(uint32_t*)s, str);
+                kputuw(le_to_u32(s), str);
                 s += 4;
             } else return -1;
         } else if (type == 'i') {
             if (s+4 <= b->data + b->l_data) {
                 kputsn("i:", 2, str);
-                kputw(*(int32_t*)s, str);
+                kputw(le_to_i32(s), str);
                 s += 4;
             } else return -1;
         } else if (type == 'f') {
             if (s+4 <= b->data + b->l_data) {
-                ksprintf(str, "f:%g", *(float*)s);
+                ksprintf(str, "f:%g", le_to_float(s));
                 s += 4;
             } else return -1;
 
         } else if (type == 'd') {
             if (s+8 <= b->data + b->l_data) {
-                ksprintf(str, "d:%g", *(double*)s);
+                ksprintf(str, "d:%g", le_to_double(s));
                 s += 8;
             } else return -1;
         } else if (type == 'Z' || type == 'H') {
@@ -1176,7 +1220,7 @@ int sam_format1(const bam_hdr_t *h, const bam1_t *b, kstring_t *str)
             uint32_t n;
             if (sub_type_size == 0 || b->data + b->l_data - s < 4)
                 return -1;
-            memcpy(&n, s, 4);
+            n = le_to_u32(s);
             s += 4; // now points to the start of the array
             if ((b->data + b->l_data - s) / sub_type_size < n)
                 return -1;
@@ -1185,11 +1229,11 @@ int sam_format1(const bam_hdr_t *h, const bam1_t *b, kstring_t *str)
                 kputc(',', str);
                 if ('c' == sub_type)      { kputw(*(int8_t*)s, str); ++s; }
                 else if ('C' == sub_type) { kputw(*(uint8_t*)s, str); ++s; }
-                else if ('s' == sub_type) { kputw(*(int16_t*)s, str); s += 2; }
-                else if ('S' == sub_type) { kputw(*(uint16_t*)s, str); s += 2; }
-                else if ('i' == sub_type) { kputw(*(int32_t*)s, str); s += 4; }
-                else if ('I' == sub_type) { kputuw(*(uint32_t*)s, str); s += 4; }
-                else if ('f' == sub_type) { ksprintf(str, "%g", *(float*)s); s += 4; }
+                else if ('s' == sub_type) { kputw(le_to_i16(s), str); s += 2; }
+                else if ('S' == sub_type) { kputw(le_to_u16(s), str); s += 2; }
+                else if ('i' == sub_type) { kputw(le_to_i32(s), str); s += 4; }
+                else if ('I' == sub_type) { kputuw(le_to_u32(s), str); s += 4; }
+                else if ('f' == sub_type) { kputd(le_to_float(s), str); s += 4; }
                 else return -1;
             }
         }
@@ -1228,19 +1272,89 @@ int sam_write1(htsFile *fp, const bam_hdr_t *h, const bam1_t *b)
 /************************
  *** Auxiliary fields ***
  ************************/
+#ifndef HTS_LITTLE_ENDIAN
+static int aux_to_le(char type, uint8_t *out, const uint8_t *in, size_t len) {
+    int tsz = aux_type2size(type);
 
-void bam_aux_append(bam1_t *b, const char tag[2], char type, int len, uint8_t *data)
-{
-    int ori_len = b->l_data;
-    b->l_data += 3 + len;
-    if (b->m_data < b->l_data) {
-        b->m_data = b->l_data;
-        kroundup32(b->m_data);
-        b->data = (uint8_t*)realloc(b->data, b->m_data);
+    if (tsz >= 2 && tsz <= 8 && (len & (tsz - 1)) != 0) return -1;
+
+    switch (tsz) {
+        case 'H': case 'Z': case 1:  // Trivial
+            memcpy(out, in, len);
+            break;
+
+#define aux_val_to_le(type_t, store_le) do {                            \
+        type_t v;                                                       \
+        size_t i;                                                       \
+        for (i = 0; i < len; i += sizeof(type_t), out += sizeof(type_t)) { \
+            memcpy(&v, in + i, sizeof(type_t));                         \
+            store_le(v, out);                                           \
+        }                                                               \
+    } while (0)
+
+        case 2: aux_val_to_le(uint16_t, u16_to_le); break;
+        case 4: aux_val_to_le(uint32_t, u32_to_le); break;
+        case 8: aux_val_to_le(uint64_t, u64_to_le); break;
+
+#undef aux_val_to_le
+
+        case 'B': { // Recurse!
+            uint32_t n;
+            if (len < 5) return -1;
+            memcpy(&n, in + 1, 4);
+            out[0] = in[0];
+            u32_to_le(n, out + 1);
+            return aux_to_le(in[0], out + 5, in + 5, len - 5);
+        }
+
+        default: // Unknown type code
+            return -1;
     }
-    b->data[ori_len] = tag[0]; b->data[ori_len + 1] = tag[1];
-    b->data[ori_len + 2] = type;
-    memcpy(b->data + ori_len + 3, data, len);
+
+
+
+    return 0;
+}
+#endif
+
+int bam_aux_append(bam1_t *b, const char tag[2], char type, int len, const uint8_t *data)
+{
+    uint32_t new_len;
+
+    assert(b->l_data >= 0);
+    new_len = b->l_data + 3 + len;
+    if (new_len > INT32_MAX || new_len < b->l_data) goto nomem;
+
+    if (b->m_data < new_len) {
+        uint32_t new_size = new_len;
+        uint8_t *new_data;
+        kroundup32(new_size);
+        new_data = realloc(b->data, new_size);
+        if (new_data == NULL) goto nomem;
+        b->m_data = new_size;
+        b->data = new_data;
+    }
+
+    b->data[b->l_data] = tag[0];
+    b->data[b->l_data + 1] = tag[1];
+    b->data[b->l_data + 2] = type;
+
+#ifdef HTS_LITTLE_ENDIAN
+    memcpy(b->data + b->l_data + 3, data, len);
+#else
+    if (aux_to_le(type, b->data + b->l_data + 3, data, len) != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+#endif
+
+    b->l_data = new_len;
+
+    return 0;
+
+ nomem:
+    errno = ENOMEM;
+    return -1;
 }
 
 static inline uint8_t *skip_aux(uint8_t *s)
@@ -1254,7 +1368,8 @@ static inline uint8_t *skip_aux(uint8_t *s)
         return s + 1;
     case 'B':
         size = aux_type2size(*s); ++s;
-        memcpy(&n, s, 4); s += 4;
+        n = le_to_u32(s);
+        s += 4;
         return s + size * n;
     case 0:
         abort();
@@ -1290,25 +1405,70 @@ int bam_aux_del(bam1_t *b, uint8_t *s)
     return 0;
 }
 
-int32_t bam_aux2i(const uint8_t *s)
+int bam_aux_update_str(bam1_t *b, const char tag[2], int len, const char *data)
+{
+    // FIXME: This is not at all efficient!
+    uint8_t *s = bam_aux_get(b,tag);
+    if (!s) return bam_aux_append(b, tag, 'Z', len, (const uint8_t *) data);
+    char type = *s;
+    if (type != 'Z') {
+        if (hts_verbose > 1) {
+            fprintf(stderr,"bam_aux_update_str() called for type '%c' instead of 'Z'\n", type);
+        }
+        errno = EINVAL;
+        return -1;
+    }
+
+    bam_aux_del(b,s);
+    s -= 2;
+    int l_aux = bam_get_l_aux(b);
+
+    b->l_data += 3 + len;
+    if (b->m_data < b->l_data) {
+        ptrdiff_t s_offset = s - b->data;
+        b->m_data = b->l_data;
+        kroundup32(b->m_data);
+        b->data = (uint8_t*)realloc(b->data, b->m_data);
+        s = b->data + s_offset;
+    }
+    memmove(s+3+len, s, l_aux - (s - bam_get_aux(b)));
+    s[0] = tag[0];
+    s[1] = tag[1];
+    s[2] = type;
+    memmove(s+3,data,len);
+    return 0;
+}
+
+static inline int64_t get_int_aux_val(uint8_t type, const uint8_t *s,
+                                      uint32_t idx)
+{
+    switch (type) {
+        case 'c': return le_to_i8(s + idx);
+        case 'C': return s[idx];
+        case 's': return le_to_i16(s + 2 * idx);
+        case 'S': return le_to_u16(s + 2 * idx);
+        case 'i': return le_to_i32(s + 4 * idx);
+        case 'I': return le_to_u32(s + 4 * idx);
+        default:
+            errno = EINVAL;
+            return 0;
+    }
+}
+
+int64_t bam_aux2i(const uint8_t *s)
 {
     int type;
     type = *s++;
-    if (type == 'c') return (int32_t)*(int8_t*)s;
-    else if (type == 'C') return (int32_t)*(uint8_t*)s;
-    else if (type == 's') return (int32_t)*(int16_t*)s;
-    else if (type == 'S') return (int32_t)*(uint16_t*)s;
-    else if (type == 'i' || type == 'I') return *(int32_t*)s;
-    else return 0;
+    return get_int_aux_val(type, s, 0);
 }
 
 double bam_aux2f(const uint8_t *s)
 {
     int type;
     type = *s++;
-    if (type == 'd') return *(double*)s;
-    else if (type == 'f') return *(float*)s;
-    else return 0.0;
+    if (type == 'd') return le_to_double(s);
+    else if (type == 'f') return le_to_float(s);
+    else return get_int_aux_val(type, s, 0);
 }
 
 char bam_aux2A(const uint8_t *s)
@@ -1316,7 +1476,8 @@ char bam_aux2A(const uint8_t *s)
     int type;
     type = *s++;
     if (type == 'A') return *(char*)s;
-    else return 0;
+    errno = EINVAL;
+    return 0;
 }
 
 char *bam_aux2Z(const uint8_t *s)
@@ -1324,7 +1485,38 @@ char *bam_aux2Z(const uint8_t *s)
     int type;
     type = *s++;
     if (type == 'Z' || type == 'H') return (char*)s;
-    else return 0;
+    errno = EINVAL;
+    return 0;
+}
+
+uint32_t bam_auxB_len(const uint8_t *s)
+{
+    if (s[0] != 'B') {
+        errno = EINVAL;
+        return 0;
+    }
+    return le_to_u32(s + 2);
+}
+
+int64_t bam_auxB2i(const uint8_t *s, uint32_t idx)
+{
+    uint32_t len = bam_auxB_len(s);
+    if (idx >= len) {
+        errno = ERANGE;
+        return 0;
+    }
+    return get_int_aux_val(s[1], s + 6, idx);
+}
+
+double bam_auxB2f(const uint8_t *s, uint32_t idx)
+{
+    uint32_t len = bam_auxB_len(s);
+    if (idx >= len) {
+        errno = ERANGE;
+        return 0.0;
+    }
+    if (s[1] == 'f') return le_to_float(s + 6 + 4 * idx);
+    else return get_int_aux_val(s[1], s + 6, idx);
 }
 
 int sam_open_mode(char *mode, const char *fn, const char *format)
@@ -1478,6 +1670,7 @@ typedef struct __linkbuf_t {
     int32_t beg, end;
     cstate_t s;
     struct __linkbuf_t *next;
+    bam_pileup_cd cd;
 } lbnode_t;
 
 typedef struct {
@@ -1622,6 +1815,11 @@ struct __bam_plp_t {
     bam_plp_auto_f func;
     void *data;
     olap_hash_t *overlaps;
+
+    // For notification of creation and destruction events
+    // and associated client-owned pointer.
+    int (*plp_construct)(void *data, const bam1_t *b, bam_pileup_cd *cd);
+    int (*plp_destruct )(void *data, const bam1_t *b, bam_pileup_cd *cd);
 };
 
 bam_plp_t bam_plp_init(bam_plp_auto_f func, void *data)
@@ -1659,6 +1857,15 @@ void bam_plp_destroy(bam_plp_t iter)
     free(iter);
 }
 
+void bam_plp_constructor(bam_plp_t plp,
+                         int (*func)(void *data, const bam1_t *b, bam_pileup_cd *cd)) {
+    plp->plp_construct = func;
+}
+
+void bam_plp_destructor(bam_plp_t plp,
+                        int (*func)(void *data, const bam1_t *b, bam_pileup_cd *cd)) {
+    plp->plp_destruct = func;
+}
 
 //---------------------------------
 //---  Tweak overlapping reads
@@ -1788,7 +1995,7 @@ static void tweak_overlap_quality(bam1_t *a, bam1_t *b)
             if ( a_qual[a_iseq] >= b_qual[b_iseq] )
             {
                 #if DBG
-                    fprintf(stderr,"[%c/%c]",seq_nt16_str[bam_seqi(a_seq,a_iseq)],tolower(seq_nt16_str[bam_seqi(b_seq,b_iseq)]));
+                    fprintf(stderr,"[%c/%c]",seq_nt16_str[bam_seqi(a_seq,a_iseq)],tolower_c(seq_nt16_str[bam_seqi(b_seq,b_iseq)]));
                 #endif
                 a_qual[a_iseq] = 0.8 * a_qual[a_iseq];  // not so confident about a_qual anymore given the mismatch
                 b_qual[b_iseq] = 0;
@@ -1796,7 +2003,7 @@ static void tweak_overlap_quality(bam1_t *a, bam1_t *b)
             else
             {
                 #if DBG
-                    fprintf(stderr,"[%c/%c]",tolower(seq_nt16_str[bam_seqi(a_seq,a_iseq)]),seq_nt16_str[bam_seqi(b_seq,b_iseq)]);
+                    fprintf(stderr,"[%c/%c]",tolower_c(seq_nt16_str[bam_seqi(a_seq,a_iseq)]),seq_nt16_str[bam_seqi(b_seq,b_iseq)]);
                 #endif
                 b_qual[b_iseq] = 0.8 * b_qual[b_iseq];
                 a_qual[a_iseq] = 0;
@@ -1865,9 +2072,9 @@ static void overlap_remove(bam_plp_t iter, const bam1_t *b)
 // buffer yet (the current position is still the maximum position across all buffered reads).
 const bam_pileup1_t *bam_plp_next(bam_plp_t iter, int *_tid, int *_pos, int *_n_plp)
 {
-    if (iter->error) { *_n_plp = -1; return 0; }
+    if (iter->error) { *_n_plp = -1; return NULL; }
     *_n_plp = 0;
-    if (iter->is_eof && iter->head == iter->tail) return 0;
+    if (iter->is_eof && iter->head == iter->tail) return NULL;
     while (iter->is_eof || iter->max_tid > iter->tid || (iter->max_tid == iter->tid && iter->max_pos > iter->pos)) {
         int n_plp = 0;
         // write iter->plp at iter->pos
@@ -1876,6 +2083,8 @@ const bam_pileup1_t *bam_plp_next(bam_plp_t iter, int *_tid, int *_pos, int *_n_
             lbnode_t *p = *pptr;
             if (p->b.core.tid < iter->tid || (p->b.core.tid == iter->tid && p->end <= iter->pos)) { // then remove
                 overlap_remove(iter, &p->b);
+                if (iter->plp_destruct)
+                    iter->plp_destruct(iter->data, &p->b, &p->cd);
                 *pptr = p->next; mp_free(iter->mp, p);
             }
             else {
@@ -1885,6 +2094,7 @@ const bam_pileup1_t *bam_plp_next(bam_plp_t iter, int *_tid, int *_pos, int *_n_
                         iter->plp = (bam_pileup1_t*)realloc(iter->plp, sizeof(bam_pileup1_t) * iter->max_plp);
                     }
                     iter->plp[n_plp].b = &p->b;
+                    iter->plp[n_plp].cd = p->cd;
                     if (resolve_cigar2(iter->plp + n_plp, iter->pos, &p->s)) ++n_plp; // actually always true...
                 }
                 pptr = &(*pptr)->next;
@@ -1897,7 +2107,7 @@ const bam_pileup1_t *bam_plp_next(bam_plp_t iter, int *_tid, int *_pos, int *_n_
                 fprintf(stderr, "[%s] unsorted input. Pileup aborts.\n", __func__);
                 iter->error = 1;
                 *_n_plp = -1;
-                return 0;
+                return NULL;
             }
         }
         if (iter->tid < iter->head->b.core.tid) { // come to a new reference sequence
@@ -1909,7 +2119,7 @@ const bam_pileup1_t *bam_plp_next(bam_plp_t iter, int *_tid, int *_pos, int *_n_
         if (n_plp) return iter->plp;
         if (iter->is_eof && iter->head == iter->tail) break;
     }
-    return 0;
+    return NULL;
 }
 
 int bam_plp_push(bam_plp_t iter, const bam1_t *b)
@@ -1944,6 +2154,8 @@ int bam_plp_push(bam_plp_t iter, const bam1_t *b)
         }
         iter->max_tid = b->core.tid; iter->max_pos = iter->tail->beg;
         if (iter->tail->end > iter->pos || iter->tail->b.core.tid > iter->tid) {
+            if (iter->plp_construct)
+                iter->plp_construct(iter->data, b, &iter->tail->cd);
             iter->tail->next = mp_alloc(iter->mp);
             iter->tail = iter->tail->next;
         }
@@ -2068,6 +2280,32 @@ int bam_mplp_auto(bam_mplp_t iter, int *_tid, int *_pos, int *n_plp, const bam_p
         } else n_plp[i] = 0, plp[i] = 0;
     }
     return ret;
+}
+
+void bam_mplp_reset(bam_mplp_t iter)
+{
+    int i;
+    iter->min = (uint64_t)-1;
+    for (i = 0; i < iter->n; ++i) {
+        bam_plp_reset(iter->iter[i]);
+        iter->pos[i] = (uint64_t)-1;
+        iter->n_plp[i] = 0;
+        iter->plp[i] = NULL;
+    }
+}
+
+void bam_mplp_constructor(bam_mplp_t iter,
+                          int (*func)(void *arg, const bam1_t *b, bam_pileup_cd *cd)) {
+    int i;
+    for (i = 0; i < iter->n; ++i)
+        bam_plp_constructor(iter->iter[i], func);
+}
+
+void bam_mplp_destructor(bam_mplp_t iter,
+                         int (*func)(void *arg, const bam1_t *b, bam_pileup_cd *cd)) {
+    int i;
+    for (i = 0; i < iter->n; ++i)
+        bam_plp_destructor(iter->iter[i], func);
 }
 
 #endif // ~!defined(BAM_NO_PILEUP)
