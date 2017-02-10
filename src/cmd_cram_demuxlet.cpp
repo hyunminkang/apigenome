@@ -50,7 +50,7 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 
     LONG_PARAM_GROUP("Output Options", NULL)
     LONG_STRING_PARAM("out",&outPrefix,"Output file prefix")
-    LONG_MULTI_INT_PARAM("alpha",&gridAlpha, "Grid of alpha to search for (default is 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5)")
+    LONG_MULTI_DOUBLE_PARAM("alpha",&gridAlpha, "Grid of alpha to search for (default is 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5)")
     LONG_PARAM("skip-pair",&skipPair, "Skip writing the pair file")
     LONG_DOUBLE_PARAM("doublet-prior",&doublet_prior, "Prior of doublet")
     LONG_INT_PARAM("sam-verbose",&sr.verbose, "Verbose message frequency for SAM/BAM/CRAM")

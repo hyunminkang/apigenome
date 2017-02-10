@@ -403,6 +403,22 @@ bool BCFFilteredReader::parse_posteriors(bcf_hdr_t* hdr, bcf1_t* v, const char* 
     if ( bcf_get_format_float(hdr, v, name, &gps, &n_gps) < 0 ) {
       return false;
     }
+
+    int32_t i, j, icol;
+    float sumgp;
+    int32_t nalleles = v->n_allele;
+    int32_t ngenos = (nalleles+1)*nalleles/2;    
+    for(i=0; i < (int32_t)sm_icols.size(); ++i) {
+      icol = sm_icols[i]*ngenos;
+      sumgp = 0;
+      for(j=0; j < ngenos; ++j) {
+	gps[icol+j] += gt_error;
+	sumgp += gps[icol+j];
+      }
+      for(j=0; j < ngenos; ++j) {
+	gps[icol+j] /= sumgp;
+      }
+    }    
     return true;
   }
 }
