@@ -40,7 +40,7 @@ int32_t cmdCramVerifyPairID(int32_t argc, char** argv) {
     LONG_INT_PARAM("min-MQ", &minMQ, "Minimum mapping quality to consider (lower MQ will be ignored)")
     LONG_INT_PARAM("min-TD", &minTD, "Minimum distance to the tail (lower will be ignored)")
     LONG_INT_PARAM("excl-flag", &qcExclFlag, "SAM/BAM FLAGs to be excluded")    
-    LONG_MULTI_INT_PARAM("alpha",&gridAlpha, "Grid of alpha to search for (default is 0, 0.1, 0.2, 0.3, 0.4  0.5)")
+    LONG_MULTI_DOUBLE_PARAM("alpha",&gridAlpha, "Grid of alpha to search for (default is 0, 0.1, 0.2, 0.3, 0.4  0.5)")
     LONG_MULTI_INT_PARAM("ase",&gridASE, "Grid of allele-specific expression to search for (default is 0, 0.2, 0.3, 0.4, 0.5) -- Not implemented")
     LONG_INT_PARAM("verbose",&verbose, "Verbose message frequency")
   END_LONG_PARAMS();

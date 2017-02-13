@@ -42,6 +42,7 @@ struct _bcf_vfilter_arg {
   double minQual;
   int32_t maxAlleles;
   int32_t minAlleles;
+  bool snpOnly;
 
   bool require_GT;
   bool require_PL;
@@ -64,6 +65,7 @@ struct _bcf_vfilter_arg {
     minQual = 0;
     maxAlleles = INT_MAX;
     minAlleles = 0;
+    snpOnly = false;
 
     filt = NULL;
     filter_logic = 0;

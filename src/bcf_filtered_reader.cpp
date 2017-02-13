@@ -505,6 +505,8 @@ bool BCFFilteredReader::passed_vfilter(bcf_hdr_t* hdr, bcf1_t* v) {
 
   if ( v->n_allele < vfilt.minAlleles ) return false;
 
+  if ( vfilt.snpOnly && (!bcf_is_snp(v)) ) return false;
+
   if ( vfilt.require_GT ) {
     int32_t nsamples = bcf_hdr_nsamples(cdr.hdr);
 
