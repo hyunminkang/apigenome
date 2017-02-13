@@ -395,7 +395,7 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 
 	GLs[0] *= ((al==0) ? phredConv.phred2Mat3[bq] : phredConv.phred2Err[bq]);
 	GLs[1] *= (0.5 - phredConv.phred2Err[bq]/3.);
-	GLs[2] *= ((al==1) ? phredConv.phred2Err[bq] : phredConv.phred2Mat3[bq]);
+	GLs[2] *= ((al==0) ? phredConv.phred2Err[bq] : phredConv.phred2Mat3[bq]);
 	tmp = GLs[0] + GLs[1] + GLs[2];
 	GLs[0] /= tmp;
 	GLs[1] /= tmp;
@@ -523,11 +523,11 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   double* llksAB = new double[n1 * nv * nAlpha];
   double* llksA0 = new double[nv * nAlpha];
   double* llks00 = new double[nAlpha];
-  double* postAB = new double[n1 * nv * nAlpha];  
+  //double* postAB = new double[n1 * nv * nAlpha];  
 
   if ( writePair )
     hprintf(wpair,"BARCODE\tSM1.ID\tSM2.ID\tLLK12\tPOSTPRB\n");
-  hprintf(wbest,"BARCODE\tRD.TOTL\tRD.PASS\tRD.UNIQ\tN.SNP\tBEST\tSNG.1ST\tSNG.LLK1\tSNG.2ND\tSNG.LLK2\tSNG.LLK0\tDBL.1ST\tDBL.2ND\tALPHA\tLLK12\tLLK1\tLLK2\tLLK10\tLLK20\tLLK00\tPRB.DBL\tPRB.SNG1");
+  hprintf(wbest,"BARCODE\tRD.TOTL\tRD.PASS\tRD.UNIQ\tN.SNP\tBEST\tSNG.1ST\tSNG.LLK1\tSNG.2ND\tSNG.LLK2\tSNG.LLK0\tDBL.1ST\tDBL.2ND\tALPHA\tLLK12\tLLK1\tLLK2\tLLK10\tLLK20\tLLK00\tPRB.DBL\tPRB.SNG1\n");
   //SINGLE.BEST.ID\tSINGLE.NEXT.ID\t
   //SM1.ID\tSM2.ID\tALPHA\tRD.TOTL\tRD.PASS\tRD.UNIQ\tN.SNP\tLLK12\tLLK1\tLLK0\tLLK10\tLLK00\tPOSTPRB\n");
 
@@ -540,7 +540,7 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
     if ( ( scl.cell_totl_reads[i] < minTotalReads ) || ( scl.cell_uniq_reads[i] < minUniqReads) || ( (int32_t)scl.cell_umis[i].size() < minCoveredSNPs ) ) continue;
     
     memset(llksAB,0,sizeof(double)*n1*nv*nAlpha);
-    memset(postAB,0,sizeof(double)*n1*nv*nAlpha);    
+    //memset(postAB,0,sizeof(double)*n1*nv*nAlpha);    
     memset(llksA0,0,sizeof(double)*nv*nAlpha);
     memset(llks00,0,sizeof(double)*nAlpha);
 
@@ -672,23 +672,24 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
     // calculate posterior probability
     double sumSingle = 0, sumDouble = 0;
     for(j=jbeg; j < jend; ++j) {
+      sumSingle += (exp(llksAB[(j-jbeg)*nv*nAlpha] - maxLLK)* (1.-doublet_prior) / (jend-jbeg));
+      
       for(k=0; k < nv; ++k) {
-	for(n=0; n < nAlpha; ++n) {
-	  if ( n == 0 )
-	    sumSingle += (exp(llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] - maxLLK)* (1.-doublet_prior) / (jend-jbeg) / nv / 1);
-	  else
-	    sumDouble += (exp(llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] - maxLLK)* doublet_prior / (jend-jbeg) / nv / (nAlpha-1) / (gridAlpha[n] == 0.5 ? 2.0 : 1.0));
+	if ( j == k ) continue;
+	for(n=1; n < nAlpha; ++n) {
+	    sumDouble += ( exp(llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] - maxLLK)* doublet_prior / (jend-jbeg) / (nv-1) / (nAlpha-1) / (gridAlpha[n] == 0.5 ? 2.0 : 1.0));
 	}
       }
     }
 
+    /*
     for(j=jbeg; j < jend; ++j) {
       for(k=0; k < nv; ++k) {
 	for(n=0; n < nAlpha; ++n) {
 	  postAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] = (exp(llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] - maxLLK) * (n == 0 ? 1.-doublet_prior : doublet_prior) / (jend-jbeg) / nv / (n == 0 ? 1 : (nAlpha-1)))/(sumSingle+sumDouble);
 	}
       }
-    }
+      }*/
 
 
     int32_t iSing1 = -1, iSing2 = -1;
@@ -719,25 +720,37 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 
     if ( writePair )  {
       for(j=jbeg; j < jend; ++j) {
+	hprintf(wpair,"%s\t%s\t%s\t%.3lf\t%.5lf\t%.5lg\n",
+		it0->first.c_str(),
+		vr.get_sample_id_at(j),
+		vr.get_sample_id_at(j),
+		gridAlpha[0],
+		llksAB[(j-jbeg)*nv*nAlpha],
+		exp(llksAB[(j-jbeg)*nv*nAlpha]-maxLLK)*(1.-doublet_prior)/(jend-jbeg)/(sumSingle+sumDouble));
+	
 	for(k=0; k < nv; ++k) {
 	  for(n=0; n < nAlpha; ++n) {
-	    hprintf(wpair,"%s\t%s\t%s\t%.3lf\t%.5lf\t%.5lg\n",
-		    it0->first.c_str(),
-		    vr.get_sample_id_at(j),
-		    vr.get_sample_id_at(k),
-		    gridAlpha[n],
-		    llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n],
-		    postAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n]);
+	    if ( ( n > 0 ) && ( j != k ) ) {
+	      if ( ( j > k ) && ( gridAlpha[n] == 0.5 ) ) continue;
+	      hprintf(wpair,"%s\t%s\t%s\t%.3lf\t%.5lf\t%.5lg\n",
+		      it0->first.c_str(),
+		      vr.get_sample_id_at(j),
+		      vr.get_sample_id_at(k),
+		      gridAlpha[n],
+		      llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n],
+		      exp(llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n]-maxLLK)*doublet_prior/(jend-jbeg)/(nv-1)/(nAlpha-1)/(sumSingle+sumDouble));
+	    }
 	  }
 	}
       }
     }
 
     int jBest = -1, kBest = -1, alphaBest = -1;
-    double maxAB = 0;
+    double maxAB = -1e300;
 
     for(j=jbeg; j < jend; ++j) {
       for(k=0; k < nv; ++k) {
+	if ( j == k ) continue;
 	for(n=1; n < nAlpha; ++n) {
 	  if ( maxAB < llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] ) {
 	    jBest = j;

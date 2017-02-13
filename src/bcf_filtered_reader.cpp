@@ -370,11 +370,11 @@ bool BCFFilteredReader::parse_posteriors(bcf_hdr_t* hdr, bcf1_t* v, const char* 
     for(i=0; i < (int32_t)sm_icols.size(); ++i) {
       g = get_genotype_at(i);
       icol = sm_icols[i]*ngenos;      
-      if ( g < 0 ) {
+      if ( g < 0 ) { // missing genotype
 	if ( ploidies[i] == 2 ) {
 	  for(j=0, l=0; j < nalleles; ++j) {
 	    for(k=0; k <= j; ++k, ++l) {
-	      gps[icol+l] = (float)((j == k ? 1.0 : 2.0 ) * (acs[j]+1.0/nalleles)/(an+1.0) * (acs[k]+1.0/nalleles)/(an+1.0));
+	      gps[icol+l] = (float)((j == k ? 1.0 : 2.0) * (acs[j]+1.0/nalleles)/(an+1.0) * (acs[k]+1.0/nalleles)/(an+1.0));
 	    }
 	  }
 	}
