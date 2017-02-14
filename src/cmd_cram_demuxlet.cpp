@@ -152,6 +152,30 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   
   if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
     error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
+
+
+  // check if the chromosome names are in the same order between BCF and SAM
+  std::map<int32_t,int32_t> rid2tids;
+  std::map<int32_t,int32_t> tid2rids;
+  int32_t ntids = bam_hdr_get_n_targets(sr.hdr);
+  int32_t prevrid = -1;
+  for(int32_t i=0; i < ntids; ++i) {
+    const char* chrom = bam_get_chromi(sr.hdr, i);
+    int32_t rid = bcf_hdr_name2id(vr.cdr.hdr, chrom);
+    if ( rid >= 0 ) {
+      if ( prevrid >= rid ) {
+	const char* prevchrom = bcf_hdr_id2name(vr.cdr.hdr, prevrid);
+	error("[E:%s] Your VCF/BCF files and SAM/BAM/CRAM files have different ordering of chromosomes. SAM/BAM/CRAM file has %s before %s, but VCF/BCF file has %s after %s", __PRETTY_FUNCTION__, prevchrom, chrom, prevchrom, chrom);
+      }
+      rid2tids[rid] = i;
+      tid2rids[i] = rid;
+      prevrid = rid;
+    }
+  }
+
+  if ( rid2tids.empty() || tid2rids.empty() || ( rid2tids.size() != tid2rids.size() ) ) {
+    error("[E:%s] Your VCF/BCF files and SAM/BAM/CRAM files does not have any matching chromosomes, or some chromosome names are duplicated");
+  }
   
   int32_t nv = vr.get_nsamples();
   double* gps = new double[nv*3];
