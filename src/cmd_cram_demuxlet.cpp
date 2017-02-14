@@ -393,9 +393,9 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 
 	if ( al == 2 ) continue;
 
-	GLs[0] *= ((al==0) ? phredConv.phred2Mat3[bq] : phredConv.phred2Err[bq]);
-	GLs[1] *= (0.5 - phredConv.phred2Err[bq]/3.);
-	GLs[2] *= ((al==0) ? phredConv.phred2Err[bq] : phredConv.phred2Mat3[bq]);
+	GLs[0] *= ((al==0) ? phredConv.phred2Mat[bq] : phredConv.phred2Err[bq]/3.0);
+	GLs[1] *= (0.5 - phredConv.phred2Err[bq]/3.0);
+	GLs[2] *= ((al==1) ? phredConv.phred2Mat[bq] : phredConv.phred2Err[bq]/3.0);
 	tmp = GLs[0] + GLs[1] + GLs[2];
 	GLs[0] /= tmp;
 	GLs[1] /= tmp;
@@ -412,10 +412,10 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
       
       gps = scl.snps[i].gps;
       for(int32_t k=0; k < nv; ++k) {
-	llks[it->first * nv + k] += log10(GLs[0]*gps[k*3] + GLs[1]*gps[k*3+1] + GLs[2]*gps[k*3+2]);
+	llks[it->first * nv + k] += log(GLs[0]*gps[k*3] + GLs[1]*gps[k*3+1] + GLs[2]*gps[k*3+2]);
 	//if ( rand() % 1000 == 0 ) notice("%lg %lg %lg",gps[k*3],gps[k*3+1],gps[k*3+2]);
       }
-      llk0s[it->first] += log10( GLs[0] * gp0s[i*3] + GLs[1] * gp0s[i*3+1] + GLs[2] * gp0s[i*3+2] );
+      llk0s[it->first] += log( GLs[0] * gp0s[i*3] + GLs[1] * gp0s[i*3+1] + GLs[2] * gp0s[i*3+2] );
     }
   }
  
@@ -559,10 +559,11 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
       for(sc_snp_droplet_it_t it2=it->second->begin(); it2 != it->second->end(); ++it2) {
 	uint8_t al = (it2->second >> 24) & 0x00ff;
 	uint8_t bq = (it2->second >> 16) & 0x00ff;
+	
 	if ( al == 2 ) continue;
 
-	double pR = (al == 0) ? phredConv.phred2Mat3[bq] : phredConv.phred2Err[bq];
-	double pA = (al == 1) ? phredConv.phred2Mat3[bq] : phredConv.phred2Err[bq];
+	double pR = (al == 0) ? phredConv.phred2Mat[bq] : phredConv.phred2Err[bq]/3.0;
+	double pA = (al == 1) ? phredConv.phred2Mat[bq] : phredConv.phred2Err[bq]/3.0;
 	double maxpG = 0;
 
 	for(int32_t k=0; k < nAlpha; ++k) {
@@ -570,7 +571,17 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 	    for(int32_t m=0; m < 3; ++m) { // Alpha
 	      double p = 0.5*l + (m-l)*0.5*gridAlpha[k]; // %A (0, 0.5a, 1.0a, 0.5-0.5a, 0.5, 0.5+0.5a, 1.0-a, 1.0-0.5a, 1.0)
 	      double& pG = pGs[k*9 + l*3 + m];
-	      pG *= (pR * (1.0-p) + pA * p);
+	      // l m p          pR   pA  
+	      // 0 0 0          1-e  e/3  1-e    
+	      // 0 1 a/2                  (1-e)(1-a/2) + e/3*a/2             
+	      // 0 2 a
+	      // 1 0 0.5-a/2
+	      // 1 1 0.5        1-e  e/3  0.5-e/3  
+	      // 1 2 0.5+a/2
+	      // 2 0 1-a
+	      // 2 1 1-a/2
+	      // 2 2 1          1-e  e/3  e/3
+	      pG *= (pR * (1.0-p) + pA * p);	      
 	      if ( maxpG < pG )
 		maxpG = pG;
 	    }
@@ -586,7 +597,6 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 	  }
 	}
       }
-
 
       // add marginal probability in genotype likelihood
       double maxpG = 0;
