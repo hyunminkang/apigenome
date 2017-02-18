@@ -100,6 +100,7 @@ void BCFFilteredReader::init_params() {
     while( tsv_sample.read_line() > 0 ) {
       sm_ids.insert(tsv_sample.str_field_at(0));
     }
+    notice("Finished loading %u IDs from %s",sm_ids.size(), sample_id_list.c_str());
   }
 
   // process sample info
@@ -137,6 +138,11 @@ void BCFFilteredReader::init_params() {
 	sm_isexes.push_back(0);	
       }
     }
+  }
+
+  notice("Finished identifying %u samples to load from VCF/BCF",sm_icols.size());
+  if ( sm_icols.empty() ) {
+    error("[E:%s] No sample to load from VCF/BCF",__PRETTY_FUNCTION__);
   }
 
   // set the rids for chrX, chrY, chrMT
@@ -252,9 +258,10 @@ bool BCFFilteredReader::parse_likelihoods(bcf_hdr_t* hdr, bcf1_t* v, const char*
   for(int32_t i=0; i < nalleles; ++i)
     acs[i] = 1.0/nalleles; // acs represents initial AF
   int32_t ngenos = (nalleles+1)*nalleles/2;
+  int32_t nsamples = bcf_hdr_nsamples(cdr.hdr);  
   
-  gps = (float*) realloc(gps, sizeof(float)*ngenos*sm_icols.size());
-  n_gps = ngenos * sm_icols.size();
+  gps = (float*) realloc(gps, sizeof(float)*ngenos*nsamples);
+  n_gps = ngenos * nsamples; //sm_icols.size();
     
   double* gp = new double[ngenos];
   double sumgp;
@@ -362,11 +369,12 @@ bool BCFFilteredReader::parse_posteriors(bcf_hdr_t* hdr, bcf1_t* v, const char* 
     int32_t i, j, k, l, g, icol;
     int32_t nalleles = v->n_allele;
     int32_t ngenos = (nalleles+1)*nalleles/2;
+    int32_t nsamples = bcf_hdr_nsamples(cdr.hdr);    
     //notice("Before parsing genotypes at %s:%d:%s:%s", bcf_hdr_id2name(hdr,v->rid), v->pos+1, v->d.allele[0], v->d.allele[1]);      
     if ( !parse_genotypes(hdr, v) ) return false;
     //notice("After parsing genotypes at %s:%d:%s:%s", bcf_hdr_id2name(hdr,v->rid), v->pos+1, v->d.allele[0], v->d.allele[1]);          
-    gps = (float*) realloc(gps, sizeof(float)*ngenos*sm_icols.size());
-    n_gps = get_nsamples() * 3;    
+    gps = (float*) realloc(gps, sizeof(float)*ngenos*nsamples);
+    n_gps = nsamples * 3;    
     for(i=0; i < (int32_t)sm_icols.size(); ++i) {
       g = get_genotype_at(i);
       icol = sm_icols[i]*ngenos;      
@@ -508,22 +516,28 @@ bool BCFFilteredReader::passed_vfilter(bcf_hdr_t* hdr, bcf1_t* v) {
   if ( vfilt.snpOnly && (!bcf_is_snp(v)) ) return false;
 
   if ( vfilt.require_GT ) {
-    int32_t nsamples = bcf_hdr_nsamples(cdr.hdr);
+    //int32_t nsamples = bcf_hdr_nsamples(cdr.hdr);
 
     acs.resize(v->n_allele);
     std::fill(acs.begin(), acs.end(), 0);
     an = 0;
 
+    //if ( rand() % 1000 == 0 ) notice("foo");        
+
     if ( !parse_genotypes(hdr,v) ) 
       error("[E:%s:%d %s] Cannot find the field GT from the VCF file at position %s:%d",__FILE__,__LINE__,__PRETTY_FUNCTION__, bcf_hdr_id2name(hdr, v->rid), v->pos+1);
 
-    if ( vfilt.minCallRate > (double)an/(2.0*nsamples) ) return false;
+    //if ( rand() % 1000 == 0 ) notice("foo");    
+
+    if ( vfilt.minCallRate > (double)an/(2.0*(double)sm_icols.size()) ) return false;
 
     int32_t ac = an-acs[0];
     double af = (ac+5e-11)/(an+1e-10);
 
-    //if ( rand() % 1000 ) notice("%d %lf",ac,af);
+    //if ( rand() % 1000 ) notice("%d %d %lf",ac,an,af);
 
+    //if ( rand() % 1000 == 0 ) notice("foo");
+  
     if ( ac < vfilt.minAC ) return false;
     if ( ac > vfilt.maxAC ) return false;    
     if ( ( ac < vfilt.minMAC ) || ( an-ac < vfilt.minMAC ) ) return false;
