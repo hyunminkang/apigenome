@@ -1,4 +1,4 @@
-# APIGenome - A public library of big data genomics analysis tools
+# APIGenome - Big data genomics analysis libraries & tools
 
 ### Introduction
 
