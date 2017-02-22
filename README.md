@@ -100,7 +100,7 @@ Below is the list of C++ utilities supported by `cramore`. Note that you need to
 |                | `cram-context-indel-analysis` | alpha | Context-specific indel analysis |
 |                | `cram-flagstat-all` | beta | Produce a comprehensive flagstat summary |
 |                | `cram-procap-detect` | alpha | TSS detection of PROcap data |
-|                | `cram-sparset-genotype` | alpha | Sparse genotyping from SAM and VCF |
+|                | `cram-sparse-genotype` | alpha | Sparse genotyping from SAM and VCF |
 |                | `demuxlet`          | beta | Sample demultiplexing of dsc-RNAseq reads |
 |                | `verify-pair-id`          | alpha | Initial version of `demuxlet` |
 | BCF/VCF        | `vcf-delta-svm`  | beta | Newer version of delta-svm compatible to lsgkm |
