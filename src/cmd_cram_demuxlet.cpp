@@ -6,14 +6,14 @@
 int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   SAMFilteredReader sr;
   BCFFilteredReader vr;
-  std::string field("GT");
-  double genoError = 1e-4;
+  std::string field("GP");
+  double genoError = 0.01;
   std::string outPrefix;
-  std::string tagGroup;
-  std::string tagUMI;
+  std::string tagGroup("CB");
+  std::string tagUMI("UB");
   int32_t capBQ = 40;
   int32_t minBQ = 13;
-  int32_t minTD = 5;
+  int32_t minTD = 0;
   sr.filt.exclude_flag = 0x0f04;
   sr.filt.minMQ = 20;  
   std::vector<std::string> smIDs;

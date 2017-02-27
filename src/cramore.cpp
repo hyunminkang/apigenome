@@ -26,6 +26,7 @@ typedef khash_t(vdict) vdict_t;
 int32_t cmdCramSimulContam(int32_t argc, char** argv);
 int32_t cmdCramVerifyPairID(int32_t argc, char** argv);
 int32_t cmdCramDemuxlet(int32_t argc, char** argv);
+int32_t cmdCramSimuxlet(int32_t argc, char** argv);
 int32_t cmdCramSparseGenotype(int32_t argc, char** argv);
 int32_t cmdCramCustomSort(int32_t argc, char** argv);
 int32_t cmdCramFlagStat(int32_t argc, char** argv);
@@ -48,6 +49,7 @@ int32_t cmdVcfUpdateSites(int32_t argc, char** argv);
 
 int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv);
 int32_t cmdBedMatchedShuffle(int32_t argc, char** argv);
+int32_t cmdBedShuffle(int32_t argc, char** argv);
 
 int32_t cmdCramProcapDetect(int32_t argc, char** argv);
 
@@ -211,7 +213,10 @@ int32_t main(int32_t argc, char** argv) {
     }
     else if ( cmd == "demuxlet" ) {
       return cmdCramDemuxlet(argc-1,argv+1);  
-    }    
+    }
+    else if ( cmd == "simuxlet" ) {
+      return cmdCramSimuxlet(argc-1,argv+1);  
+    }        
     else if ( cmd == "cram-sparse-genotype" ) {
       return cmdCramSparseGenotype(argc-1,argv+1);
     }
@@ -247,7 +252,10 @@ int32_t main(int32_t argc, char** argv) {
     }    
     else if ( cmd == "bed-matched-shuffle") {
       return cmdBedMatchedShuffle(argc-1,argv+1);      
-    }        
+    }
+    else if ( cmd == "bed-shuffle") {
+      return cmdBedShuffle(argc-1,argv+1);      
+    }            
     else if ( ( cmd == "sc-multinom-em") || ( cmd == "multinom-em") ) {
       return cmdScMultinomEM(argc-1, argv+1);
     }

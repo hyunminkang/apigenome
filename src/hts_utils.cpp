@@ -947,6 +947,7 @@ const char* bcf_get_chrom(bcf_hdr_t *h, bcf1_t *v)
       //exit(1);
       //return NULL;
     }
+    else if ( v->rid < 0 ) return NULL;
     
     return h->id[BCF_DT_CTG][v->rid].key;
 }

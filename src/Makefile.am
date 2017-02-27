@@ -53,6 +53,7 @@ cramore_SOURCES = cramore.cpp \
 	libsvm.cpp libsvm_gkm.cpp \
 	cmd_bed_delta_svm_train.cpp \
 	cmd_bed_matched_shuffle.cpp \
+	cmd_bed_shuffle.cpp \
 	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp cmd_vcf_delta_svm.cpp \
 	cmd_vcf_extract.cpp \
 	cmd_vcf_svd.cpp tsv_reader.cpp \
@@ -62,7 +63,8 @@ cramore_SOURCES = cramore.cpp \
 	Sort.cpp MathVector.cpp MathGold.cpp MathGenMin.cpp MathMatrix.cpp \
 	Random.cpp cmd_vcf_infer_ancestry.cpp ancestry_estimator.cpp \
 	cmd_vcf_infer_isaf.cpp frequency_estimator.cpp cmd_vcf_update_sites.cpp \
-	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp
+	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp \
+	cmd_cram_simuxlet.cpp sam_ordered_writer.cpp
 
 cramore_LDADD = ../htslib/libhts.a -lpthread -lgomp
 #cramore_LDFLAGS = -fopenmp

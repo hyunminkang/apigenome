@@ -179,8 +179,14 @@ bool SAMFilteredReader::initialize_current_interval() {
 
 bam1_t* SAMFilteredReader::read() {
   // expand buffer if needed, and increase ridx by one
-  if ( n_read % verbose == 0 )
-    notice("Reading %d reads at %s:%d and skipping %d",n_read,bam_get_chrom(hdr,cursor()),cursor()->core.pos+1,n_skip);
+  if ( n_read % verbose == 0 ) {
+    if ( cursor()->core.flag & 0x04 ) {
+      notice("Reading %d reads (unmapped) and skipping %d",n_read,n_skip);      
+    }
+    else {
+      notice("Reading %d reads at %s:%d and skipping %d",n_read,bam_get_chrom(hdr,cursor()),cursor()->core.pos+1,n_skip);
+    }
+  }
   
   if ( ( unlimited_buffer ) && ( nbuf == (int32_t)rbufs.size() ) ) {
     if ( ridx + 1 == nbuf ) {
@@ -232,15 +238,17 @@ bam1_t* SAMFilteredReader::read() {
 	  return rbufs[ridx];
 	}
 	else {
-	  const char* chr = bam_get_chromi(hdr, rbufs[ridx]->core.tid);
-	  int32_t endpos = bam_endpos(rbufs[ridx]);
-	  if ( target_loci.it->overlaps(chr, rbufs[ridx]->core.pos+1, endpos) ) {
-	    ++nbuf;
-	    return rbufs[ridx];
-	  }
-	  else if ( target_loci.overlaps(bam_get_chrom(hdr,rbufs[ridx]),rbufs[ridx]->core.pos+1, endpos) ) {
-	    ++nbuf;
-	    return rbufs[ridx];
+	  if ( rbufs[ridx]->core.tid >= 0 ) {
+	    const char* chr = bam_get_chromi(hdr, rbufs[ridx]->core.tid);
+	    int32_t endpos = bam_endpos(rbufs[ridx]);
+	    if ( target_loci.it->overlaps(chr, rbufs[ridx]->core.pos+1, endpos) ) {
+	      ++nbuf;
+	      return rbufs[ridx];
+	    }
+	    else if ( target_loci.overlaps(bam_get_chrom(hdr,rbufs[ridx]),rbufs[ridx]->core.pos+1, endpos) ) {
+	      ++nbuf;
+	      return rbufs[ridx];
+	    }
 	  }
 	}
       }

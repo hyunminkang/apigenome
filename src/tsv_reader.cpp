@@ -10,6 +10,7 @@
 */
 
 bool tsv_reader::open(const char* filename) {
+  this->filename = filename;
   hp = hts_open(filename, "r");
   if ( hp == NULL ) return false;
   return true;
@@ -17,7 +18,13 @@ bool tsv_reader::open(const char* filename) {
 }
 
 int32_t tsv_reader::read_line() {
-  lstr = hts_getline(hp, KS_SEP_LINE, &str);
+  if ( itr == NULL ) {
+    lstr = hts_getline(hp, KS_SEP_LINE, &str);
+  }
+  else {
+    lstr = tbx_itr_next(hp, tbx, itr, &str);
+  }
+  
   if ( lstr <= 0 ) {
     nfields = 0;
     return lstr;
@@ -25,6 +32,30 @@ int32_t tsv_reader::read_line() {
   fields = ksplit(&str, 0, &nfields);
   ++nlines;
   return nfields;
+}
+
+bool tsv_reader::jump_to(const char* chr, int32_t beg, int32_t end) {
+  char buf[65536];
+  sprintf(buf, "%s:%d-%d", chr, beg, end);
+  return jump_to(buf);
+}
+
+bool tsv_reader::jump_to(const char* reg) {
+  if ( tbx == NULL ) {
+    tbx = tbx_index_load(filename.c_str());
+    if ( !tbx ) error("[E:%s] Could not load .tbi/.csi index of %s\n", __PRETTY_FUNCTION__, filename.c_str());
+  }
+
+  if ( itr != NULL )
+    tbx_itr_destroy(itr);
+
+  itr = tbx_itr_querys(tbx, reg);
+  
+  if ( itr == NULL ) {
+    notice("Failed jumping to %s, tbx = %x, itr = %x", reg, tbx, itr);
+    return false;
+  }
+  else return true;
 }
 
 const char* tsv_reader::str_field_at(int32_t idx) {

@@ -132,7 +132,7 @@ am_cramore_OBJECTS = cramore.$(OBJEXT) Error.$(OBJEXT) \
 	genotype_concordance.$(OBJEXT) filter.$(OBJEXT) \
 	libsvm.$(OBJEXT) libsvm_gkm.$(OBJEXT) \
 	cmd_bed_delta_svm_train.$(OBJEXT) \
-	cmd_bed_matched_shuffle.$(OBJEXT) \
+	cmd_bed_matched_shuffle.$(OBJEXT) cmd_bed_shuffle.$(OBJEXT) \
 	cmd_vcf_mendel_dup_conc.$(OBJEXT) \
 	cmd_vcf_sample_summary.$(OBJEXT) cmd_vcf_squeeze.$(OBJEXT) \
 	cmd_vcf_delta_svm.$(OBJEXT) cmd_vcf_extract.$(OBJEXT) \
@@ -149,7 +149,8 @@ am_cramore_OBJECTS = cramore.$(OBJEXT) Error.$(OBJEXT) \
 	cmd_vcf_infer_ancestry.$(OBJEXT) ancestry_estimator.$(OBJEXT) \
 	cmd_vcf_infer_isaf.$(OBJEXT) frequency_estimator.$(OBJEXT) \
 	cmd_vcf_update_sites.$(OBJEXT) cmd_cram_demuxlet.$(OBJEXT) \
-	sam_filtered_reader.$(OBJEXT) sc_drop_seq.$(OBJEXT)
+	sam_filtered_reader.$(OBJEXT) sc_drop_seq.$(OBJEXT) \
+	cmd_cram_simuxlet.$(OBJEXT) sam_ordered_writer.$(OBJEXT)
 cramore_OBJECTS = $(am_cramore_OBJECTS)
 cramore_DEPENDENCIES = ../htslib/libhts.a
 am_tinyfast_OBJECTS = tinyfast.$(OBJEXT) Error.$(OBJEXT) \
@@ -662,6 +663,7 @@ cramore_SOURCES = cramore.cpp \
 	libsvm.cpp libsvm_gkm.cpp \
 	cmd_bed_delta_svm_train.cpp \
 	cmd_bed_matched_shuffle.cpp \
+	cmd_bed_shuffle.cpp \
 	cmd_vcf_mendel_dup_conc.cpp cmd_vcf_sample_summary.cpp cmd_vcf_squeeze.cpp cmd_vcf_delta_svm.cpp \
 	cmd_vcf_extract.cpp \
 	cmd_vcf_svd.cpp tsv_reader.cpp \
@@ -671,7 +673,8 @@ cramore_SOURCES = cramore.cpp \
 	Sort.cpp MathVector.cpp MathGold.cpp MathGenMin.cpp MathMatrix.cpp \
 	Random.cpp cmd_vcf_infer_ancestry.cpp ancestry_estimator.cpp \
 	cmd_vcf_infer_isaf.cpp frequency_estimator.cpp cmd_vcf_update_sites.cpp \
-	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp
+	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp \
+	cmd_cram_simuxlet.cpp sam_ordered_writer.cpp
 
 cramore_LDADD = ../htslib/libhts.a -lpthread -lgomp
 #cramore_LDFLAGS = -fopenmp
@@ -820,11 +823,13 @@ include ./$(DEPDIR)/bedidx.Po
 include ./$(DEPDIR)/bgzf.Po
 include ./$(DEPDIR)/cmd_bed_delta_svm_train.Po
 include ./$(DEPDIR)/cmd_bed_matched_shuffle.Po
+include ./$(DEPDIR)/cmd_bed_shuffle.Po
 include ./$(DEPDIR)/cmd_cram_context_indel_analysis.Po
 include ./$(DEPDIR)/cmd_cram_demuxlet.Po
 include ./$(DEPDIR)/cmd_cram_flagstat.Po
 include ./$(DEPDIR)/cmd_cram_procap_detect.Po
 include ./$(DEPDIR)/cmd_cram_simul_contam.Po
+include ./$(DEPDIR)/cmd_cram_simuxlet.Po
 include ./$(DEPDIR)/cmd_cram_sparse_genotype.Po
 include ./$(DEPDIR)/cmd_cram_verify_pair_id.Po
 include ./$(DEPDIR)/cmd_sc_kallisto_count.Po
@@ -862,6 +867,7 @@ include ./$(DEPDIR)/nuclear_pedigree.Po
 include ./$(DEPDIR)/params.Po
 include ./$(DEPDIR)/reference_sequence.Po
 include ./$(DEPDIR)/sam_filtered_reader.Po
+include ./$(DEPDIR)/sam_ordered_writer.Po
 include ./$(DEPDIR)/sc_drop_seq.Po
 include ./$(DEPDIR)/tinyfast.Po
 include ./$(DEPDIR)/tsv_reader.Po
