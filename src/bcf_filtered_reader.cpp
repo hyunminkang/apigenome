@@ -407,7 +407,7 @@ bool BCFFilteredReader::parse_posteriors(bcf_hdr_t* hdr, bcf1_t* v, const char* 
   else if ( strcmp(name,"PL") == 0 ) {
     return parse_likelihoods(hdr, v, name);
   }
-  else {
+  else { // GP as posterior
     if ( bcf_get_format_float(hdr, v, name, &gps, &n_gps) < 0 ) {
       return false;
     }
@@ -415,18 +415,40 @@ bool BCFFilteredReader::parse_posteriors(bcf_hdr_t* hdr, bcf1_t* v, const char* 
     int32_t i, j, icol;
     float sumgp;
     int32_t nalleles = v->n_allele;
-    int32_t ngenos = (nalleles+1)*nalleles/2;    
+    int32_t ngenos = (nalleles+1)*nalleles/2;
+    std::vector<float> gpSums(ngenos,0);
+
+    for(i=0; i < nalleles; ++i) {
+      for(j=0; j <= i; ++j) {
+	gpSums[(i+1)*i/2 + j] = ((i == j) ? 1.0 : 2.0)/(float)(nalleles*nalleles);
+      }
+    }
+
+    // first, normalize by GP calculate the sum of genotype probabilities
     for(i=0; i < (int32_t)sm_icols.size(); ++i) {
       icol = sm_icols[i]*ngenos;
       sumgp = 0;
       for(j=0; j < ngenos; ++j) {
-	gps[icol+j] += gt_error;
+	//gps[icol+j] += gt_error;
 	sumgp += gps[icol+j];
       }
       for(j=0; j < ngenos; ++j) {
 	gps[icol+j] /= sumgp;
+	gpSums[j] += gps[icol+j];
       }
-    }    
+    }
+
+    for(j=0; j < ngenos; ++j)
+      gpSums[j] /= (int32_t)(sm_icols.size()+1.0);
+
+    // second, account for genotyping error as weighted sum of GP and gpSums
+    for(i=0; i < (int32_t)sm_icols.size(); ++i) {
+      icol = sm_icols[i]*ngenos;    
+      for(j=0; j < ngenos; ++j) {
+	gps[icol+j] = ((1.0-gt_error)*gps[icol+j] + gt_error*gpSums[j]);
+      }
+    }
+    
     return true;
   }
 }
