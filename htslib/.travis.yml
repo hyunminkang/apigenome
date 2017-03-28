@@ -1,8 +1,11 @@
 # Control file for continuous integration testing at http://travis-ci.org/
 
-language: c
+language: cpp
 compiler:
-  - clang
   - gcc
+before_install:
+  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core 
+  - (cd htslib && autoheader && autoconf && ./configure)
+install: ./configure && make && make install
 
-script: make -e && make test
+#script: make -e && make test
