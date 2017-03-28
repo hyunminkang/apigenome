@@ -1,7 +1,7 @@
 language: cpp
-sudo: required
-dist: trusty
 compiler:
-- clang
-os:
-- linux
+  - gcc
+before_install:
+  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core 
+  - (cd htslib && autoheader && autoconf && ./configure)
+install: ./configure && make && make install
