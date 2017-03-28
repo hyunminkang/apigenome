@@ -2,6 +2,9 @@ language: cpp
 compiler:
   - gcc
 before_install:
-  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core groff gnuplot autoconf m4 libtool 
+  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core groff gnuplot autoconf automake m4 libtool 
+  - automake --version
+  - autoconf --version
+  - libtool --version
   - (cd htslib && autoheader && autoconf && ./configure)
 install: ./configure && make && make install
