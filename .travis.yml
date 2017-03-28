@@ -2,6 +2,6 @@ language: cpp
 compiler:
   - gcc
 before_install:
-  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core groff
+  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core groff gnuplot libgnuplot-iostream-dev 
   - (cd htslib && autoheader && autoconf && ./configure)
 install: ./configure && make && make install
