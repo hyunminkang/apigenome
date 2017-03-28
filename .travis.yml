@@ -8,4 +8,4 @@ before_install:
   - autoconf --version
   - libtool --version
   - (cd htslib && autoheader && autoconf && ./configure)
-install: ./configure && make && make install
+install: ./configure && make && sudo make install
