@@ -7,5 +7,5 @@ before_install:
   - automake --version
   - autoconf --version
   - libtool --version
-  - (cd htslib && autoheader && autoconf && ./configure)
+  - (cd htslib && autoheader && autoconf && ./configure && make && make install)
 install: set -e && set -x && sudo ln -s /usr/share/aclocal   /usr/local/share/aclocal && autoheader && autoreconf && ./configure && sudo make && sudo make install
