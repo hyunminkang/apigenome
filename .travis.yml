@@ -2,7 +2,7 @@ language: cpp
 compiler:
   - gcc
 before_install:
-  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core groff gnuplot autoconf automake autotools-dev m4 libtool liblzma-dev libbz2-dev libzip-dev
+  - sudo apt-get install libcurl4-openssl-dev r-base-dev r-base-core groff gnuplot autoconf automake autotools-dev m4 libtool liblzma-dev libbz2-dev
   - (wget http://ftp.gnu.org/gnu/automake/automake-1.11.4.tar.gz && tar -zxf automake-1.11.4.tar.gz && cd automake-1.11.4 && ./configure && sudo make && sudo make install)
   - automake --version
   - autoconf --version
