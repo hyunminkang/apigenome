@@ -66,12 +66,12 @@ cramore_SOURCES = cramore.cpp \
 	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp \
 	cmd_cram_simuxlet.cpp sam_ordered_writer.cpp
 
-cramore_LDADD = ../htslib/libhts.a -lpthread -lgomp
+cramore_LDADD = ../htslib/libhts.a -lpthread -lgomp -lbz2 -llzma -lcurl
 #cramore_LDFLAGS = -fopenmp
 
 ## vcfast files
 bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
-bcfast_LDADD = ../htslib/libhts.a -lpthread
+bcfast_LDADD = ../htslib/libhts.a -lpthread -lbz2 -llzma -lcurl
 
 ## vcfast files
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
