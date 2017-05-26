@@ -224,15 +224,15 @@ RSCRIPT_CHECK = yes
 R_CHECK = yes
 SED = /bin/sed
 SET_MAKE = 
-SHELL = /bin/sh
+SHELL = /bin/bash
 SORT_CHECK = yes
 STRIP = strip
 VERSION = 0.0.3
 ZCAT_CHECK = yes
-abs_builddir = /home/hmkang/code/working/apigenome.sandbox/data
-abs_srcdir = /home/hmkang/code/working/apigenome.sandbox/data
-abs_top_builddir = /home/hmkang/code/working/apigenome.sandbox
-abs_top_srcdir = /home/hmkang/code/working/apigenome.sandbox
+abs_builddir = /home/hmkang/tools/apigenome.git/data
+abs_srcdir = /home/hmkang/tools/apigenome.git/data
+abs_top_builddir = /home/hmkang/tools/apigenome.git
+abs_top_srcdir = /home/hmkang/tools/apigenome.git
 ac_ct_AR = ar
 ac_ct_CC = gcc
 ac_ct_CXX = g++
@@ -263,7 +263,7 @@ host_vendor = unknown
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/hmkang/code/working/apigenome.sandbox/install-sh
+install_sh = ${SHELL} /home/hmkang/tools/apigenome.git/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -272,7 +272,7 @@ mandir = ${datarootdir}/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /net/fantasia/home/hmkang/tools/apigenome.test
+prefix = /home/hmkang/tools/apigenome
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin
@@ -305,9 +305,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/../Makefile.vars $(am__c
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign data/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu data/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign data/Makefile
+	  $(AUTOMAKE) --gnu data/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

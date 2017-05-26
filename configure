@@ -20722,7 +20722,7 @@ if test x"$GNUPLOT_CHECK" != x"yes" ; then
    as_fn_error $? "Please install gnuplot at http://sourceforge.net/projects/gnuplot/files/ before installing." "$LINENO" 5
 fi
 
-ac_config_files="$ac_config_files Makefile libnmf/Makefile htslib/Makefile src/Makefile scripts/Makefile data/Makefile"
+ac_config_files="$ac_config_files Makefile libnmf/Makefile src/Makefile scripts/Makefile data/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -21923,7 +21923,6 @@ do
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "libnmf/Makefile") CONFIG_FILES="$CONFIG_FILES libnmf/Makefile" ;;
-    "htslib/Makefile") CONFIG_FILES="$CONFIG_FILES htslib/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "scripts/Makefile") CONFIG_FILES="$CONFIG_FILES scripts/Makefile" ;;
     "data/Makefile") CONFIG_FILES="$CONFIG_FILES data/Makefile" ;;
