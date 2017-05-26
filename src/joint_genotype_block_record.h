@@ -95,7 +95,7 @@ class JointGenotypeBlockRecord
     float nm1_num, nm1_den;
     float abe_num, abe_den;
     float abz_num, abz_den;
-    float ns_nref, dp_sum, max_gq;
+    //float ns_nref, dp_sum, max_gq;
 
     int32_t tmp_dp_q20;
     int32_t tmp_dp_ra;

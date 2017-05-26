@@ -70,7 +70,7 @@ bool frequency_estimator::set_hdr(bcf_hdr_t* _hdr) {
   else return false;
 }
 
-bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies) {
+bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _pl) {
   iv = _iv;
   ploidies = _ploidies;
   if ( iv->n_sample != nsamples )
@@ -79,7 +79,8 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies) {
   // parse PL fields
   bcf_unpack(iv, BCF_UN_ALL);
     
-  if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
+  if ( _pl != NULL ) { pls = _pl; n_pls = nsamples; }
+  else if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
     error("[E:%s:%d %s] Cannot parse PL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
 

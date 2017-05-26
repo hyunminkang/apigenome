@@ -40,17 +40,17 @@ phredConverter::phredConverter()
 }
 
 uint8_t phredConverter::err2Phred(double err) {
-  double d = 0-log10(err);
+  double d = 0-10*log10(err);
   return ( d > 255 ? 255 : ( d < 0 ? 0 : (uint8_t)floor(d+.5) ) );
 }
 
 uint8_t phredConverter::mat2Phred(double mat) {
-  double d = 0-log10(1.-mat);
+  double d = 0-10*log10(1.-mat);
   return ( d > 255 ? 255 : ( d < 0 ? 0 : (uint8_t)floor(d+.5) ) );
 }
 
 uint8_t phredConverter::mat32Phred(double mat3) {
-  double d = 0-log10(1.-mat3);
+  double d = 0-10*log10(1.-mat3);
   return ( d > 255 ? 255 : ( d < 0 ? 0 : (uint8_t)floor(d+.5) ) );
 }
 

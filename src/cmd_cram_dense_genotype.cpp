@@ -300,8 +300,8 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
       contams.push_back(minContam);
     }
     
+    evecs.resize(nsamples+1);
     if ( n > 3 ) {
-      evecs.resize(nsamples+1);
       evecs.back().resize(n-3);
       for(int32_t i=3; i < n; ++i) {
 	evecs.back().at(i-3) = atof(str.s + fields[i]);
@@ -391,7 +391,7 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
     if ( no_reads == 0 )
       warning("No read found in %d-th sample %s", i+1, sample_names[i].c_str());
 
-    notice("Processed %d-th sample %s across %lld reads (%.lf passed filter)", i+1, sample_names[i].c_str(), no_reads, no_reads/(double)no_filt_reads);
+    notice("Processed %d-th sample %s across %lld reads (%.1lf%% passed filter)", i+1, sample_names[i].c_str(), no_reads, no_filt_reads/(double)no_reads*100);
   
     jgbr.flush_sample(i);
     odr.close();

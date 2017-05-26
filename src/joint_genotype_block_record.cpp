@@ -153,7 +153,7 @@ void JointGenotypeBlockRecord::clear()
   nm1_num = nm1_den = 0;
   abe_num = abe_den = 0;
   abz_num = abz_den = 0;
-  ns_nref = dp_sum = max_gq = 0;
+  //ns_nref = dp_sum = max_gq = 0;
   clearTemp();
 }
 
@@ -187,7 +187,7 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
   //float MLE_HWE_AF[2];
   //float MLE_HWE_GF[3];
   double gp, gp_sum, max_gp;
-  int32_t best_gt;
+  int32_t best_gt = 0;
   int32_t best_a1, best_a2;
   int32_t an = 0;
   int32_t acs[2] = {0,0};
@@ -209,7 +209,7 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
 
   // calculate allele frequency
   int8_t* ploidies = spmap.get_ploidies(nv);
-  pFreqEst->set_variant(nv, ploidies);
+  pFreqEst->set_variant(nv, ploidies, pl);
   pFreqEst->estimate_isaf_em(); // compute pooled_allele frequency
   pFreqEst->score_test_hwe(true);
 
@@ -222,9 +222,9 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
     int32_t* pli = &pl[ i * 3 ];
 
     if ( ploidies[i] == 1 ) {
-      max_gp = gp_sum = gp = ( phredConv.toProb(pli[0]) * (1.0 - ifs[i]) );
+      max_gp = gp_sum = gp = ( phredConv.toProb((uint32_t)pli[0]) * (1.0 - ifs[i]) );
       best_gt = 0; best_a1 = 0; best_a2 = 0;
-      gp = ( phredConv.toProb(pli[2]) * ifs[i] );
+      gp = ( phredConv.toProb((uint32_t)pli[2]) * ifs[i] );
       gp_sum += gp;
       if ( max_gp < gp ) {
 	max_gp = gp;
@@ -232,14 +232,14 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
       }	
     }
     else if ( ploidies[i] == 2 ) {
-      max_gp = gp_sum = gp = ( phredConv.toProb(pli[0]) * (1.0-ifs[i]) * (1.0-ifs[i]) );
+      max_gp = gp_sum = gp = ( phredConv.toProb((uint32_t)pli[0]) * (1.0-ifs[i]) * (1.0-ifs[i]) );
       best_gt = 0; best_a1 = 0; best_a2 = 0;
 
-      gp = phredConv.toProb(pli[1]) * 2 * ifs[i] * (1.0-ifs[i]);
+      gp = phredConv.toProb((uint32_t)pli[1]) * 2.0 * ifs[i] * (1.0-ifs[i]);
       gp_sum += gp;
       if ( max_gp < gp ) { max_gp = gp; best_gt = 1; best_a1 = 0; best_a2 = 1; }
 
-      gp = phredConv.toProb(pli[1]) * ifs[i] * ifs[i];
+      gp = phredConv.toProb((uint32_t)pli[2]) * ifs[i] * ifs[i];
       gp_sum += gp;
       if ( max_gp < gp ) { max_gp = gp; best_gt = 2; best_a1 = 1; best_a2 = 1; }      
     }
@@ -262,10 +262,11 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
     if ( prob > 1 )
       prob = 1;
     
-    gq[i] = (int32_t)phredConv.err2Phred(prob);
+    gq[i] = (int32_t)phredConv.err2Phred((double)prob);
     
-    if ( ( best_gt > 0 ) && ( max_gq < gq[i] ) )
+    if ( ( best_gt > 0 ) && ( max_gq < gq[i] ) ) {
       max_gq = gq[i];
+    }
     
     gt[2*i]   = ((best_a1 + 1) << 1);
     gt[2*i+1] = ((best_a2 + 1) << 1);	    
@@ -287,7 +288,10 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
 
   float avgdp = (float)dp_sum / (float)nsamples;
   
-  nv->qual = (float) max_gq;
+  nv->qual = (float)max_gq;
+
+  //if ( acs[1] > 0 ) notice("AC=%d, max-gq=%d, QUAL=%f",acs[1], max_gq, nv->qual);
+
   bcf_update_info_float(hdr, nv, "AVGDP", &avgdp, 1);	  
   bcf_update_info_int32(hdr, nv, "AC", &acs[1], 1);
   bcf_update_info_int32(hdr, nv, "AN", &an, 1);
@@ -363,14 +367,16 @@ void JointGenotypeBlockRecord::flush_sample( int32_t sampleIndex, gzFile fp ) {
   uint8_t* p_ads = &p_pl_ads[3];
 
   for(int32_t i=0; i < 3; ++i)
-    if ( tmp_pls[i] < DBL_MIN ) tmp_pls[i] = DBL_MIN;
+    if ( tmp_pls[i] < 1e-300 ) tmp_pls[i] = 1e-300;
 
   int32_t imax = ( tmp_pls[0] > tmp_pls[1] ) ? ( tmp_pls[0] > tmp_pls[2] ? 0 : 2 ) : ( tmp_pls[1] > tmp_pls[2] ? 1 : 2);
   for(int32_t i=0; i < 3; ++i) {
-    uint32_t l = phredConv.err2Phred(tmp_pls[i]/tmp_pls[imax]);
-    p_pls[i] = ((l > 255) ? 255 : l);
+    uint32_t l = phredConv.err2Phred((double)(tmp_pls[i]/tmp_pls[imax]));
+    p_pls[i] = ((l > 255) ? 255 : (uint8_t)l);
     p_ads[i] = ((tmp_ads[i] > 255) ? 255 : (uint8_t)tmp_ads[i]);
   }
+
+  //error("tmp_pls = (%lg, %lg, %lg), p_pls = (%u, %u, %u)", tmp_pls[0], tmp_pls[1], tmp_pls[2], p_pls[0], p_pls[1], p_pls[2]); 
 
   if ( ( p_pls[0] == 0 ) && ( p_pls[2] == 0 ) && ( p_pls[1] > 0 ) ) 
     error("%le %le %le", tmp_pls[0], tmp_pls[1], tmp_pls[2]);
@@ -422,10 +428,11 @@ void JointGenotypeBlockRecord::flush_sample( int32_t sampleIndex, gzFile fp ) {
 }
 
 void JointGenotypeBlockRecord::add_allele( double contam, int32_t allele, uint8_t mapq, bool fwd, uint32_t q, int32_t cycle, uint32_t nm ) {
+  //if ( pos1 == 10000004 ) notice("add_allele(%lg,%d,%u,%d,%u,%d,%u) called",contam,allele,mapq,fwd ? 0 : 1,q,cycle,nm);
   if ( q > 40 )
     q = 40;
 
-  double pe = phredConv.toProb(q);
+  double pe = phredConv.toProb((uint32_t)q);
   if ( pe > 0.75 ) pe = 0.75;
   double pm = 1 - pe;
   
@@ -444,14 +451,15 @@ void JointGenotypeBlockRecord::add_allele( double contam, int32_t allele, uint8_
   else {
     ++tmp_ads[2];
   }
-  double sump = tmp_pls[0] + tmp_pls[1] + tmp_pls[2] + 1e-300;
+  double sump = tmp_pls[0] + tmp_pls[1] + tmp_pls[2];
+  if ( sump < 1e-300 ) sump = 1e-300;
   tmp_pls[0] /= sump;
   tmp_pls[1] /= sump;
   tmp_pls[2] /= sump;
 
   if ( allele >= 0 ) {
     if ( q > 20 ) {
-      tmp_oth_exp_q20 += (phredConv.toProb(q) * 2. / 3.);
+      tmp_oth_exp_q20 += (phredConv.toProb((uint32_t)q) * 2. / 3.);
       ++tmp_dp_q20;
     }
 

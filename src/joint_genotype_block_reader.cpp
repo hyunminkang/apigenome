@@ -179,7 +179,10 @@ void JointGenotypeBlockReader::set_sample(int32_t sampleIndex, const char* sampl
   lastFirst = 0;
   sample_names[sampleIndex] = sampleName;
   sample_contams[sampleIndex] = contam;
-  if ( eV.cols() != (int32_t) evec.size() + 1 ) {
+  if ( eV.cols() == 0 ) {
+    eV = Eigen::MatrixXd::Zero((int32_t)sample_names.size(), evec.size() + 1);
+  }
+  else if ( eV.cols() != (int32_t) evec.size() + 1 ) {
     error("[E:%s:%d %s] Assertion failed: ev.cols() = %d != 1 + evec.size() = %d", __FILE__, __LINE__, __PRETTY_FUNCTION__, eV.cols(), (int32_t)evec.size());
   }
   eV(sampleIndex,0) = 1;

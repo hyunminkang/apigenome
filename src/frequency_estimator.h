@@ -43,7 +43,7 @@ class frequency_estimator { //: public VectorFunc {
   ~frequency_estimator();
 
   bool set_hdr(bcf_hdr_t* _hdr);
-  bool set_variant(bcf1_t* _iv, int8_t* ploidies);
+  bool set_variant(bcf1_t* _iv, int8_t* ploidies, int32_t* _pl = NULL);
   double estimate_pooled_af_em(int32_t maxiter=10);
   
   double estimate_isaf_em(int32_t maxiter = 20);
