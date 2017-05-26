@@ -1,21 +1,53 @@
 #include "frequency_estimator.h"
 
-frequency_estimator::frequency_estimator(Eigen::MatrixXd* _pEigVecs, double _tol) {
+frequency_estimator::frequency_estimator(Eigen::MatrixXd* _pEigVecs, double _tol, double _maxLambda) {
   if ( _pEigVecs == NULL )
     error("[E:%s:%d %s] Invalid eigenvectors", __FILE__, __LINE__, __PRETTY_FUNCTION__ );
 
-  // set dimensions;
   pEigVecs = _pEigVecs;
   nsamples = (int32_t)pEigVecs->rows();
   ndims = (int32_t)pEigVecs->cols();
 
+  pSVD = new Eigen::BDCSVD<Eigen::MatrixXd>(*_pEigVecs, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+  // set dimensions;
   tol = _tol;
+  maxLambda = _maxLambda;  
   
   hdr = NULL; iv = NULL;
   hwe0z = hwe1z = ibc0 = ibc1 = 0;
 
   pls = NULL; n_pls = 0; ploidies = NULL;
   ifs = new float[nsamples];
+  pooled_af = -1;
+  isaf_computed = false;
+}
+
+frequency_estimator::~frequency_estimator() {
+  if ( ( pEigVecs ) && ( pSVD ) )
+    delete pSVD;
+  if (ifs != NULL )
+    delete [] ifs;  
+}
+
+frequency_estimator::frequency_estimator(Eigen::BDCSVD<Eigen::MatrixXd>* _pSVD, double _tol, double _maxLambda) {
+  // set dimensions;
+  pEigVecs = NULL;
+
+  pSVD = _pSVD;
+  nsamples = (int32_t)pSVD->matrixU().rows();
+  ndims = (int32_t)pSVD->matrixU().cols();
+
+  tol = _tol;
+  maxLambda = _maxLambda;    
+  
+  hdr = NULL; iv = NULL;
+  hwe0z = hwe1z = ibc0 = ibc1 = 0;
+
+  pls = NULL; n_pls = 0; ploidies = NULL;
+  ifs = new float[nsamples];
+  pooled_af = -1;
+  isaf_computed = false;  
 }
 
 bool frequency_estimator::set_hdr(bcf_hdr_t* _hdr) {
@@ -26,6 +58,10 @@ bool frequency_estimator::set_hdr(bcf_hdr_t* _hdr) {
     bcf_hdr_append(hdr, buffer);
     sprintf(buffer,"##INFO=<ID=IS_IBC,Number=1,Type=Float,Description=\"Inbreeding coefficient with individual-sepcific allele frequencies\">\n");
     bcf_hdr_append(hdr, buffer);
+    sprintf(buffer,"##INFO=<ID=MAX_IF,Number=1,Type=Float,Description=\"Maximum Individual-specific allele frequency\">\n");
+    bcf_hdr_append(hdr, buffer);    
+    sprintf(buffer,"##INFO=<ID=MIN_IF,Number=1,Type=Float,Description=\"Minimum Individual-specific allele frequency\">\n");
+    bcf_hdr_append(hdr, buffer);    
     sprintf(buffer,"##FORMAT=<ID=IF,Number=1,Type=Float,Description=\"Individual-specific allele frequencies\">\n");
     bcf_hdr_append(hdr, buffer);    
     bcf_hdr_sync(hdr);
@@ -46,42 +82,50 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies) {
   if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
     error("[E:%s:%d %s] Cannot parse PL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
   }
+
+  pooled_af = -1;
+  isaf_computed = false;
+  
   return true;
   //else return false;
 }
 
 double frequency_estimator::estimate_pooled_af_em(int32_t maxiter) {
-  double p = 0.5, q = 0.5;
-  double p0, p1, p2, sump, apsum, an;
-  for(int32_t i=0; i < maxiter; ++i) {
-    apsum = 0;
-    an = 0;
-    for(int32_t j=0; j < nsamples; ++j) {
-      if ( ploidies[j] == 2 ) {
-	p0 = q*q*phredConv.toProb(pls[j*3]);
-	p1 = 2*p*q*phredConv.toProb(pls[j*3+1]);
-	p2 = p*p*phredConv.toProb(pls[j*3+2]);
-	sump = p0+p1+p2;
-	apsum += (p1/sump + p2/sump*2.0);
-	an += 2;
+  if ( pooled_af < 0 ) {
+    double p = 0.5, q = 0.5;
+    double p0, p1, p2, sump, apsum, an;
+    for(int32_t i=0; i < maxiter; ++i) {
+      apsum = 0;
+      an = 0;
+      for(int32_t j=0; j < nsamples; ++j) {
+	if ( ploidies[j] == 2 ) {
+	  p0 = q*q*phredConv.toProb(pls[j*3]);
+	  p1 = 2*p*q*phredConv.toProb(pls[j*3+1]);
+	  p2 = p*p*phredConv.toProb(pls[j*3+2]);
+	  sump = p0+p1+p2;
+	  apsum += (p1/sump + p2/sump*2.0);
+	  an += 2;
+	}
+	else if ( ploidies[j] == 1 ) {
+	  p0 = q*phredConv.toProb(pls[j*3]);
+	  p2 = p*phredConv.toProb(pls[j*3+2]);
+	  sump = p0+p2;
+	  apsum += (p2/sump);
+	  ++an;
+	}
       }
-      else if ( ploidies[j] == 1 ) {
-	p0 = q*phredConv.toProb(pls[j*3]);
-	p2 = p*phredConv.toProb(pls[j*3+2]);
-	sump = p0+p2;
-	apsum += (p2/sump);
-	++an;
-      }
+      p = apsum/an;
+      q = 1.0-p;
     }
-    p = apsum/an;
-    q = 1.0-p;
+    pooled_af = p;
+    if ( pooled_af * nsamples < 0.5 ) { pooled_af = 0.5 / ( 1 + 2 *nsamples ); }
+    else if ( (1-pooled_af)*nsamples < 0.5 ) { pooled_af = 1 - 0.5/(1 + 2*nsamples); }
   }
-  return p;
+  return pooled_af;
 }
 
-bool frequency_estimator::score_test_hwe(bool use_isaf, double pooled_af) {
-  if ( pooled_af == 0 )
-    pooled_af = estimate_pooled_af_em();    
+bool frequency_estimator::score_test_hwe(bool use_isaf) {
+  estimate_pooled_af_em();    
     
   double pp0 = (1.-pooled_af)*(1.-pooled_af);
   double pp1 = 2*pooled_af*(1-pooled_af);
@@ -90,6 +134,10 @@ bool frequency_estimator::score_test_hwe(bool use_isaf, double pooled_af) {
   double obsH0 = 0, obsH1 = 0, expH1 = 0;
   double l0, l1, l2, sum1, sum0, ph1, ph0, U0, U1;
   int32_t ndiploids = 0;
+
+  // pretend that we have pp0, pp1, pp2 observations of each genotype (pseudocount)
+  sumU0 = sumU1 = pp0*(1/pp0) + pp1 * (-2/pp1) + pp2*(1/pp2);
+  sqU0 = sqU1 = pp0*1/pp0/pp0 + pp1 * 4/pp1/pp1 + pp2*(1/pp2/pp2);
 
   for(int32_t i=0; i < nsamples; ++i) {
     if ( ploidies[i] != 2 ) continue;
@@ -105,8 +153,9 @@ bool frequency_estimator::score_test_hwe(bool use_isaf, double pooled_af) {
     sumU0 += U0;
     sqU0 += (U0*U0);
     
-
     if ( use_isaf ) {
+      estimate_isaf_em();
+      
       sum1 = l0*(1.-ifs[i])*(1.-ifs[i]) + 2*l1*(1.-ifs[i])*ifs[i] + l2*ifs[i]*ifs[i] + 1e-100;
       ph1 = 2*l1*(1.-ifs[i])*ifs[i];
       obsH1 += (ph1/sum1);
@@ -129,6 +178,7 @@ bool frequency_estimator::score_test_hwe(bool use_isaf, double pooled_af) {
 }
 
 
+/*
 double frequency_estimator::Evaluate(Vector& v) {
   double llk = 0;
   if ( ndims+1 != v.dim )
@@ -160,51 +210,65 @@ double frequency_estimator::Evaluate(Vector& v) {
   }
   return 0-llk;  
 }
+*/
 
 double frequency_estimator::estimate_isaf_em(int32_t maxiter) {
-  Eigen::MatrixXd eV = Eigen::MatrixXd::Constant(nsamples,ndims+1,1.0);
-  eV.block(0,1,nsamples,ndims) = *pEigVecs;
+  //Eigen::MatrixXd eV = Eigen::MatrixXd::Constant(nsamples,ndims+1,1.0);
+  //eV.block(0,1,nsamples,ndims) = *pEigVecs;
+  //Eigen::BDCSVD<Eigen::MatrixXd> svd(eV, Eigen::ComputeThinU | Eigen::ComputeThinV);
+  if ( !isaf_computed ) {
+    estimate_pooled_af_em();     
+    Eigen::VectorXd y(nsamples);
+    Eigen::VectorXd isaf = Eigen::VectorXd::Constant(nsamples, pooled_af);
 
-  Eigen::BDCSVD<Eigen::MatrixXd> svd(eV, Eigen::ComputeThinU | Eigen::ComputeThinV);
-  Eigen::VectorXd Y(nsamples);
-  Eigen::VectorXd X = Eigen::VectorXd::Zero(ndims+1);
-  double pooled_af = estimate_pooled_af_em(); 
-  X[0] = pooled_af*2.0;
+    double maf = pooled_af > 0.5 ? 1-pooled_af : pooled_af;
+    //Eigen::VectorXd lambda = Eigen::VectorXd::Constant(ndims, maxLambda * (1.-maf) / (maf * nsamples * 2));
+    double lambda = maxLambda * (1.-maf) / (maf * nsamples * 2);
+    double p0, p1, p2;
 
-  double p0, p1, p2;
-
-  for(int32_t i=0; i < maxiter; ++i) {
-    for(int32_t j=0; j < nsamples; ++j) {
-      ifs[j] = 0;
-      for(int32_t k=0; k <= ndims; ++k)
-	ifs[j] += (eV(j,k) * X[k] / 2.0);
-
-      if ( ifs[j]*(nsamples+nsamples+1) < 0.5 ) ifs[j] = 0.5/(nsamples+nsamples+1);
-      if ( (1.0-ifs[j])*(nsamples+nsamples+1) < 0.5 ) ifs[j] = 1.0-0.5/(nsamples+nsamples+1);
-
-      if ( ploidies[j] == 2 ) {
-	p0 = (1.0-ifs[i])*(1.0-ifs[i])*phredConv.toProb(pls[3*j]);
-	p1 = 2*ifs[i]*(1.0-ifs[i])*phredConv.toProb(pls[3*j+1]);
-	p2 = ifs[i]*ifs[i]*phredConv.toProb(pls[3*j+2]);
-	Y[j] = (p1+p2+p2+1e-100)/(p0+p1+p2+1e-100);
+    for(int32_t i=0; i < maxiter; ++i) { // maxiter = 30
+      for(int32_t j=0; j < nsamples; ++j) {
+	if ( ploidies[j] == 2 ) {
+	  p0 = ( 1.0 - isaf[j] ) * ( 1.0 - isaf[j] ) * phredConv.toProb(pls[3*j]);
+	  p1 = 2 * isaf[j] * ( 1.0 - isaf[j] ) * phredConv.toProb(pls[3*j+1]);
+	  p2 = isaf[j] * isaf[j] * phredConv.toProb(pls[3*j+2]);
+	  y[j] = (p1+p2+p2+1e-100)/(p0+p1+p2+1e-100);
+	}
+	else if ( ploidies[j] == 1 ) {
+	  p0 = ( 1.0 - isaf[j] ) * phredConv.toProb(pls[3*j]);
+	  p2 = isaf[j] * phredConv.toProb(pls[3*j+2]);
+	  y[j] = (p2+p2+1e-100)/(p0+p2+1e-100);
+	}
+	else {
+	  y[j] = isaf[j] * 2;
+	}
       }
-      else if ( ploidies[j] == 1 ) {
-	p0 = (1.0-ifs[i])*phredConv.toProb(pls[3*j]);
-	p2 = ifs[i]*phredConv.toProb(pls[3*j+2]);
-	Y[j] = (p2+p2+1e-100)/(p0+p2+1e-100);	
+      // U diag(d_i^2/(d_i^2+lambda)) U'y
+      Eigen::VectorXd d2 = pSVD->singularValues();
+      Eigen::MatrixXd UD2 = pSVD->matrixU(); //
+      for(int32_t j=0; j < nsamples; ++j) {
+	for(int32_t k=0; k < ndims; ++k) {
+	  UD2(j,k) *= ( d2[k] / ( d2[k] + lambda ) );
+	}
       }
-      else {
-	Y[j] = 2*ifs[j];
+      
+      isaf = UD2 * ( pSVD->matrixU().transpose() * y ) / 2.0;
+      for(int32_t j=0; j < nsamples; ++j) {
+	if ( isaf[j]*(nsamples+nsamples+1) < 0.5 ) isaf[j] = 0.5/(nsamples+nsamples+1);
+	else if ( (1.0-isaf[j])*(nsamples+nsamples+1) < 0.5 ) isaf[j] = 1.0-0.5/(nsamples+nsamples+1);
       }
     }
-    X = svd.solve(Y);
+
+    for(int32_t j=0; j < nsamples; ++j) {
+      ifs[j] = (float)isaf[j];
+    }
+    isaf_computed = true;
   }
-
-  score_test_hwe(true, pooled_af);
-
+  
   return 0;
 }
 
+/*
 double frequency_estimator::estimate_isaf_simplex() {
   AmoebaMinimizer isafMinimizer;
   Vector startingPoint(ndims+1);
@@ -225,15 +289,24 @@ double frequency_estimator::estimate_isaf_simplex() {
   return 0-isafMinimizer.fmin;
   //return ancMinimizer.fmin;
 }
+*/
 
  
 bool frequency_estimator::update_variant() {
   float hweslp0 = (float)((hwe0z > 0 ? -1 : 1) * log10( erfc(fabs(hwe0z)/sqrt(2.0)) + 1e-100 ));
-  float hweslp1 = (float)((hwe1z > 0 ? -1 : 1) * log10( erfc(fabs(hwe1z)/sqrt(2.0)) + 1e-100 ));  
+  float hweslp1 = (float)((hwe1z > 0 ? -1 : 1) * log10( erfc(fabs(hwe1z)/sqrt(2.0)) + 1e-100 ));
+  float max_if = 0, min_if = 1;
+  for(int32_t j=0; j < nsamples; ++j) {
+    if ( ifs[j] > max_if ) max_if = ifs[j];
+    if ( ifs[j] < min_if ) min_if = ifs[j];
+  }
+    
   bcf_update_info_float(hdr, iv, "HWE_SLP", &hweslp0, 1);
   bcf_update_info_float(hdr, iv, "IBC", &ibc0, 1);
   bcf_update_info_float(hdr, iv, "IS_HWE_SLP", &hweslp1, 1);
   bcf_update_info_float(hdr, iv, "IS_IBC", &ibc1, 1);
+  bcf_update_info_float(hdr, iv, "MAX_IF", &max_if, 1);
+  bcf_update_info_float(hdr, iv, "MIN_IF", &min_if, 1);    
   bcf_update_format_float(hdr, iv, "IF", ifs, nsamples);
   return true;
 }

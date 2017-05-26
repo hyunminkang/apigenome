@@ -26,8 +26,11 @@ typedef khash_t(vdict) vdict_t;
 int32_t cmdCramSimulContam(int32_t argc, char** argv);
 int32_t cmdCramVerifyPairID(int32_t argc, char** argv);
 int32_t cmdCramDemuxlet(int32_t argc, char** argv);
+int32_t cmdCramFreemux(int32_t argc, char** argv);
+int32_t cmdCramMuxPileup(int32_t argc, char** argv);
 int32_t cmdCramSimuxlet(int32_t argc, char** argv);
 int32_t cmdCramSparseGenotype(int32_t argc, char** argv);
+int32_t cmdCramDenseGenotype(int32_t argc, char** argv);
 int32_t cmdCramCustomSort(int32_t argc, char** argv);
 int32_t cmdCramFlagStat(int32_t argc, char** argv);
 int32_t cmdCramCompareBQs(int32_t argc, char** argv);
@@ -191,6 +194,7 @@ int32_t main(int32_t argc, char** argv) {
     printf("Usage : %s [command] [options]\n",argv[0]);
     printf("\tType one of the following commands below to get detailed usage. Type %s [command] -help for more detailed descriptions\n",argv[0]);
     printf("\t%s cram-sparse-genotypes [options] : Sparse genotyping from BAM files\n",argv[0]);
+    printf("\t%s cram-dense-genotypes [options] : Dense genotyping from BAM files\n",argv[0]);    
     printf("\t%s cram-flagstat-all [options] : Present a comprehensive flagstat output of a CRAM file\n",argv[0]);    
     printf("\t%s kallisto-count [options] : Count digital expressions from kallisto-aligned dropseq data\n",argv[0]);    
     printf("\t%s sc-map-stamps [options] : Map STAMPs in DropSeq cell-UMI barcode FASTQ files\n",argv[0]);
@@ -214,12 +218,21 @@ int32_t main(int32_t argc, char** argv) {
     else if ( cmd == "demuxlet" ) {
       return cmdCramDemuxlet(argc-1,argv+1);  
     }
+    else if ( cmd == "freemux" ) {
+      return cmdCramFreemux(argc-1,argv+1);  
+    }
+    else if ( cmd == "mux-pileup" ) {
+      return cmdCramMuxPileup(argc-1,argv+1);  
+    }        
     else if ( cmd == "simuxlet" ) {
       return cmdCramSimuxlet(argc-1,argv+1);  
     }        
     else if ( cmd == "cram-sparse-genotype" ) {
       return cmdCramSparseGenotype(argc-1,argv+1);
     }
+    else if ( cmd == "cram-dense-genotype" ) {
+      return cmdCramDenseGenotype(argc-1,argv+1);
+    }    
     else if ( cmd == "vcf-mendel-dup-conc") {
       return cmdVcfMendelDupConc(argc-1,argv+1);      
     }

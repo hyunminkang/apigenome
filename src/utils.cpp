@@ -161,4 +161,12 @@ bool append_cwd(std::string& path)
 };
 
 
+unsigned int str_hash(const char* s, unsigned int seed)
+{
+  unsigned int hash = seed;
+  while (*s) {
+    hash = hash * 101  +  *s++;
+  }
+  return hash;
+}
 

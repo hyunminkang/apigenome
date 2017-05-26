@@ -12,13 +12,16 @@
 #include "Eigen/Core"
 #include "Eigen/SVD"
 
-class frequency_estimator : public VectorFunc {
+class frequency_estimator { //: public VectorFunc {
  public:
 
   Eigen::MatrixXd* pEigVecs;
+  Eigen::BDCSVD<Eigen::MatrixXd>* pSVD;  
+  
   int32_t nsamples;
   int32_t ndims;
   double tol;
+  double maxLambda;
   
   bcf_hdr_t* hdr;
   bcf1_t* iv;
@@ -32,19 +35,23 @@ class frequency_estimator : public VectorFunc {
   int8_t* ploidies;
   float* ifs;
 
-  frequency_estimator(Eigen::MatrixXd* _pEigVecs, double _tol = 1e-10);
-  ~frequency_estimator() { if (ifs != NULL ) delete [] ifs; }
+  double pooled_af;
+  bool isaf_computed;
+
+  frequency_estimator(Eigen::MatrixXd* _pEigVecs, double _tol = 1e-10, double maxLambda = 1.0);
+  frequency_estimator(Eigen::BDCSVD<Eigen::MatrixXd>* pSVD, double _tol = 1e-10, double maxLambda = 1.0);  
+  ~frequency_estimator();
 
   bool set_hdr(bcf_hdr_t* _hdr);
   bool set_variant(bcf1_t* _iv, int8_t* ploidies);
   double estimate_pooled_af_em(int32_t maxiter=10);
   
   double estimate_isaf_em(int32_t maxiter = 20);
-  double estimate_isaf_simplex();
+  //double estimate_isaf_simplex();
   
-  bool score_test_hwe(bool use_isaf = true, double pooled_af = 0);
+  bool score_test_hwe(bool use_isaf = true);
   bool update_variant();
-  virtual double Evaluate(Vector& v);  
+  //virtual double Evaluate(Vector& v);  
 
   /*
 

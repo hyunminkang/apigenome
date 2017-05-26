@@ -115,7 +115,7 @@ am_bcfast_OBJECTS = bcfast.$(OBJEXT) Error.$(OBJEXT) \
 	interval_tree.$(OBJEXT) utils.$(OBJEXT) hts_utils.$(OBJEXT) \
 	genome_interval.$(OBJEXT)
 bcfast_OBJECTS = $(am_bcfast_OBJECTS)
-bcfast_DEPENDENCIES = ../htslib/libhts.a
+bcfast_DEPENDENCIES = ../../htslib/libhts.a
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
 am__v_lt_0 = --silent
@@ -150,9 +150,15 @@ am_cramore_OBJECTS = cramore.$(OBJEXT) Error.$(OBJEXT) \
 	cmd_vcf_infer_isaf.$(OBJEXT) frequency_estimator.$(OBJEXT) \
 	cmd_vcf_update_sites.$(OBJEXT) cmd_cram_demuxlet.$(OBJEXT) \
 	sam_filtered_reader.$(OBJEXT) sc_drop_seq.$(OBJEXT) \
-	cmd_cram_simuxlet.$(OBJEXT) sam_ordered_writer.$(OBJEXT)
+	cmd_cram_freemux.$(OBJEXT) sam_ordered_writer.$(OBJEXT) \
+	cmd_cram_simuxlet.$(OBJEXT) cmd_cram_mux_pileup.$(OBJEXT) \
+	cmd_cram_dense_genotype.$(OBJEXT) \
+	joint_genotype_block_reader.$(OBJEXT) \
+	joint_genotype_block_record.$(OBJEXT) variant.$(OBJEXT) \
+	variant_manip.$(OBJEXT) augmented_bam_record.$(OBJEXT) \
+	sex_ploidy_map.$(OBJEXT) allele.$(OBJEXT) vntr.$(OBJEXT)
 cramore_OBJECTS = $(am_cramore_OBJECTS)
-cramore_DEPENDENCIES = ../htslib/libhts.a
+cramore_DEPENDENCIES = ../../htslib/libhts.a
 am_tinyfast_OBJECTS = tinyfast.$(OBJEXT) Error.$(OBJEXT) \
 	params.$(OBJEXT)
 tinyfast_OBJECTS = $(am_tinyfast_OBJECTS)
@@ -391,7 +397,7 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 
 #TABIX_VER = 0.2.5
 #TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -fopenmp -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
+AM_CPPFLAGS = -fopenmp -I ../../htslib/ -I ../../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 #-I../include/ #-I$(TABIX)/
 #AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -g #-O2 #-I../include/ #-I$(TABIX)/
 EIGEN_HEADER_FILES = Eigen/Cholesky Eigen/CholmodSupport Eigen/Core \
 	Eigen/Dense Eigen/Eigen Eigen/Eigenvalues Eigen/Geometry \
@@ -673,13 +679,16 @@ cramore_SOURCES = cramore.cpp \
 	Sort.cpp MathVector.cpp MathGold.cpp MathGenMin.cpp MathMatrix.cpp \
 	Random.cpp cmd_vcf_infer_ancestry.cpp ancestry_estimator.cpp \
 	cmd_vcf_infer_isaf.cpp frequency_estimator.cpp cmd_vcf_update_sites.cpp \
-	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp \
-	cmd_cram_simuxlet.cpp sam_ordered_writer.cpp
+	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp cmd_cram_freemux.cpp \
+	sam_ordered_writer.cpp \
+	cmd_cram_simuxlet.cpp  \
+	cmd_cram_mux_pileup.cpp \
+	cmd_cram_dense_genotype.cpp joint_genotype_block_reader.cpp joint_genotype_block_record.cpp variant.cpp variant_manip.cpp augmented_bam_record.cpp sex_ploidy_map.cpp allele.cpp vntr.cpp
 
-cramore_LDADD = ../htslib/libhts.a -lpthread -lgomp
+cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
 #cramore_LDFLAGS = -fopenmp
 bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
-bcfast_LDADD = ../htslib/libhts.a -lpthread
+bcfast_LDADD = ../../htslib/libhts.a  -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
 vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
 vcfast_LDADD = libtabix.a
 tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
@@ -812,7 +821,9 @@ include ./$(DEPDIR)/MathVector.Po
 include ./$(DEPDIR)/PhredHelper.Po
 include ./$(DEPDIR)/Random.Po
 include ./$(DEPDIR)/Sort.Po
+include ./$(DEPDIR)/allele.Po
 include ./$(DEPDIR)/ancestry_estimator.Po
+include ./$(DEPDIR)/augmented_bam_record.Po
 include ./$(DEPDIR)/bam_ordered_reader.Po
 include ./$(DEPDIR)/bcf_chunked_reader.Po
 include ./$(DEPDIR)/bcf_filtered_reader.Po
@@ -826,7 +837,10 @@ include ./$(DEPDIR)/cmd_bed_matched_shuffle.Po
 include ./$(DEPDIR)/cmd_bed_shuffle.Po
 include ./$(DEPDIR)/cmd_cram_context_indel_analysis.Po
 include ./$(DEPDIR)/cmd_cram_demuxlet.Po
+include ./$(DEPDIR)/cmd_cram_dense_genotype.Po
 include ./$(DEPDIR)/cmd_cram_flagstat.Po
+include ./$(DEPDIR)/cmd_cram_freemux.Po
+include ./$(DEPDIR)/cmd_cram_mux_pileup.Po
 include ./$(DEPDIR)/cmd_cram_procap_detect.Po
 include ./$(DEPDIR)/cmd_cram_simul_contam.Po
 include ./$(DEPDIR)/cmd_cram_simuxlet.Po
@@ -858,6 +872,8 @@ include ./$(DEPDIR)/hts_utils.Po
 include ./$(DEPDIR)/index.Po
 include ./$(DEPDIR)/interval.Po
 include ./$(DEPDIR)/interval_tree.Po
+include ./$(DEPDIR)/joint_genotype_block_reader.Po
+include ./$(DEPDIR)/joint_genotype_block_record.Po
 include ./$(DEPDIR)/knetfile.Po
 include ./$(DEPDIR)/kstring.Po
 include ./$(DEPDIR)/libsvm.Po
@@ -869,49 +885,59 @@ include ./$(DEPDIR)/reference_sequence.Po
 include ./$(DEPDIR)/sam_filtered_reader.Po
 include ./$(DEPDIR)/sam_ordered_writer.Po
 include ./$(DEPDIR)/sc_drop_seq.Po
+include ./$(DEPDIR)/sex_ploidy_map.Po
 include ./$(DEPDIR)/tinyfast.Po
 include ./$(DEPDIR)/tsv_reader.Po
 include ./$(DEPDIR)/utils.Po
+include ./$(DEPDIR)/variant.Po
+include ./$(DEPDIR)/variant_manip.Po
 include ./$(DEPDIR)/vcfast.Po
+include ./$(DEPDIR)/vntr.Po
 
 .c.o:
-	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+	$(am__mv) $$depbase.Tpo $$depbase.Po
 #	$(AM_V_CC)source='$<' object='$@' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(COMPILE) -c -o $@ $<
 
 .c.obj:
-	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+	$(COMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+	$(am__mv) $$depbase.Tpo $$depbase.Po
 #	$(AM_V_CC)source='$<' object='$@' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .c.lo:
-	$(AM_V_CC)$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+	$(LTCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+	$(am__mv) $$depbase.Tpo $$depbase.Plo
 #	$(AM_V_CC)source='$<' object='$@' libtool=yes \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(LTCOMPILE) -c -o $@ $<
 
 .cpp.o:
-	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
+	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+	$(am__mv) $$depbase.Tpo $$depbase.Po
 #	$(AM_V_CXX)source='$<' object='$@' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(AM_V_CXX_no)$(CXXCOMPILE) -c -o $@ $<
 
 .cpp.obj:
-	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.obj$$||'`;\
+	$(CXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ `$(CYGPATH_W) '$<'` &&\
+	$(am__mv) $$depbase.Tpo $$depbase.Po
 #	$(AM_V_CXX)source='$<' object='$@' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(AM_V_CXX_no)$(CXXCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
 .cpp.lo:
-	$(AM_V_CXX)$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+	$(AM_V_CXX)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.lo$$||'`;\
+	$(LTCXXCOMPILE) -MT $@ -MD -MP -MF $$depbase.Tpo -c -o $@ $< &&\
+	$(am__mv) $$depbase.Tpo $$depbase.Plo
 #	$(AM_V_CXX)source='$<' object='$@' libtool=yes \
 #	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) \
 #	$(AM_V_CXX_no)$(LTCXXCOMPILE) -c -o $@ $<

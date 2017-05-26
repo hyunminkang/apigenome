@@ -33,6 +33,7 @@ dist_bin_SCRIPTS = \
 	vcf-issac-summary \
 	vcf-liftover \
 	vcf-lookup-rsid \
+	vcf-view-gt \
 	vcf-summary \
 	vcf-summary-merge \
 	vcf-summary-v2 \

@@ -3,9 +3,16 @@
 
 AC_PREREQ([2.63])
 AC_INIT([apigenome], [0.0.3], [hmkang@umich.edu])
-AM_INIT_AUTOMAKE(apigenome, 0.0.3)
+#AM_INIT_AUTOMAKE(apigenome, 0.0.3)
+
+#AC_ARG_ENABLE([libcurl])
+#AC_ARG_ENABLE([gcs])
+#AC_ARG_ENABLE([s3])
+
+AM_INIT_AUTOMAKE([subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 #AM_EXTRA_RECURSIVE_TARGETS([htslib])
+#AC_CONFIG_SUBDIRS([htslib])
 
 AC_CONFIG_MACRO_DIR([m4])
 AM_PROG_LIBTOOL

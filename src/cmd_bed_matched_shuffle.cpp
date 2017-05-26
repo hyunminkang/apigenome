@@ -32,13 +32,15 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   std::string inBed;
   std::string outBed;
   std::string maskBed;
+  std::string repeatBed;
   std::string refFasta;
+  std::string gcContentFile;  
   int32_t maxTries = 1000;
   int32_t verbose = 100000;
   int32_t seed = 0;
-  //int32_t gcWindow = 100;
-  //int32_t gcBins = 100;
-  //std::string gcFile;
+  int32_t binWidth = 150;
+  int32_t sliding = 10;
+  bool matchGC = false;
 
   paramList pl;
   BEGIN_LONG_PARAMS(longParameters)

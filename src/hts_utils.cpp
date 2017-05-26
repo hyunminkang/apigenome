@@ -1180,3 +1180,35 @@ char *samfaipath(const char *fn_ref)
     }
     return fn_list;
 };
+
+/*
+bam_hdr_t* bam_hdr_merge(std::vector<bam_hdr_t*> hdrs) {
+  bam_hdr_t* merged_hdr* merged_hdr =
+
+merged_header_t *merged_hdr;
+
+    merged_hdr = calloc(1, sizeof(*merged_hdr));
+    if (merged_hdr == NULL) return NULL;
+
+    merged_hdr->targets_sz   = 16;
+    merged_hdr->target_name = malloc(merged_hdr->targets_sz
+                                     * sizeof(*merged_hdr->target_name));
+    if (NULL == merged_hdr->target_name) goto fail;
+
+    merged_hdr->target_len = malloc(merged_hdr->targets_sz
+                                    * sizeof(*merged_hdr->target_len));
+    if (NULL == merged_hdr->target_len) goto fail;
+
+    merged_hdr->sq_tids = kh_init(c2i);
+    if (merged_hdr->sq_tids == NULL) goto fail;
+
+    merged_hdr->rg_ids = kh_init(cset);
+    if (merged_hdr->rg_ids == NULL) goto fail;
+
+    merged_hdr->pg_ids = kh_init(cset);
+    if (merged_hdr->pg_ids == NULL) goto fail;
+
+    return merged_hdr;
+    
+}
+*/

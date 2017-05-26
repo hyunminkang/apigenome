@@ -73,4 +73,6 @@ bool str2uint32(std::string& s, uint32_t& i);
  */
 bool append_cwd(std::string& path);
 
+unsigned int str_hash(const char* s, unsigned int seed = 0);
+
 #endif

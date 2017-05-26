@@ -140,11 +140,14 @@ char ReferenceSequence::fetch_base(std::string& chrom, int32_t pos1)
 void ReferenceSequence::fetch_seq(std::string& chrom, int32_t beg1, int32_t end1, std::string& seq)
 {
     char* temp_seq = fetch_seq(chrom.c_str(), beg1, end1);
-    if (temp_seq)
+    
+    if (temp_seq != NULL)
     {
-        seq.assign(temp_seq);
-        free(temp_seq);
+      seq.assign(temp_seq);
+      free(temp_seq);
     }
+
+    //fprintf(stderr,"fetch_seq(%s,%d,%d) = %s\n", chrom.c_str(),beg1,end1,seq.c_str());    
 };
 
 /**
@@ -178,6 +181,8 @@ char* ReferenceSequence::fetch_seq(const char* chrom, int32_t beg1, int32_t end1
         fprintf(stderr, "[E:%s:%d %s] fatal error in extracting %s:%d-%d  reference sequence file: %s\n", __FILE__, __LINE__, __FUNCTION__, chrom, beg1, end1, ref_fasta_file.c_str());
         exit(1);
     }
+
+    //fprintf(stderr,"fetch_seq(%s,%d,%d) = %s\n", chrom,beg1,end1,seq);
 
     return seq;
 };

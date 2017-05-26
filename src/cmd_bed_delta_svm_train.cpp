@@ -179,6 +179,8 @@ int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv) {
   }
   hts_close(hp);
 
+  notice("Finished loading %u positive or negative labels", isPos.size());
+
   struct svm_problem prob;
   prob.l = (int32_t)isPos.size();
   prob.y = new double[prob.l];
@@ -187,9 +189,19 @@ int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv) {
   std::string seq;
 
   for(int32_t i=0; i < prob.l; ++i) {
+    if ( i % 10000 == 0 ) notice("Fetching %d sequences.. %s:%d-%d", i, rnames[i].c_str(), beg0s[i]+1, end1s[i]);
+    if ( end1s[i] - beg0s[i] > MAX_SEQ_LENGTH ) {
+      notice("%d-th label %s:%d-%d is too long (%d>%d bp). Using only %d bp in the the center", i+1, rnames[i].c_str(), beg0s[i]+1, end1s[i], end1s[i]-beg0s[i], MAX_SEQ_LENGTH, MAX_SEQ_LENGTH);
+      int32_t mid = (end1s[i] + beg0s[i]) / 2;
+      end1s[i] = mid + MAX_SEQ_LENGTH/2;
+      beg0s[i] = mid + MAX_SEQ_LENGTH/2;
+    }
+    
     ref.fetch_seq(rnames[i], beg0s[i]+1, end1s[i], seq);
+    //notice("i = %d seq = %s", i, seq.c_str());    
     prob.y[i] = isPos[i] ? 1 : -1;
     prob.x[i].d = gkmkernel_new_object(seq.c_str(), NULL, i);
+    //notice("kernel created");    
   }
 
   const char* errorMsg = svm_check_parameter(&prob, &param);
@@ -198,7 +210,9 @@ int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv) {
     exit(1);
   }
 
-  if ( nCrossVal > 0 ) {
+  notice("Starting training...");  
+ 
+ if ( nCrossVal > 0 ) {
     srand(seed);
     double* target = new double[prob.l];
     svm_cross_validation(&prob, &param, nCrossVal, idxCrossVal, target, predFile.c_str());

@@ -2,10 +2,10 @@
 #include "bcf_filtered_reader.h"
 #include "bcf_ordered_writer.h"
 #include "frequency_estimator.h"
+#include "Eigen/Dense"
 #include <map>
 #include <string>
 #include <ctime>
-#include "Eigen/Dense"
 
 //typedef std::map<std::string,double*>::iterator itU_t;
 
@@ -90,6 +90,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   std::vector<int32_t> isamples;
   if ( ( !smID.empty() ) && ( !smList.empty() ) )
     error("[E:%s:%d %s] --sm and --sm-list cannot be used together",__FILE__,__LINE__,__PRETTY_FUNCTION__);
+  
   if ( !smID.empty() )
     bfr.add_specified_sample(smID.c_str());
   else if ( !smList.empty() ) {
@@ -106,7 +107,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   //notice("Finished initizliaing BCF");        
 
   int32_t ns = bfr.get_nsamples();
-  Eigen::MatrixXd eV = Eigen::MatrixXd::Zero(ns, numPC);
+  Eigen::MatrixXd eV = Eigen::MatrixXd::Constant(ns, numPC+1, 1.0);
   std::map<std::string, double*>::iterator it;  
   for(int32_t i=0; i < ns; ++i) {
     std::string sm = bfr.get_sample_id_at(i);
@@ -114,7 +115,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
     if ( it == sm2evecs.end() )
       error("[E:%s:%d %s] Cannot find sample ID %s", __FILE__, __LINE__, __PRETTY_FUNCTION__, sm.c_str());
     for(int32_t j=0; j < numPC; ++j)
-      eV(i,j) = it->second[j];
+      eV(i,j+1) = it->second[j];
   }
 
   //std::vector< std::vector<double> > probs; // nsample * (3 * nvar) matrix
@@ -145,7 +146,8 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
     freqest.set_variant(nv, bfr.ploidies);
 
     //freqest.estimate_isaf_simplex();
-    freqest.estimate_isaf_em();    
+    freqest.estimate_isaf_em();
+    freqest.score_test_hwe(true);    
     freqest.update_variant();
     odw.write(nv);
     bcf_destroy(nv);
@@ -177,4 +179,3 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
 
   return 0;
 }
-
