@@ -93,8 +93,10 @@ JointGenotypeBlockReader::JointGenotypeBlockReader(std::string filename, std::ve
     if ( blockStarts.back() > blockEnds.back() ) {
       //error("foo");
       --bidx;
-      blockStarts.resize(bidx);
-      blockEnds.resize(bidx);
+      if ( bidx >= 0 ) {
+        blockStarts.resize(bidx);
+        blockEnds.resize(bidx);
+      }
     }
     //error("%d", bidx);
 
