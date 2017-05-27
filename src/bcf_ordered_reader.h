@@ -77,8 +77,8 @@ class BCFOrderedReader
     hts_idx_t *idx;
     tbx_t *tbx;
     hts_itr_t *itr;
-    bcf1_t *v;
-    bcf1_t *buffer_v;
+    //bcf1_t *v;
+    //bcf1_t *buffer_v;
 
     //for control
     htsFormat ftype;
@@ -104,6 +104,12 @@ class BCFOrderedReader
      * @intervals          list of intervals, if empty, all records are selected.
      */
     BCFOrderedReader(std::string input_vcf_file_name, std::vector<GenomeInterval>& intervals);
+    ~BCFOrderedReader() {
+      if ( hdr ) bcf_hdr_destroy(hdr);
+      if ( idx ) hts_idx_destroy(idx);
+      if ( tbx ) tbx_destroy ( tbx );
+      if ( itr ) hts_itr_destroy ( itr );
+    }
 
     /**
      * Jump to interval. Returns false if not successful.

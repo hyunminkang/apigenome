@@ -86,6 +86,12 @@ class BAMOrderedReader
      * @ref_fasta_file   reference FASTA file for CRAM
      */
     BAMOrderedReader(std::string file_name, std::vector<GenomeInterval>& intervals, std::string ref_fasta_file="");
+    ~BAMOrderedReader() {
+      if ( hdr ) bam_hdr_destroy(hdr);
+      if ( itr ) bam_itr_destroy(itr);
+      if ( idx ) hts_idx_destroy(idx);
+      if ( s ) bam_destroy1(s);
+    }
     
     /**
      * Jump to interval. Returns false if not successful.
