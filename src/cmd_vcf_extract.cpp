@@ -135,6 +135,9 @@ int32_t cmdVcfExtract(int32_t argc, char** argv) {
   }
   else {
     std::vector<GenomeInterval> intervals;
+    if ( !bfr.target_region.empty() ) {
+      intervals.push_back( GenomeInterval(bfr.target_region) );
+    }
     BCFOrderedReader odrS(siteVcf, intervals);
     bcf1_t* iv = bcf_init();
 
