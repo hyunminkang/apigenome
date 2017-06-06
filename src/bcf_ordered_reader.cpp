@@ -57,7 +57,7 @@ BCFOrderedReader::BCFOrderedReader(std::string file_name, std::vector<GenomeInte
 
     intervals_present =  intervals.size()!=0;
 
-    if ( ( file_name.compare("-") == 0 ) || ( file_name.compare("/dev/stdin") ) ) {
+    if ( ( file_name.compare("-") == 0 ) || ( file_name.compare("/dev/stdin") == 0 ) ) {
       // don't even try anything
       if ( intervals_present ) {
 	fprintf(stderr, "[E:%s] index cannot be loaded for %s for random access\n", __FUNCTION__, file_name.c_str());
