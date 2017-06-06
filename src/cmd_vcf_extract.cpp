@@ -2,6 +2,7 @@
 #include "bcf_filter_arg.h"
 #include "bcf_variant_key.h"
 #include "bcf_filtered_reader.h"
+#include "bcf_ordered_reader.h"
 #include "bcf_ordered_writer.h"
 #include "tsv_reader.h"
 
@@ -133,21 +134,23 @@ int32_t cmdVcfExtract(int32_t argc, char** argv) {
     notice("Finished reading rs-sorted dbSNP file %s and found %u of %u", siteVcf.c_str(), variantList.size(), rsIDs.size());
   }
   else {
-    BCFFilteredReader bfrS;
-    bfrS.bcf_file_name = siteVcf;
+    std::vector<GenomeInterval> intervals;
+    BCFOrderedReader odrS(siteVcf, intervals);
+    bcf1_t* iv = bcf_init();
 
-    for(int32_t i=0;bfrS.read(); ++i ) {
+    for(int32_t i=0; odrS.read(iv) ; ++i ) {
       if ( i % verbose == 0 )
 	notice("Reading %d variants..", i+1);
 
-      if ( bfrS.passed_vfilter() ) {
-	bcf1_t* iv = bfrS.cursor();
-	if ( rsIDs.empty() || ( rsIDs.find(atoi(iv->d.id+2)) != rsIDs.end() ) ) {
-	  variantList.push_back(variantKeyS(bfrS.cdr.hdr, iv) );
-	  variants.insert(variantList.back());
-	}
+      //if ( bfrS.passed_vfilter() ) {
+      //bcf1_t* iv = bfrS.cursor();
+      if ( rsIDs.empty() || ( rsIDs.find(atoi(iv->d.id)) != rsIDs.end() ) ) {
+	variantList.push_back(variantKeyS(odrS.hdr, iv) );
+	variants.insert(variantList.back());
       }
+	//}
     }
+    bcf_destroy(iv);
     //bfrS.close();
     notice("Finished loading %u variants to extract", variants.size());    
   }
