@@ -57,6 +57,13 @@ BCFOrderedReader::BCFOrderedReader(std::string file_name, std::vector<GenomeInte
 
     intervals_present =  intervals.size()!=0;
 
+    if ( ( file_name.compare("-") == 0 ) || ( file_name.compare("/dev/stdin") ) ) {
+      // don't even try anything
+      if ( intervals_present ) {
+	fprintf(stderr, "[E:%s] index cannot be loaded for %s for random access\n", __FUNCTION__, file_name.c_str());
+	exit(1);
+      }      
+    }
     if (ftype.format==bcf)
     {   
         if ((idx = bcf_index_load(file_name.c_str())))
@@ -262,9 +269,9 @@ bcf1_t* BCFOrderedReader::get_bcf1_from_pool()
 {
     if(!pool.empty())
     {
-        bcf1_t* v = pool.front();
+        bcf1_t* iv = pool.front();
         pool.pop_front();
-        return v;
+        return iv;
     }
     else
     {
