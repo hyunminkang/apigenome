@@ -64,7 +64,7 @@ BCFOrderedReader::BCFOrderedReader(std::string file_name, std::vector<GenomeInte
 	exit(1);
       }      
     }
-    if (ftype.format==bcf)
+    else if (ftype.format==bcf)
     {   
         if ((idx = bcf_index_load(file_name.c_str())))
         {
