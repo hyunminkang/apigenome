@@ -14,7 +14,7 @@ fastaMask::fastaMask(const char* fastaFile) {
     seqnames[i] = faidx_iseq(i);
     seqlens[i] = faidx_seq_len(fai, faidx_iseq(i));
     seqs[i] = (char*)malloc(sizeof(char)*seqlens[i]);
-    seq2tid[seqnames[o]] = i;
+    seq2tid[seqnames[i]] = i;
   }
 
   kstring_t line = {0, 0, NULL};

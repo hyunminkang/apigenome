@@ -1,6 +1,6 @@
 #include "cramore.h"
 
-/* cmd_vcf_delta_svm.cpp
+/* cmd_bed_matched_shuffle.cpp
  *
  * Copyright (C) 2016 Hyun Min Kang
  *
@@ -31,27 +31,25 @@
 int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   std::string inBed;
   std::string outBed;
-  std::string maskBed;
+  std::string gcFile;
   std::string repeatBed;
-  std::string refFasta;
-  std::string gcContentFile;  
+  int32_t gcBin = 1;
+  double repeatFracBin = 0.01;
   int32_t maxTries = 1000;
   int32_t verbose = 100000;
   int32_t seed = 0;
-  int32_t binWidth = 150;
-  int32_t sliding = 10;
-  bool matchGC = false;
 
   paramList pl;
   BEGIN_LONG_PARAMS(longParameters)
     LONG_PARAM_GROUP("Required parameters", NULL)
     LONG_STRING_PARAM("bed",&inBed,"Input BED file representing the positive labels")
     LONG_STRING_PARAM("out",&outBed,"Output BED file name")
-    LONG_STRING_PARAM("ref",&refFasta,"FASTA format reference genome")
+    LONG_STRING_PARAM("gc",&gcFile,"GC content find generated from cramore fasta_gc_content")
+    LONG_STRING_PARAM("rmask",&repeatBed,"Repeat mask BED file")    
 
-    LONG_PARAM_GROUP("Mask parameters", NULL)    
-    LONG_STRING_PARAM("mask",&maskBed,"BED file used for masking genomic regions")
-    LONG_INT_PARAM("max-tries",&maxTries,"Maximum number of repeated shuffling attempts per locus")
+    LONG_PARAM_GROUP("Options parameters", NULL)    
+    LONG_INT_PARAM("bin-gc",&gcBin,"Unit of binning GC content values")
+    LONG_DOUBLE_PARAM("bin-frac",&repeatFracBin,"Unit of binning repeat mask fraction")
     LONG_INT_PARAM("verbose",&verbose,"Frequency of verbose output")
     LONG_INT_PARAM("seed",&seed,"Seed for random number generator")      
   END_LONG_PARAMS();
@@ -61,9 +59,11 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   pl.Status();
 
   // sanity check of input arguments
-  if ( inBed.empty() || outBed.empty() || refFasta.empty() )
+  if ( inBed.empty() || outBed.empty() || gcFile.empty() || repeatBed.empty() )
     error("[E:%s:%d %s] --pos --neg, --out, --ref are required parameters",__FILE__,__LINE__,__FUNCTION__);
 
+  /*
+  
   // read reference sequences
   ReferenceSequence ref(refFasta);
   genomeLoci maskLoci;
@@ -159,6 +159,7 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   hts_close(wp);
 
   notice("Processes %u lines to shffule. Average sampling attempt per locus is %lf", outLoci.loci.size(), sumTries/(double)outLoci.loci.size());
+  */
 
   return 0;
 }

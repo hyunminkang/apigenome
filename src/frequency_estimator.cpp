@@ -79,9 +79,23 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _
   // parse PL fields
   bcf_unpack(iv, BCF_UN_ALL);
     
-  if ( _pl != NULL ) { pls = _pl; n_pls = nsamples; }
+  if ( _pl != NULL ) { pls = _pl; n_pls = 3*nsamples; }
   else if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
-    error("[E:%s:%d %s] Cannot parse PL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    float gls[nsamples+1];
+    if ( bcf_get_format_float(hdr, iv, "GL", &gls, &n_pls) < 0 ) {
+      error("[E:%s:%d %s] Cannot parse PL or GL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    else {
+      if ( pls == NULL ) pls = new int32_t[n_pls];      
+      for(int32_t i=0; i < nsamples; ++i) {
+	float maxgl = gls[3*i];
+	if ( gls[3*i+1] > maxgl ) maxgl = gls[3*i+1];
+	if ( gls[3*i+2] > maxgl ) maxgl = gls[3*i+2];
+	pls[3*i] = (int32_t)floor(-10*(gls[3*i]-maxgl)+0.5);
+	pls[3*i+1] = (int32_t)floor(-10*(gls[3*i+1]-maxgl)+0.5);
+	pls[3*i+2] = (int32_t)floor(-10*(gls[3*i+2]-maxgl)+0.5);	
+      }
+    }
   }
 
   pooled_af = -1;

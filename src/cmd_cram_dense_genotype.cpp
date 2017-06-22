@@ -86,7 +86,7 @@ static bool filter_read(bam_hdr_t* h, bam1_t *s, filter_read_params_t* param) {
       }
       else {
 	//check overlap
-	if((k = kh_get(rdict, param->reads, bam_get_qname(s)))!=kh_end(param->reads)) {
+	if((k = kh_get(rdict, param->reads, bam_get_qname(s))) != kh_end(param->reads)) {
 	  if (kh_exist(param->reads, k)) {
 	    free((char*)kh_key(param->reads, k));
 	    kh_del(rdict, param->reads, k);

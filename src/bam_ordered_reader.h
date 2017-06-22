@@ -91,6 +91,8 @@ class BAMOrderedReader
       if ( itr ) bam_itr_destroy(itr);
       if ( idx ) hts_idx_destroy(idx);
       if ( s ) bam_destroy1(s);
+      if ( str.s ) free(str.s);
+      //fprintf(stderr,"-- BAMOrderedReader object was deleted\n");
     }
     
     /**

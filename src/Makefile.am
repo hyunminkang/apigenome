@@ -23,7 +23,6 @@ noinst_HEADERS = hDist.h \
 	Error.h \
 	ksort.h pFile.h \
 	genomeLoci.h genomePosition.h IO.h kstring.h \
-	bgzf.h \
 	codonHelper.h fVcf.h \
 	genomeScore.h khash.h params.h \
 	boolExprParser.h \
@@ -34,9 +33,10 @@ noinst_HEADERS = hDist.h \
 	$(EIGEN_HEADER_FILES)
 
 #bin_PROGRAMS = vcfast bgzip tabix tinyfast
-bin_PROGRAMS = vcfast tinyfast bcfast cramore
+#bin_PROGRAMS = vcfast tinyfast bcfast cramore
+bin_PROGRAMS = cramore
 
-noinst_LIBRARIES = libtabix.a
+#noinst_LIBRARIES = libtabix.a
 
 ## vcfast files
 cramore_SOURCES = cramore.cpp \
@@ -67,24 +67,27 @@ cramore_SOURCES = cramore.cpp \
 	sam_ordered_writer.cpp \
 	cmd_cram_simuxlet.cpp  \
 	cmd_cram_mux_pileup.cpp \
-	cmd_cram_dense_genotype.cpp joint_genotype_block_reader.cpp joint_genotype_block_record.cpp variant.cpp variant_manip.cpp augmented_bam_record.cpp sex_ploidy_map.cpp allele.cpp vntr.cpp
+	cmd_cram_dense_genotype.cpp joint_genotype_block_reader.cpp joint_genotype_block_record.cpp variant.cpp variant_manip.cpp augmented_bam_record.cpp sex_ploidy_map.cpp allele.cpp vntr.cpp \
+	cmd_fasta_gc_content.cpp fastaGC.cpp \
+	cmd_vcf_normalize_depth.cpp \
+	cmd_bgen_to_vcf.cpp
 
 cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
 #cramore_LDFLAGS = -fopenmp
 
 ## vcfast files
-bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
-bcfast_LDADD = ../../htslib/libhts.a  -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
+#bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp
+#bcfast_LDADD = ../../htslib/libhts.a  -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
 
 ## vcfast files
-vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
-vcfast_LDADD = libtabix.a
+#vcfast_SOURCES = vcfast.cpp Error.cpp PhredHelper.cpp params.cpp codonHelper.cpp genomePosition.cpp IO.cpp
+#vcfast_LDADD = libtabix.a
 
-tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
-tinyfast_LDADD = libtabix.a
+#tinyfast_SOURCES = tinyfast.cpp Error.cpp params.cpp
+#tinyfast_LDADD = libtabix.a
 
 #bgzip_SOURCES = bgzip.c bedidx.c bgzf.c knetfile.c kstring.c
 
 #tabix_SOURCES = tabix.c bedidx.c bgzf.c knetfile.c kstring.c index.c
 
-libtabix_a_SOURCES = bedidx.c bgzf.c knetfile.c kstring.c index.c
+#libtabix_a_SOURCES = bedidx.c bgzf.c knetfile.c kstring.c index.c

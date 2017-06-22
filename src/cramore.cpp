@@ -55,7 +55,10 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv);
 int32_t cmdBedShuffle(int32_t argc, char** argv);
 
 int32_t cmdCramProcapDetect(int32_t argc, char** argv);
+int32_t cmdFastaGCContent(int32_t argc, char** argv);
+int32_t cmdVcfNormalizeDepth(int32_t argc, char** argv);
 
+int32_t cmdBgenToVcf(int32_t argc, char** argv);
 
 /*
 typedef struct {
@@ -287,6 +290,15 @@ int32_t main(int32_t argc, char** argv) {
     else if ( cmd == "bwa-pipe" ) {
       //return runBwaPipe(argc-1, argv+1);
     }
+    else if ( cmd == "fasta-gc-content" ) {
+      return cmdFastaGCContent(argc-1, argv+1);            
+    }
+    else if ( cmd == "vcf-normalize-depth" ) {
+      return cmdVcfNormalizeDepth(argc-1, argv+1);            
+    }
+    else if ( cmd == "bgen2vcf" ) {
+      return cmdBgenToVcf(argc-1, argv+1);            
+    }        
     else {
       error("Unrecognized command %s\n",argv[1]);
     }

@@ -1,7 +1,11 @@
 #include "cramore.h"
+#include "tsv_reader.h"
 
 int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   std::string inMatrix;
+  std::string mtxf;
+  std::string bcdf;
+  std::string genef;    
   std::string outPrefix;
   double alpha = 1.0;       // pseudo-count per cell
   double thresDiff = 1e-10; // threshold to stop EM iteration
@@ -11,17 +15,22 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   int32_t seed = 0;         // random seed
   int32_t nCollapseGenes = 0; // collapse genes into a specific number
   double fracSubsample = 1;   // fraction of samples to thin the data
+  int32_t geneThres = 1;
 
   paramList pl;
 
   BEGIN_LONG_PARAMS(longParameters)
     LONG_PARAM_GROUP("Required Options", NULL)
     LONG_STRING_PARAM("in",&inMatrix, "Input matrix int the format of R-compatible text matrix (can be gzipped)")
+    LONG_STRING_PARAM("mtx",&mtxf, "Spare matrix representation (in .mtx format)")
+    LONG_STRING_PARAM("bcd",&bcdf, "Barcode file used with --mtx option (in .tsv format)")
+    LONG_STRING_PARAM("gene",&genef, "Barcode file used with --mtx option (in .tsv format)")            
     LONG_STRING_PARAM("out",&outPrefix, "Output file prefix")
     LONG_INT_PARAM("k",&nClust, "Number of clusters")
 
     LONG_PARAM_GROUP("Additional Options", NULL)
-    LONG_DOUBLE_PARAM("alpha",&alpha, "Pseudo-count per cell")    
+    LONG_INT_PARAM("gene-thres",&geneThres,"Threshold for per gene count")
+    LONG_DOUBLE_PARAM("alpha",&alpha, "Pseudo-count per cell")
     LONG_DOUBLE_PARAM("thres",&thresDiff, "Threshold of LLK difference to terminate the EM iteration")
     LONG_INT_PARAM("restarts",&nRestarts, "Number of restarts to pick the best model")
     LONG_INT_PARAM("max-iter",&maxIter, "Number of maximum E-M iterations")
@@ -42,97 +51,185 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     error("[E:%s:%d %s] --out is a required parameter",__FILE__,__LINE__,__FUNCTION__);
   }
 
-  if ( inMatrix.empty() ) {
-    error("[E:%s:%d %s] --in is a required parameter",__FILE__,__LINE__,__FUNCTION__);
+  if ( inMatrix.empty() && ( mtxf.empty() || bcdf.empty() || genef.empty() ) ) {
+    error("[E:%s:%d %s] --in or --mtx/--bcd/--gene is a required parameter",__FILE__,__LINE__,__FUNCTION__);
   }
 
   htsFile* wf = hts_open((outPrefix+".pis").c_str(),"w");
-  if ( wf == NULL )
-    error("[E:%s:%d %s] Cannot open file %s for writing",__FILE__,__LINE__,__FUNCTION__, (outPrefix+".pis").c_str());
-
-  htsFile* hp = hts_open(inMatrix.c_str(), "r");
-  if ( hp == NULL )
-    error("[E:%s:%d %s] Cannot open file %s for reading",__FILE__,__LINE__,__FUNCTION__,inMatrix.c_str());
-
-  kstring_t str = {0,0,0};  
-  int32_t lstr = 0;
-
-  // read and parse header columns
-  lstr = hts_getline(hp, KS_SEP_LINE, &str);
-  if ( lstr < 0 )
-    error("[E:%s:%d %s] Cannot find header line from %s",__FILE__,__LINE__,__FUNCTION__,inMatrix.c_str());
-
-  
-  int32_t nfields = 0;
-  int32_t* fields = NULL;  
-  fields = ksplit(&str, 0, &nfields);
-
-  std::vector<std::string> hdrs;
-  for(int32_t i=0; i < nfields; ++i) {
-    hdrs.push_back(std::string(&str.s[fields[i]]));
-  }
-
-  std::vector<int32_t*> R;
-  std::vector<std::string> genes;
-  std::vector<int64_t> rowSums;
-  int64_t* colSums = NULL;
-
-  notice("%d columns found in the header",(int32_t)hdrs.size());
 
   // read and parse the matrix elements
   int64_t nZero = 0;
   int64_t nSum = 0;
   int32_t nEmptyRows = 0;
-  while( ( lstr = hts_getline(hp, KS_SEP_LINE, &str) ) >= 0 ) {
+  
+  std::vector<std::string> hdrs;
+  std::vector<std::string> genes;
+  std::vector<int32_t*> R;
+  std::vector<int64_t> rowSums;
+  int64_t* colSums = NULL;  
+  
+  if ( wf == NULL )
+    error("[E:%s:%d %s] Cannot open file %s for writing",__FILE__,__LINE__,__FUNCTION__, (outPrefix+".pis").c_str());
+
+  if ( !inMatrix.empty() ) {
+    htsFile* hp = hts_open(inMatrix.c_str(), "r");
+    if ( hp == NULL )
+      error("[E:%s:%d %s] Cannot open file %s for reading",__FILE__,__LINE__,__FUNCTION__,inMatrix.c_str());
+    
+    kstring_t str = {0,0,0};  
+    int32_t lstr = 0;
+    
+    // read and parse header columns
+    lstr = hts_getline(hp, KS_SEP_LINE, &str);
+    if ( lstr < 0 )
+      error("[E:%s:%d %s] Cannot find header line from %s",__FILE__,__LINE__,__FUNCTION__,inMatrix.c_str());
+    
+    int32_t nfields = 0;
+    int32_t* fields = NULL;  
     fields = ksplit(&str, 0, &nfields);
 
-    if ( R.empty() ) {
-      notice("%d columns found in the second line",nfields);      
-      if ( nfields == (int32_t)hdrs.size() ) { // remove one from the header
-	hdrs.erase(hdrs.begin());
-	notice("Ignoring the first column in the header");	
-      }
-      colSums = (int64_t*)calloc((int32_t)hdrs.size(),sizeof(int64_t));
-    }
-    else {
-      if ( ( nfields != (int32_t)hdrs.size() + 1 ) && ( nfields != (int32_t)hdrs.size() + 0 ) )
-	error("[E:%s:%d %s] Inconsistent number of headers. Expected %d but observed %d",__FILE__,__LINE__,__FUNCTION__,(int32_t)hdrs.size()+1, nfields);
-    }
-
-    int32_t* cnts = (int32_t*)malloc(sizeof(int32_t)*(nfields-1));
-    int64_t rowSum = 0;
-    for(int32_t i=1; i < nfields; ++i) {
-      cnts[i-1] = atoi(&str.s[fields[i]]);
-
-      if ( fracSubsample < 1 ) {
-	int32_t tot = cnts[i-1];
-	int32_t sampled = 0;
-	for(int32_t j=0; j < tot; ++j) {
-	  if ( (rand()+0.5) / (RAND_MAX+1.) < fracSubsample )
-	    ++sampled;
-	}
-	cnts[i-1] = sampled;
-      }
-      
-      if ( cnts[i-1] == 0 ) ++nZero;
-      else {
-	rowSum += cnts[i-1];
-	colSums[i-1] += cnts[i-1];
-      }
+    for(int32_t i=0; i < nfields; ++i) {
+      hdrs.push_back(std::string(&str.s[fields[i]]));
     }
     
-    if ( rowSum == 0 ) {
-      free(cnts);
-      ++nEmptyRows;
+    notice("%d columns found in the header",(int32_t)hdrs.size());
+    
+    while( ( lstr = hts_getline(hp, KS_SEP_LINE, &str) ) >= 0 ) {
+      fields = ksplit(&str, 0, &nfields);
+      
+      if ( R.empty() ) {
+	notice("%d columns found in the second line",nfields);      
+	if ( nfields == (int32_t)hdrs.size() ) { // remove one from the header
+	  hdrs.erase(hdrs.begin());
+	  notice("Ignoring the first column in the header");	
+	}
+	colSums = (int64_t*)calloc((int32_t)hdrs.size(),sizeof(int64_t));
+      }
+      else {
+	if ( ( nfields != (int32_t)hdrs.size() + 1 ) && ( nfields != (int32_t)hdrs.size() + 0 ) )
+	  error("[E:%s:%d %s] Inconsistent number of headers. Expected %d but observed %d",__FILE__,__LINE__,__FUNCTION__,(int32_t)hdrs.size()+1, nfields);
+      }
+      
+      int32_t* cnts = (int32_t*)malloc(sizeof(int32_t)*(nfields-1));
+      int64_t rowSum = 0;
+      for(int32_t i=1; i < nfields; ++i) {
+	cnts[i-1] = atoi(&str.s[fields[i]]);
+	
+	if ( fracSubsample < 1 ) {
+	  int32_t tot = cnts[i-1];
+	  int32_t sampled = 0;
+	  for(int32_t j=0; j < tot; ++j) {
+	    if ( (rand()+0.5) / (RAND_MAX+1.) < fracSubsample )
+	      ++sampled;
+	  }
+	  cnts[i-1] = sampled;
+	}
+	
+	if ( cnts[i-1] == 0 ) ++nZero;
+	else {
+	  rowSum += cnts[i-1];
+	  colSums[i-1] += cnts[i-1];
+	}
+      }
+      
+      if ( rowSum < geneThres ) {
+	if ( geneThres > 1 ) {
+	  for(int32_t i=1; i < nfields; ++i) {
+	    if ( cnts[i-1] == 0 ) --nZero;
+	    colSums[i-1] -= cnts[i-1];
+	  }
+	}
+	
+	free(cnts);
+	++nEmptyRows;
+      }
+      else {
+	genes.push_back(std::string(&str.s[fields[0]]));      
+	R.push_back(cnts);
+	rowSums.push_back(rowSum);
+	nSum += rowSum;
+      }
     }
-    else {
-      genes.push_back(std::string(&str.s[fields[0]]));      
-      R.push_back(cnts);
-      rowSums.push_back(rowSum);
-      nSum += rowSum;
-    }
+    hts_close(hp);
   }
-  hts_close(hp);
+  else {
+    tsv_reader tr(bcdf.c_str());
+    while(tr.read_line() > 0) {
+      if ( tr.nfields > 0 )
+	hdrs.push_back(tr.str_field_at(0));
+    }
+
+    tsv_reader tr2(genef.c_str());
+    while(tr2.read_line() > 0) {
+      if ( tr2.nfields > 0 )      
+	genes.push_back(std::string(tr2.str_field_at(0)) + "_" + tr2.str_field_at(1) );
+    }
+
+    rowSums.resize(genes.size(),0);
+    colSums = (int64_t*)calloc((int32_t)hdrs.size(),sizeof(int64_t));
+    nSum = 0;
+    nZero = (int64_t)genes.size() * (int64_t)hdrs.size();
+    for(int32_t i=0; i < (int32_t)genes.size(); ++i) {
+      R.push_back( (int32_t*) calloc(sizeof(int32_t), (int32_t)hdrs.size()) );
+    }
+
+    tsv_reader tr3(mtxf.c_str());
+    tr3.read_line();
+    tr3.read_line();
+    tr3.read_line();
+    if ( (int32_t)hdrs.size() != tr3.int_field_at(1) ) {
+      error("Number of barcodes mismatch");
+    }
+    while(tr3.read_line() > 0) {
+      if ( tr3.nfields > 0 )  {
+	int32_t igene = tr3.int_field_at(0);
+	int32_t ibcd =  tr3.int_field_at(1);
+	int32_t cnt =  tr3.int_field_at(2);
+	--nZero;
+	//nSum += cnt;
+	R[igene-1][ibcd-1] += cnt;
+	rowSums[igene-1] += cnt;
+	colSums[ibcd-1] += cnt;
+      }
+    }
+
+    nEmptyRows = 0;
+    /*
+    for(int32_t i=0; i < (int32_t)genes.size(); ++i) {
+      if ( rowSums[i] == 0 )
+	++nEmptyRows;
+	}*/
+
+    //std::vector<std::string> genes;
+    //std::vector<int32_t*> R;
+    //std::vector<int64_t> rowSums;
+    for(int32_t i=0; i < (int32_t)genes.size(); ++i) {
+      if ( rowSums[i] < geneThres ) {
+	++nEmptyRows;
+	if ( geneThres > 1 ) {
+	  for(int32_t j=0; j < (int32_t)hdrs.size(); ++j) {
+	    if ( R[i] > 0 ) {
+	      ++nZero;
+	      colSums[j] -= R[i][j];
+	    }
+	  }
+	}
+	free(R[i]);
+	continue;
+      }
+      else if ( nEmptyRows > 0 ) {
+	genes[i-nEmptyRows] = genes[i];
+	R[i-nEmptyRows] = R[i];
+	rowSums[i-nEmptyRows] = rowSums[i];
+      }
+      nSum += rowSums[i-nEmptyRows];
+    }
+    genes.resize(genes.size()-nEmptyRows);
+    R.resize(genes.size());
+    rowSums.resize(genes.size());
+    
+    notice("nEmptyRows = %d", nEmptyRows);
+  }
 
 
   int32_t nRow = (int32_t)genes.size();
@@ -252,7 +349,7 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     //  notice("k=%d\tpi=%lg",k,exp(pis[k]));
     //}
 
-    //notice("bar");    
+    //notice("iter = %d", iter);    
     
     // M-step for P (without normalization)
     for(int32_t g=0; g < nRow; ++g) {
