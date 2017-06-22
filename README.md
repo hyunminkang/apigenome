@@ -1,5 +1,8 @@
 # APIGenome - Big data genomics analysis libraries & tools
 
+### NOTE TO USERS OF demuxlet
+If you are interested in installing **_demuxlet_** software tool, please visit the standalone release http://github.com/statgen/demuxlet . This repository can be under construction often, so may not build smoothly. 
+
 ### Introduction
 
 **_APIGenome_** consists of a collection of perl/C++ libraries and command-line utilities for big data genomics analysis. This repository started as a personal repository of small genomic analysis tools developed by [Hyun Min Kang](https://sph.umich.edu/faculty-profiles/kang-hyunmin.html), but some of the utilities developed in this repository may be exposed more widely.
