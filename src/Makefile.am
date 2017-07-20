@@ -8,7 +8,7 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 ## Paths to include
 #TABIX_VER = 0.2.5
 #TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-but-set-variable -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 -I../../htslib #-I../include/ #-I$(TABIX)/
+AM_CPPFLAGS = -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 -I../../htslib #-I../include/ #-I$(TABIX)/
 #AM_CPPFLAGS = -fopenmp -I ${top_builddir}/../htslib/ -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 -L ${top_builddir}/../htslib #-I../include/ #-I$(TABIX)/
 #AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -g #-O2 #-I../include/ #-I$(TABIX)/
 

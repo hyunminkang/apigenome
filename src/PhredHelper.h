@@ -37,13 +37,13 @@ public:
   uint8_t mat2Phred(double mat);
   uint8_t mat32Phred(double mat3);
   
-  inline double toProb(uint32_t phred) { return phred > 255 ? phred2Prob[255] : ( phred < 0 ? 1.0 : phred2Prob[phred]); }
-  inline double toErr(uint32_t phred) { return phred > 255 ? phred2Err[255] : (phred < 0 ? 1.0 : phred2Err[phred]); }
-  inline double toMat(uint32_t phred) { return phred > 255 ? phred2Mat[255] : (phred < 0 ? 0.0 : phred2Mat[phred]); }
-  inline double toMat3(uint32_t phred) { return phred > 255 ? phred2Mat3[255] : (phred < 0 ? 0.0 : phred2Mat3[phred]); }
-  inline double toLogMat(uint32_t phred) { return phred > 255 ? phred2LogMat[255] : (phred < 0 ? phred2LogMat[0] : phred2LogMat[phred]); }
-  inline double toLogMat3(uint32_t phred) { return phred > 255 ? phred2LogMat3[255] : (phred < 0 ? phred2LogMat3[0] : phred2LogMat3[phred]); }
-  inline double toHalfLogMat3(uint32_t phred) { return phred > 255 ? phred2HalfLogMat3[255] : (phred < 0 ? phred2HalfLogMat3[0] : phred2HalfLogMat3[phred]); }
+  inline double toProb(uint32_t phred) { return phred > 255 ? phred2Prob[255] : phred2Prob[phred]; }
+  inline double toErr(uint32_t phred) { return phred > 255 ? phred2Err[255] : phred2Err[phred]; }
+  inline double toMat(uint32_t phred) { return phred > 255 ? phred2Mat[255] : phred2Mat[phred]; }
+  inline double toMat3(uint32_t phred) { return phred > 255 ? phred2Mat3[255] : phred2Mat3[phred]; }
+  inline double toLogMat(uint32_t phred) { return phred > 255 ? phred2LogMat[255] : phred2LogMat[phred]; }
+  inline double toLogMat3(uint32_t phred) { return phred > 255 ? phred2LogMat3[255] : phred2LogMat3[phred]; }
+  inline double toHalfLogMat3(uint32_t phred) { return phred > 255 ? phred2HalfLogMat3[255] : phred2HalfLogMat3[phred]; }
 };
 
 extern phredConverter phredConv;
