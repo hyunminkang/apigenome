@@ -7,11 +7,11 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   std::string bcdf;
   std::string genef;    
   std::string outPrefix;
-  double alpha = 1.0;       // pseudo-count per cell
+  double doublet = 0;       // doublet proability
+  double alpha = 0.5;       // pseudo-count per cell / gene
   double thresDiff = 1e-10; // threshold to stop EM iteration
   int32_t maxIter = 100;    // maximum number of EM iteration
   int32_t nClust = 0;       // Number of clusters required
-  int32_t nRestarts = 1;    // Number of restarts to pick the best model
   int32_t seed = 0;         // random seed
   int32_t nCollapseGenes = 0; // collapse genes into a specific number
   double fracSubsample = 1;   // fraction of samples to thin the data
@@ -30,9 +30,9 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
 
     LONG_PARAM_GROUP("Additional Options", NULL)
     LONG_INT_PARAM("gene-thres",&geneThres,"Threshold for per gene count")
+    LONG_DOUBLE_PARAM("doublet", &doublet, "Probability of being doublet")
     LONG_DOUBLE_PARAM("alpha",&alpha, "Pseudo-count per cell")
     LONG_DOUBLE_PARAM("thres",&thresDiff, "Threshold of LLK difference to terminate the EM iteration")
-    LONG_INT_PARAM("restarts",&nRestarts, "Number of restarts to pick the best model")
     LONG_INT_PARAM("max-iter",&maxIter, "Number of maximum E-M iterations")
     LONG_INT_PARAM("collapse-genes",&nCollapseGenes,"Number of genes to be collapsed into to reduce parameter space")
     LONG_INT_PARAM("seed",&seed, "Seed for random number generator (default uses clock)")
@@ -233,7 +233,7 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
 
 
   int32_t nRow = (int32_t)genes.size();
-  int32_t nCol = (int32_t)hdrs.size();
+  int32_t nCol = (int32_t)hdrs.size(); // nCol is # of barcodes
   int64_t nCell = (int64_t)nRow * (int64_t)nCol;
 
   notice("Loaded a matrix with %d rows and %d columns after ignoring %d empty rows. Sparsity is %.5lg. Average of non-empty cells is %.5lg", nRow, nCol, nEmptyRows, (double)nZero/(double)(nCell+nEmptyRows*nCol), (double)nSum/(double)(nCell+nEmptyRows*nCol-nZero));
@@ -298,12 +298,16 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   }
 
   // create multiple copies of parameters for simultaneous EM
-  int32_t nCxR = nClust * nRestarts;
-  double* pis = (double*)calloc(nCxR,sizeof(double));
-  double* Ps = (double*)calloc(nCxR * nRow,sizeof(double));
-  double* Zs = (double*)calloc(nCxR * nCol,sizeof(double));
-  double* llks = new double[nRestarts];
-  double* llk0s = new double[nRestarts];
+  int32_t nPair = ( doublet > 0 ? nClust * (nClust-1) / 2 : 0 );
+  int32_t hasDoublet = ( doublet > 0 ? 1 : 0);
+  double log_doublet = doublet > 0 ? log(doublet) : 0;
+  double log_singlet = doublet > 0 ? log(1-doublet) : 0;  
+  //double* pis = (double*)calloc( (nClust + hasDoublet),sizeof(double));
+  double* pis = (double*)calloc( nClust,sizeof(double));    
+  double* Ps = (double*)calloc( nClust * nRow, sizeof(double));
+  double* Ls = (double*)calloc( nClust * nRow, sizeof(double));  
+  double* Zs = (double*)calloc( (nClust + nPair) * nCol,sizeof(double));
+  double llk = 0, llk0 = 0;
 
   if ( seed == 0 )
     srand(time(NULL));
@@ -311,10 +315,18 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     srand(seed);
 
   // randomize class assignments
-  for(int32_t c=0; c < nCol; ++c) {
-    double* z = &Zs[c * nCxR];
-    for(int32_t r=0; r < nRestarts; ++r) {
-      z[(int32_t)(floor((rand()+0.5)/(RAND_MAX+1.)*nClust)) * nRestarts + r] = 1.;
+  for(int32_t c=0; c < nCol; ++c) {            // for each barcode, 
+    double* z = &Zs[c * ( nClust + nPair ) ];    
+    double u = (rand() + 0.5) / (RAND_MAX + 1.0);
+    double u2 = (rand() + 0.5) / (RAND_MAX + 1.0);    
+    if ( u < doublet ) {
+      //z[(int32_t)(floor((rand()+0.5)/(RAND_MAX+1.)*nPair)) + nClust] = 1.;
+      z[ (int32_t)( u2 * (double)nPair) + nClust ] = 1.0;
+      
+    }
+    else {
+      //z[(int32_t)(floor((rand()+0.5)/(RAND_MAX+1.)*nClust))] = 1.;
+      z[ (int32_t)(u2 * (double)nClust) ] = 1.0;      
     }
   }
 
@@ -322,28 +334,58 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
 
   // run EM iteration
   for(int32_t iter=0; iter < maxIter; ++iter) {
+    // At this stage..
+    // Z   : nCol x (nClust+nPair) - posterior probability of each barcode being assigned to each cluster (or pair)
+    // pis : prior probability of each subclasses.    
+    // Ps  : nRow x nClust        -- probability of each gene-cluster pair
+       
     // M-step for pi
+    memset(pis, 0, nClust * sizeof(double));
+    
     for(int32_t c=0; c < nCol; ++c) {
-      double* z = &Zs[c * nCxR];    
-      for(int32_t k=0; k < nCxR; ++k) {
+      double* z = &Zs[c * (nClust+nPair)];    
+      for(int32_t k=0; k < nClust; ++k) {
 	pis[k] += z[k];  // pi_k = \sum_c Pr(z_c = k)
+      }
+      if ( hasDoublet > 0 ) {
+	//for(int32_t k=0; k < nPair; ++k) {      
+	//pis[nClust] += z[nClust+k];
+	//}
+	for(int32_t k1=1; k1 < nClust; ++k1) {
+	  for(int32_t k2=0; k2 < k1; ++k2) {
+	    pis[k1] += ( z[k1*(k1-1)/2+k2 + nClust] / 2 );
+	    pis[k2] += ( z[k1*(k1-1)/2+k2 + nClust] / 2 );	    
+	  }
+	}
       }
     }
 
-    //for(int32_t k=0; k < nCxR; ++k) {
+
+    //for(int32_t k=0; k < nClust+hasDoublet; ++k) {
     //  notice("k=%d\tu_pi=%lg",k,pis[k]);
     //}    
 
-    // normalize pi_k, and take a log
-    for(int32_t r=0; r < nRestarts; ++r) {
-      double sum = 0;
-      for(int32_t k=0; k < nClust; ++k) {
-	sum += pis[k*nRestarts+r];
-      }
-      for(int32_t k=0; k < nClust; ++k) {
-	pis[k*nRestarts+r] = log( pis[k*nRestarts+r]/sum );
-      }	
+    double sum = 0;
+    double pi2sum = 0;
+    //for(int32_t k=0; k < nClust+hasDoublet; ++k) {
+    for(int32_t k=0; k < nClust; ++k) {      
+      sum += pis[k];
     }
+    //for(int32_t k=0; k < nClust+hasDoublet; ++k) {
+    for(int32_t k=0; k < nClust; ++k) {      
+      pis[k] = log( pis[k]/sum );
+    }
+
+    if ( hasDoublet > 0 ) {
+      for(int32_t k1=1; k1 < nClust; ++k1) {
+	for(int32_t k2=0; k2 < k1; ++k2) {
+	  pi2sum += exp(pis[k1] + pis[k2]);
+	}
+      }      
+    }
+
+    //notice("pi2sum = %lg, pis = (%lg, %lg, %lg, %lg, %lg, %lg)", pi2sum, exp(pis[0]), exp(pis[1]), exp(pis[2]), exp(pis[3]), exp(pis[4]), exp(pis[5]));
+    pi2sum = log(pi2sum);
 
     //for(int32_t k=0; k < nCxR; ++k) {
     //  notice("k=%d\tpi=%lg",k,exp(pis[k]));
@@ -353,18 +395,27 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     
     // M-step for P (without normalization)
     for(int32_t g=0; g < nRow; ++g) {
-      double* p = &Ps[g * nCxR];
+      double* p = &Ps[g * nClust];
       
-      for(int32_t k=0; k < nCxR; ++k)
+      for(int32_t k=0; k < nClust; ++k)
 	p[k] = 0;
       
       for(int32_t c=0; c < nCol; ++c) {
-	double* z = &Zs[c * nCxR];
-	double r = R[g][c] + p0[g]*alpha;
+	double* z = &Zs[c * (nClust+nPair)];
+	double r = R[g][c] + alpha;
+	//double r = R[g][c] + p0[g]*alpha;	
 	//double r = R[g][c] + alpha/nRow;
-	for(int32_t k=0; k < nCxR; ++k) {
+	for(int32_t k=0; k < nClust; ++k) {
 	  //double t = z[k] * r;
 	  p[k] += (z[k] * r); // not normalized   \Pr(x_g|z_c=k) \propt \sum_c R_gc Pr(z_c=k)
+	}
+	if ( hasDoublet > 0 ) {
+	  for(int32_t k1=1; k1 < nClust; ++k1) {
+	    for(int32_t k2=0; k2 < k1; ++k2) {
+	      p[k1] += (z[nClust + k1*(k1-1)/2 + k2] * r / 2);
+	      p[k2] += (z[nClust + k1*(k1-1)/2 + k2] * r / 2);	      
+	    }
+	  }
 	}
       }
     }
@@ -372,88 +423,109 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     //notice("goo");
 
     // normalize P
-    for(int32_t k=0; k < nCxR; ++k) {
+    for(int32_t k=0; k < nClust; ++k) {
       double sumP = 0;
       for(int32_t g=0; g < nRow; ++g) {
-	sumP += Ps[g*nCxR + k];
+	sumP += Ps[g*nClust + k];
       }
       
       for(int32_t g=0; g < nRow; ++g) {
-	Ps[g*nCxR + k] /= sumP;
+	Ps[g*nClust + k] /= sumP;
       }
     }
     
 
     // transform p into logp
     for(int32_t g=0; g < nRow; ++g) {
-      double* p = &(Ps[g * nCxR]);
-      for(int32_t k=0; k < nCxR; ++k) {
-	p[k] = log(p[k]); // + pis[k];  // pi*P in log-scale
+      double* p = &(Ps[g * nClust]);
+      double* l = &(Ls[g * nClust]);      
+      for(int32_t k=0; k < nClust; ++k) {
+	l[k] = log(p[k]); // + pis[k];  // pi*P in log-scale
       }
     }
 
 
     for(int32_t c=0; c < nCol; ++c) {
-      double* z = &(Zs[c*nCxR]);      
-      for(int32_t k=0; k < nCxR; ++k) {
-	z[k] = pis[k];
-      }      
+      double* z = &(Zs[c*(nClust+nPair)]);      
+      for(int32_t k=0; k < nClust; ++k) {
+	z[k] = log_singlet + pis[k]; // probability to belong k-th cluster
+      }
+      if ( hasDoublet > 0 ) {
+	for(int32_t k1=1; k1 < nClust; ++k1) {
+	  for(int32_t k2=0; k2 < k1; ++k2) {
+	    // (1-doublet) * pi(k1) * pi(k2) * 2 / Normalize
+	    // z[nClust + k1*(k1-1)/2+k2] = pis[nClust] + pis[k1] + pis[k2] - pi2sum;
+	    z[nClust + k1*(k1-1)/2+k2] = log_doublet + pis[k1] + pis[k2] - pi2sum;	    
+	  }
+	}	
+      }
     }
-    
+
+    //for(int32_t k=0; k < nClust+hasDoublet; ++k)
+    for(int32_t k=0; k < nClust; ++k)      
+      notice("pis[%d] = %lg", k, exp(pis[k]));
+
+    if ( hasDoublet > 0 ) {
+      for(int32_t k1=1; k1 < nClust; ++k1) {
+	for(int32_t k2=0; k2 < k1; ++k2) {
+	  //notice("pis[%d,%d] = %lg", k2, k1, exp(pis[nClust] + pis[k1] + pis[k2] - pi2sum));
+	  notice("pis[%d,%d] = %lg", k2, k1, exp(log_doublet + pis[k1] + pis[k2] - pi2sum));	  
+	}
+      }
+    }
     
     // E-step for Z : t(R) %*% logP
     for(int32_t g=0; g < nRow; ++g) {
-      double* p = &(Ps[g * nCxR]);      
+      double* p = &(Ps[g * nClust]);
+      double* l = &(Ls[g * nClust]);      
       for(int32_t c=0; c < nCol; ++c) {
-	int32_t r = R[g][c];
-	double* z = &(Zs[c*nCxR]);
-	for(int32_t k=0; k < nCxR; ++k) {
-	  z[k] += (r*p[k]);  // \log Pr(z_c = k | x) \propt \sum_g [ \log \Pr(R_gc|z_c=k) ] + \pi_k
+	double r = R[g][c] + alpha;
+	//double r = R[g][c] + p0[g]*alpha; 	
+	//int32_t r = R[g][c];
+	double* z = &(Zs[c*(nClust+nPair)]);
+	for(int32_t k=0; k < nClust; ++k) {
+	  z[k] += (r*l[k]);  // \log Pr(z_c = k | x) \propt \sum_g [ \log \Pr(R_gc|z_c=k) ] + \pi_k
+	}
+	if ( hasDoublet > 0 ) {
+	  for(int32_t k1=1; k1 < nClust; ++k1) {
+	    for(int32_t k2=0; k2 < k1; ++k2) {
+	      //double avgp = (p[k1] + p[k2]) / 2; //( ( p[k1] > p[k2] ) ? ( p[k1] + log(1.0 + exp(p[k2]-p[k1])) ) : ( p[k2] + log(1.0 + exp(p[k1]-p[k2])) ) ) - log(2.0);
+	      z[nClust + k1*(k1-1)/2 + k2] += (r * log( (p[k1]+p[k2]) / 2.0));
+	    }
+	  }	
 	}
       }
     }
 
-    for(int32_t r=0; r < nRestarts; ++r) {
-      if ( iter == 0 )
-	llk0s[r] = -1e300;
-      else
-	llk0s[r] = llks[r];
-      
-      llks[r] = 0;      
-    }
+    if ( iter == 0 ) llk0 = -1e300;
+    else llk0 = llk;
+    llk = 0;
 
     for(int32_t c=0; c < nCol; ++c) {
-      double* z = &(Zs[c*nCxR]);      
-      for(int32_t r=0; r < nRestarts; ++r) {
-	double maxZ = z[r];
-	for(int32_t k=1; k < nClust; ++k) {
-	  if ( maxZ < z[k*nRestarts + r])
-	    maxZ = z[k*nRestarts + r];
-	}
+      double* z = &(Zs[c*(nClust+nPair)]);      
+      double maxZ = z[0];
+      for(int32_t k=1; k < nClust+nPair; ++k) {
+	if ( maxZ < z[k])
+	  maxZ = z[k];
+      }
 
-	double sumZ = 0;
-	for(int32_t k=0; k < nClust; ++k) {
-	  double zdiff = z[k*nRestarts+r] - maxZ;	  
-	  //sumZ += (z[k*nRestarts+r] = ((zdiff < -100) ? 3.7e-44 : exp(zdiff)));
-	  sumZ += (z[k*nRestarts+r] = exp(zdiff));
-	}
+      double sumZ = 0;
+      for(int32_t k=0; k < nClust+nPair; ++k) {
+	double zdiff = z[k] - maxZ;	  
+	sumZ += (z[k] = exp(zdiff));
+      }
 
-	//for(int32_t k=0; k < nClust; ++k) {
-	//  z[k*nRestarts+r] /= sumZ;
-	//}
-	
-	llks[r] += (maxZ + log(sumZ));
-	//notice("%d\t%lg\t%lg\t%lg\t%lg\t%lg",c,llks[r],maxZ,sumZ,z[0],z[1]);
-	if ( isnan(llks[r]) )
-	  abort();
+      llk += (maxZ + log(sumZ));
+      if ( isnan(llk) ) {
+	notice("maxZ = %lg, sumZ = %lg, llk = %lg, z[0] = %lg", maxZ, sumZ, llk, z[0]);
+	abort();
       }
     }
+
     double maxDiff = -1e300;
-    for(int32_t r=0; r < nRestarts; ++r) {
-      notice("Iter:%d\tThread %d:\tLLK=%.5lf\tDiff=%.5lg", iter, r, llks[r], llks[r]-llk0s[r]); //, exp(pis[0]), exp(pis[nRestarts]));
-      if ( maxDiff < llks[r]-llk0s[r] ) {
-	maxDiff = llks[r]-llk0s[r];
-      }
+    notice("Iter:%d\tLLK=%.5lf\tDiff=%.5lg", iter, llk, llk-llk0); //, exp(pis[0]), exp(pis[nRestarts]));
+    if ( maxDiff < llk-llk0 ) {
+      maxDiff = llk-llk0;
     }
 
     if ( maxDiff < thresDiff ) {
@@ -462,43 +534,48 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
     }
 
     if ( iter + 1 == maxIter )
-      notice("Reached maximum iteration %d",maxIter);      
-  }
+      notice("Reached maximum iteration %d",maxIter);
 
-  int32_t iMin = 0;
-  for(int32_t r=1; r < nRestarts; ++r) {
-    if ( llks[iMin] < llks[r] )
-      iMin = r;
+
+    /*
+    for(int32_t c=0; c < 10; ++c) {
+      double* z = &Zs[c * (nClust+nPair)];    
+      for(int32_t k=0; k < nClust+nPair; ++k) 
+	printf("%.3lg ", z[k]);
+      printf("\n");
+    }
+    */
   }
 
   // transform P to linear scale
+  /*
   for(int32_t k=0; k < nClust; ++k) {
-    int32_t kr = k*nRestarts+iMin;
-    double maxP = Ps[kr];
-    for(int32_t g=0; g < nRow; ++g) {
-      if ( maxP < Ps[g*nCxR + kr] )
-	maxP = Ps[g*nCxR + kr];
+    double maxP = Ps[k];
+    for(int32_t g=1; g < nRow; ++g) {
+      if ( maxP < Ps[g*nClust + k] )
+	maxP = Ps[g*nClust + k];
     }
 
     double sumP = 0;
     for(int32_t g=0; g < nRow; ++g) {
-      sumP += (Ps[g*nCxR + kr] = exp(Ps[g*nCxR + kr] - maxP));
+      sumP += (Ps[g*nClust + k] = exp(Ps[g*nClust + k] - maxP));
     }
 
     for(int32_t g=0; g < nRow; ++g) {
-      Ps[g*nCxR + kr] /= sumP;
+      Ps[g*nClust + k] /= sumP;
     }
   }
+  */
 
-  for(int32_t k=0; k < nClust; ++k) 
-    hprintf(wf, "%g\n",exp(pis[k*nRestarts+iMin]));
+  for(int32_t k=0; k < nClust + hasDoublet; ++k) 
+    hprintf(wf, "%g\n",exp(pis[k]));
   hts_close(wf);
 
   wf = hts_open((outPrefix+".Ps").c_str(),"w");
   for(int32_t g=0; g < nRow; ++g) {
     hprintf(wf, "%s",genes[g].c_str());    
     for(int32_t k=0; k < nClust; ++k) {
-      hprintf(wf, "\t%.5lg",Ps[g*nCxR + k*nRestarts + iMin]); 
+      hprintf(wf, "\t%.5lg",Ps[g*nClust + k]); 
     }
     hprintf(wf, "\n");
   }
@@ -507,18 +584,32 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   wf = hts_open((outPrefix+".Zs").c_str(),"w");
   for(int32_t c=0; c < nCol; ++c) {
     double sumZ = 0;
-    for(int32_t k=0; k < nClust; ++k)
-      sumZ += Zs[c*nCxR + k*nRestarts + iMin];
+    for(int32_t k=0; k < nClust+nPair; ++k)
+      sumZ += Zs[c*(nClust+nPair) + k];
 
     int32_t iBest = 0;
-    for(int32_t k=1; k < nClust; ++k) {
-      if ( Zs[c*nCxR + iBest*nRestarts + iMin] < Zs[c*nCxR + k*nRestarts + iMin] )
+    for(int32_t k=1; k < nClust+nPair; ++k) {
+      if ( Zs[c*(nClust+nPair) + iBest] < Zs[c*(nClust+nPair) + k] )
 	iBest = k;
     }
 
-    hprintf(wf, "%s\t%d\t%d",hdrs[c].c_str(), colSums[c], iBest+1);
-    for(int32_t k=0; k < nClust; ++k)
-      hprintf(wf, "\t%.5lg",Zs[c*nCxR + k*nRestarts + iMin]/sumZ);
+    if ( iBest < nClust )
+      hprintf(wf, "%s\t%d\t%d",hdrs[c].c_str(), colSums[c], iBest+1);
+    else {
+      int32_t k1, k2;
+      for(k1=1; k1 < nClust; ++k1) {
+	for(k2=0; k2 < k1; ++k2) {
+	  if ( k1*(k1-1)/2 + k2 == iBest - nClust ) {
+	    hprintf(wf, "%s\t%d\t%d,%d",hdrs[c].c_str(), colSums[c], k2+1, k1+1);
+	    k1 = k2 = nClust + 1;	    
+	    break;
+	  }
+	}
+      }
+      if ( k1 == nClust ) error("Cannot recognize iBest = %d, nClust = %d", iBest, nClust);
+    }
+    for(int32_t k=0; k < nClust + nPair; ++k)
+      hprintf(wf, "\t%.5lg",Zs[c*(nClust+nPair) + k]/sumZ);
     hprintf(wf, "\n");
   }
   hts_close(wf);    
@@ -527,11 +618,12 @@ int32_t cmdScMultinomEM(int32_t argc, char** argv) {
   for(int32_t i=0; i < nRow; ++i) {
     free(R[i]);
   }
-  delete[] llks;
+  //delete[] llks;
   delete[] p0;
   free(pis);
   free(Zs);
   free(Ps);
+  free(Ls);
   free(colSums);
   
   return 0;

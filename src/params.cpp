@@ -309,7 +309,7 @@ void longParams::HelpMessage(longParamList * ptr)
   int i;
 
   if (ptr->value == NULL) {  // if group parameter, end previous group (if exists) 
-    fprintf(stderr, "\n%s%s%s\n", ptr->desc, ptr->help ? " - " : "", ptr->help ? ptr->help : "");
+    fprintf(stderr, "\n== %s%s%s ==\n", ptr->desc, ptr->help ? " - " : "", ptr->help ? ptr->help : "");
   }
   else {                     // otherwise, print argument name and 
     switch(ptr->type) {
@@ -400,7 +400,7 @@ void longParams::HelpMessage(longParamList * ptr)
     }
     
 
-    fprintf(stderr, "  --%-*s%-*s%s%s%s\n", name_len, ptr->desc, param::helpCol, state.c_str(), " : ", ptr->help ? ptr->help : "", ptr->exclusive ? (ptr->help ? " (EXCLUSIVE PARAMETER)" : "(EXCLUSIVE PARAMETER)") : "");
+    fprintf(stderr, "   --%-*s%-*s%s%s%s\n", name_len, ptr->desc, param::helpCol, state.c_str(), " : ", ptr->help ? ptr->help : "", ptr->exclusive ? (ptr->help ? " (EXCLUSIVE PARAMETER)" : "(EXCLUSIVE PARAMETER)") : "");
   }
 }
 
@@ -408,7 +408,7 @@ void longParams::HelpMessage(longParamList * ptr)
 void longParams::HelpMessage()
 {
   if (!description.empty() && description[0] != 0)  // group option
-    fprintf(stderr, "\n%s\n\n", description.c_str());    
+    fprintf(stderr, "\n%s:\n", description.c_str());    
     //fprintf(stderr, "\n%s - %s\n", description.c_str(), helpstring.c_str());
 
   // for the rest of the group, print parameters

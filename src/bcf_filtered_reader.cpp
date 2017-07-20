@@ -141,16 +141,22 @@ void BCFFilteredReader::init_params() {
   }
 
   notice("Finished identifying %u samples to load from VCF/BCF",sm_icols.size());
+
+  /*
   if ( sm_icols.empty() ) {
     error("[E:%s] No sample to load from VCF/BCF",__PRETTY_FUNCTION__);
   }
+  */
 
   // set the rids for chrX, chrY, chrMT
   xRid  = bcf_hdr_name2id(cdr.hdr, xLabel.c_str());
   yRid  = bcf_hdr_name2id(cdr.hdr, yLabel.c_str());
   mtRid = bcf_hdr_name2id(cdr.hdr, mtLabel.c_str());
-  ploidies = new int8_t[sm_isexes.size()];
-  memset(ploidies, (int8_t)2, (int32_t)sm_isexes.size());
+  
+  if ( sm_icols.size() > 0 ) { 
+    ploidies = new int8_t[sm_isexes.size()];
+    memset(ploidies, (int8_t)2, (int32_t)sm_isexes.size());
+  }
 
   sex_ploidies[0] = sex_ploidies[1] = 2;
 }
@@ -260,10 +266,10 @@ bool BCFFilteredReader::parse_likelihoods(bcf_hdr_t* hdr, bcf1_t* v, const char*
   int32_t ngenos = (nalleles+1)*nalleles/2;
   int32_t nsamples = bcf_hdr_nsamples(cdr.hdr);  
   
-  gps = (float*) realloc(gps, sizeof(float)*ngenos*nsamples);
+  gps = (nsamples > 0 ? (float*) realloc(gps, sizeof(float)*ngenos*nsamples) : NULL);
   n_gps = ngenos * nsamples; //sm_icols.size();
     
-  double* gp = new double[ngenos];
+  double* gp = ngenos > 0 ? new double[ngenos] : NULL;
   double sumgp;
   int32_t icol, i, j, k, l;
 
@@ -314,7 +320,7 @@ bool BCFFilteredReader::parse_likelihoods(bcf_hdr_t* hdr, bcf1_t* v, const char*
   for(i=0; i < nalleles; ++i)
     acs[i] *= an;
 
-  delete[] gp;
+  if ( gp ) delete[] gp;
   
   return true;
 }
@@ -373,7 +379,7 @@ bool BCFFilteredReader::parse_posteriors(bcf_hdr_t* hdr, bcf1_t* v, const char* 
     //notice("Before parsing genotypes at %s:%d:%s:%s", bcf_hdr_id2name(hdr,v->rid), v->pos+1, v->d.allele[0], v->d.allele[1]);      
     if ( !parse_genotypes(hdr, v) ) return false;
     //notice("After parsing genotypes at %s:%d:%s:%s", bcf_hdr_id2name(hdr,v->rid), v->pos+1, v->d.allele[0], v->d.allele[1]);          
-    gps = (float*) realloc(gps, sizeof(float)*ngenos*nsamples);
+    gps = ( nsamples > 0 ? (float*) realloc(gps, sizeof(float)*ngenos*nsamples) : NULL );
     n_gps = nsamples * 3;    
     for(i=0; i < (int32_t)sm_icols.size(); ++i) {
       g = get_genotype_at(i);

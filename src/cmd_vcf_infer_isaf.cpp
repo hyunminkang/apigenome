@@ -13,10 +13,15 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   BCFFilteredReader bfr;  
   std::string evecFile;
   std::string outVcf;
-  std::string smID;
+  //std::string smID;
   std::string smList;
   int32_t numPC = 4;
   int32_t seed = 0;
+  bool skipIf   = false;
+  bool skipInfo = false;
+  bool siteOnly = false;
+  std::string field("PL");
+  double gtError = 0.005;
 
   bfr.vfilt.maxAlleles = 2;
   bfr.verbose = 100;
@@ -24,21 +29,24 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   paramList pl;
 
   BEGIN_LONG_PARAMS(longParameters)
-    LONG_PARAM_GROUP("Input Files", NULL)
-    LONG_STRING_PARAM("evec",&evecFile, "Prefix of Eigenvector files")
-    LONG_STRING_PARAM("vcf",&bfr.bcf_file_name, "Input VCF/BCF file")
-    LONG_DOUBLE_PARAM("thin",&bfr.vfilt.probThin, "Probability to thin the variants from BCF")
-    LONG_INT_PARAM("seed",&seed, "Randome seed to set (default is to use clock)")
+    LONG_PARAM_GROUP("Input Options", NULL)
+    LONG_STRING_PARAM("evec",&evecFile, "(REQUIRED) Name of eigenvector file, where each line contains [SAMPLE_ID] [PC1] [PC2] ..... The number of PCs could be larger than parameters specified by --num-PC")
+    LONG_STRING_PARAM("vcf", &bfr.bcf_file_name, "(REQUIRED) Input VCF/BCF file")
+    LONG_DOUBLE_PARAM("thin", &bfr.vfilt.probThin, "Probability to randomly sample variants from BCF")
+    LONG_INT_PARAM("seed",&seed, "Random seed to set (default is to use the clock time)")
+    LONG_INT_PARAM("num-pc",&numPC, "Number of principal componentds to be used from the file specified by --evec ")
+    LONG_STRING_PARAM("field",&field, "FORMAT field in VCF to extract the genotype likelihood or genotypes from. Only PL, GL, GT are allowed currently")
+    LONG_DOUBLE_PARAM("gt-error",&gtError, "Error rates for GT field when --field GT option is used. Ignored for other fields")
 
-    LONG_PARAM_GROUP("Options to specify when chunking is used", NULL)    
-    LONG_STRING_PARAM("ref",&bfr.ref_file_name, "Reference FASTA file name (specify only when chunking is used)")
-    LONG_INT_PARAM("unit",&bfr.unit, "Chunking unit in bp (specify only with --ref together")
-    LONG_STRING_PARAM("interval",&bfr.interval_file_name, "Interval file name used for chunking (specify only when chunking is used without --ref")
-    LONG_STRING_PARAM("region",&bfr.target_region, "Target region to focus on")    
+    LONG_PARAM_GROUP("Output Options", NULL)
+    LONG_STRING_PARAM("out",&outVcf, "(REQUIRED) Output VCF file to write with ISHWEZ and ISIBC statistics and IF format field")
+    LONG_PARAM("skip-if", &skipIf,   "Skip writing individual-specific allele frequency for each sample in output VCF/BCF")
+    LONG_PARAM("skip-info", &skipInfo,   "Skip updating INFO field for each sample in output VCF/BCF")
+    LONG_PARAM("site-only", &siteOnly,   "Do not write genotype information, and writes only site information (up to INFO field) in output VCF/BCF")
 
     LONG_PARAM_GROUP("Samples to focus on",NULL)
-    LONG_STRING_PARAM("sm",&smID, "Sample ID to infer ancestry")    
-    LONG_STRING_PARAM("sm-list",&smList,"List of sample IDs to infer ancestries")
+    //LONG_STRING_PARAM("sm",&smID, "Sample ID to subset from VCF/BCF when estimating ISAF. HWE statistics would not be meaningful in this case")
+    LONG_STRING_PARAM("sm-list",&smList,"A file containg the list of sample IDs to subset")
 
     LONG_PARAM_GROUP("Parameters for sex chromosomes", NULL)
     LONG_STRING_PARAM("sex-map", &bfr.sexMap, "Sex map file in PED format or tsv file with [ID,SEX in X ploidy]")        
@@ -48,8 +56,11 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
     LONG_INT_PARAM("x-start", &bfr.xStart, "Start coordinate of non-PAR X region")
     LONG_INT_PARAM("x-stop", &bfr.xStop, "Stop coordinate of non-PAR X region")
 
-    LONG_PARAM_GROUP("Output Files", NULL)
-    LONG_STRING_PARAM("out",&outVcf, "Output VCF file to write with ISHWEZ and ISIBC statistics and IF format field")
+    LONG_PARAM_GROUP("Options to specify when chunking is used", NULL)    
+    LONG_STRING_PARAM("ref",&bfr.ref_file_name, "Reference FASTA file name (required only when chunking is used)")
+    LONG_INT_PARAM("unit",&bfr.unit, "Chunking unit in bp (specify only with --ref together")
+    LONG_STRING_PARAM("interval",&bfr.interval_file_name, "Interval file name used for chunking (specify only when chunking is used without --ref")
+    LONG_STRING_PARAM("region",&bfr.target_region, "Target region to focus on")        
   END_LONG_PARAMS();
   
   pl.Add(new longParams("Available Options", longParameters));
@@ -59,8 +70,8 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   notice("Analysis Started");    
   
   // sanity check of input arguments
-  if ( outVcf.empty() || evecFile.empty() ) {
-    error("[E:%s:%d %s] --evec, --out, are required parameters",__FILE__,__LINE__,__PRETTY_FUNCTION__);
+  if ( outVcf.empty() || evecFile.empty() || bfr.bcf_file_name.empty() ) {
+    error("[E:%s:%d %s] --evec, --out, --vcf are required parameters",__FILE__,__LINE__,__PRETTY_FUNCTION__);
   }
 
   srand(seed ? seed : std::time(NULL));
@@ -88,12 +99,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   notice("Identifying sample columns to extract..");    
   // identify sample columns to extract
   std::vector<int32_t> isamples;
-  if ( ( !smID.empty() ) && ( !smList.empty() ) )
-    error("[E:%s:%d %s] --sm and --sm-list cannot be used together",__FILE__,__LINE__,__PRETTY_FUNCTION__);
-  
-  if ( !smID.empty() )
-    bfr.add_specified_sample(smID.c_str());
-  else if ( !smList.empty() ) {
+  if ( !smList.empty() ) {
     tsv_reader tsv_sm(smList.c_str());
     while ( ( ncols = tsv_sm.read_line() ) > 0 ) {
       bfr.add_specified_sample(tsv_sm.str_field_at(0));
@@ -126,7 +132,19 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
 
   BCFOrderedWriter odw(outVcf.c_str(), 0);
   odw.set_hdr(bfr.cdr.hdr);
+  if ( siteOnly ) {
+    bcf_hdr_t* hnull = bcf_hdr_subset(odw.hdr, 0, 0, 0);
+    bcf_hdr_remove(hnull, BCF_HL_FMT, NULL);
+  }    
+
   frequency_estimator freqest(&eV);
+  // assign command arguments
+  freqest.field = field;
+  freqest.gtError = gtError;
+  freqest.skipIf = skipIf;
+  freqest.skipInfo = skipInfo;
+  freqest.siteOnly = siteOnly;
+  
   freqest.set_hdr(odw.hdr);
   odw.write_hdr();
 

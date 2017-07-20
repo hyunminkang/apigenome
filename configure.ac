@@ -2,23 +2,20 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([apigenome], [0.0.3], [hmkang@umich.edu])
-#AM_INIT_AUTOMAKE(apigenome, 0.0.3)
+AC_INIT([apigenome], [0.1.0], [hmkang@umich.edu])
 
-#AC_ARG_ENABLE([libcurl])
-#AC_ARG_ENABLE([gcs])
-#AC_ARG_ENABLE([s3])
+AC_CONFIG_AUX_DIR(aux-dist)
 
+#AM_INIT_AUTOMAKE
 AM_INIT_AUTOMAKE([subdir-objects])
 AC_CONFIG_HEADERS([config.h])
-#AM_EXTRA_RECURSIVE_TARGETS([htslib])
-#AC_CONFIG_SUBDIRS([htslib])
 
 AC_CONFIG_MACRO_DIR([m4])
-AM_PROG_LIBTOOL
-AC_PROG_LIBTOOL
-AC_ENABLE_SHARED
-AC_DISABLE_STATIC
+
+#AM_PROG_LIBTOOL
+#AC_PROG_LIBTOOL
+#AC_ENABLE_SHARED
+#AC_DISABLE_STATIC
 
 # Checks for programs.
 AC_PROG_CXX
@@ -55,6 +52,9 @@ AC_CHECK_LIB([m],[erf],[AC_DEFINE([HAVE_ERF],[1],[libm includes erf])])
 AC_CHECK_LIB([m],[erfc],[AC_DEFINE([HAVE_ERFC],[1],[libm includes erfc])])
 #AC_CHECK_LIB(bz2, BZ2_bzopen, [], [AC_MSG_ERROR([libbz2.{so,a} was not found in the library path. Please install it at http://www.bzip.org/downloads.html first])])
 #AC_CHECK_LIB(R, R_alloc, [], [AC_MSG_ERROR([libR.{so,a} was not found. Please install it at http://www.r-project.org/ first])])
+
+LT_PREREQ([2.2])
+LT_INIT([dlopen shared])
 
 #perl 
 AC_CHECK_PROG(PERL_CHECK,perl,yes)
@@ -164,4 +164,7 @@ if test x"$GNUPLOT_CHECK" != x"yes" ; then
    AC_MSG_ERROR([Please install gnuplot at http://sourceforge.net/projects/gnuplot/files/ before installing.])
 fi
 
-AC_OUTPUT(Makefile libnmf/Makefile src/Makefile scripts/Makefile data/Makefile)
+AC_CONFIG_FILES([Makefile libnmf/Makefile src/Makefile scripts/Makefile data/Makefile])
+
+#AC_OUTPUT(Makefile libnmf/Makefile src/Makefile scripts/Makefile data/Makefile)
+AC_OUTPUT

@@ -268,6 +268,8 @@ bool BCFChunkedReader::read(bcf1_t *v) {
     while( true ) {
       if ( itr && ( ( ( ftype.format == bcf ) && ( bcf_itr_next(file,itr,v) >= 0 ) ) ||
 		    ( ( ftype.format == vcf ) && ( tbx_itr_next(file,tbx,itr,&s) >= 0 ) ) ) ) {
+	if ( ( v->pos + 1 < chunk.chunk_intervals.it->beg1 ) || ( v->pos + 1 > chunk.chunk_intervals.it->end0 ) )
+	  continue;
 	if ( ftype.format == vcf ) {
 	  vcf_parse1(&s, hdr, v);
 	}

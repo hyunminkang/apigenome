@@ -37,7 +37,7 @@ int32_t cmdVcfUpdateSites(int32_t argc, char** argv) {
     
     LONG_PARAM_GROUP("Options for modification", NULL)    
     LONG_MULTI_STRING_PARAM("md-info", &info2update, "Name of INFO field to add/modify")
-    LONG_MULTI_STRING_PARAM("rm-info", &info2remove, "INFO field to add/update")    
+    LONG_MULTI_STRING_PARAM("rm-info", &info2remove, "Name of INFO field to remove")    
     LONG_PARAM("replace-filter", &replaceFilter, "Replace the FILTER column with the new one")
     LONG_PARAM("replace-qual", &replaceQual, "Replace the QUAL column with the new one")
     LONG_PARAM("replace-id", &replaceQual, "Replace the ID column with the new one")     
@@ -180,16 +180,22 @@ int32_t cmdVcfUpdateSites(int32_t argc, char** argv) {
 
     if ( !info2remove.empty() ) {
       for(int32_t i=0; i < (int32_t)info2remove.size(); ++i) {
-	bcf_update_info(genoVcf.cdr.hdr, gv, info2remove[i].c_str(), NULL, 0, BCF_HT_INT);
+	// Remove a field from the INFO field
+	bcf_update_info(odw.hdr, gv, info2remove[i].c_str(), NULL, 0, BCF_HT_INT);
       }
     }
 
     if ( !info2update.empty() ) {
       for(int32_t i=0; i < (int32_t)info2update.size(); ++i) {
-	bcf_info_t* info = bcf_get_info(siteVcf.cdr.hdr, sv, info2update[i].c_str());
-	if ( info == NULL ) {
-	  error("Cannot find %s from site VCF", info2update[i].c_str());
-	  bcf_update_info(odw.hdr, gv, info2update[i].c_str(), NULL, 0, BCF_HT_INT);
+	bcf_info_t* info = bcf_get_info(siteVcf.cdr.hdr, sv, info2update[i].c_str());  // get the INFO field from the site VCF
+	if ( info == NULL ) { // if the INFO field does not exist from the site VCF,
+	  // check if the INFO field exists in the genotype VCF
+	  //error("Cannot find %s from site VCF", info2update[i].c_str());
+	  info = bcf_get_info(odw.hdr, gv, info2update[i].c_str());  // get the INFO field from the site VCF
+	  if ( info != NULL ) {
+	    if ( bcf_update_info(odw.hdr, gv, info2update[i].c_str(), NULL, 0, BCF_HT_INT) < 0 )
+	    error("[E:%s:%d %s] Failed to remove existing INFO field %s", info2update[i].c_str());
+	  }
 	}
 	else {
 	  int32_t htype = 0, ret = 0;
@@ -211,8 +217,16 @@ int32_t cmdVcfUpdateSites(int32_t argc, char** argv) {
 	  }
 	  if ( (ret = bcf_get_info_values(siteVcf.cdr.hdr, sv, info2update[i].c_str(), &values, &nvalues, htype)) < 0 )
 	    error("[E:%s:%d %s] %s: ret=%d, nvalues = %d, type = %d, len = %d, (i,f)=(%d,%f)", __FILE__, __LINE__, __PRETTY_FUNCTION__, info2update[i].c_str(), ret, nvalues, info->type, info->len, info->v1.i, info->v1.f);
-	  if ( bcf_update_info(odw.hdr, gv, info2update[i].c_str(), values, nvalues, htype) < 0 )
+
+	  //debug notice("Updating %s : ret=%d, nvalues = %d, type = %d, len = %d, (i,f)=(%d,%f)", info2update[i].c_str(), ret, nvalues, info->type, info->len, info->v1.i, info->v1.f);
+
+	  //debug if ( gv->pos > 60200 ) abort();
+
+	  //debug if ( (ret = bcf_update_info(odw.hdr, gv, info2update[i].c_str(), values, ret, htype)) < 0 )
+	  if ( bcf_update_info(odw.hdr, gv, info2update[i].c_str(), values, ret, htype) < 0 )	    
 	    error("[E:%s:%d %s] Failed to update INFO field %s", info2update[i].c_str());
+
+	  //debug notice("Updated : ret=%d, nvalues = %d, type = %d, len = %d, (i,f)=(%d,%f)", ret, nvalues, info->type, info->len, info->v1.i, info->v1.f);	  
 	}
       }      
     }

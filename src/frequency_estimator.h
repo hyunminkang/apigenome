@@ -16,7 +16,13 @@ class frequency_estimator { //: public VectorFunc {
  public:
 
   Eigen::MatrixXd* pEigVecs;
-  Eigen::BDCSVD<Eigen::MatrixXd>* pSVD;  
+  Eigen::BDCSVD<Eigen::MatrixXd>* pSVD;
+
+  bool skipIf;
+  bool skipInfo;
+  bool siteOnly;
+  std::string field;
+  bool gtError;
   
   int32_t nsamples;
   int32_t ndims;
@@ -34,6 +40,7 @@ class frequency_estimator { //: public VectorFunc {
   int32_t n_pls;
   int8_t* ploidies;
   float* ifs;
+  float* betas;
 
   double pooled_af;
   bool isaf_computed;

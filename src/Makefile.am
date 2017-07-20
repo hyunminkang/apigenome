@@ -20,16 +20,16 @@ noinst_HEADERS = hDist.h \
 	TypeConversion.h \
 	Constant.h \
 	kseq.h pException.h tabix.h \
-	Error.h \
 	ksort.h pFile.h \
 	genomeLoci.h genomePosition.h IO.h kstring.h \
 	codonHelper.h fVcf.h \
-	genomeScore.h khash.h params.h \
+	genomeScore.h khash.h \
 	boolExprParser.h \
 	knetfile.h \
 	wFile.h \
 	Constant.h MathConstant.h \
-	bcf_variant_key.h bcf_filter_arg.h \
+	bcf_variant_key.h bcf_filter_arg.h discrete_log_helper.h \
+	var_dict.h \
 	$(EIGEN_HEADER_FILES)
 
 #bin_PROGRAMS = vcfast bgzip tabix tinyfast
@@ -40,7 +40,7 @@ bin_PROGRAMS = cramore
 
 ## vcfast files
 cramore_SOURCES = cramore.cpp \
-	Error.cpp PhredHelper.cpp params.cpp \
+	Error.cpp PhredHelper.cpp params.cpp commands.cpp \
 	dropseq.cpp \
 	hts_utils.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp genome_interval.cpp log_tool.cpp estimator.cpp \
 	bcf_ordered_writer.cpp reference_sequence.cpp \
@@ -59,7 +59,7 @@ cramore_SOURCES = cramore.cpp \
 	cmd_vcf_svd.cpp tsv_reader.cpp \
 	cmd_cram_simul_contam.cpp cmd_cram_verify_pair_id.cpp cmd_cram_sparse_genotype.cpp cmd_cram_flagstat.cpp \
 	cmd_cram_procap_detect.cpp cmd_cram_context_indel_analysis.cpp \
-	cmd_sc_multinom_em.cpp cmd_sc_map_stamps.cpp cmd_sc_kallisto_count.cpp \
+	cmd_sc_multinom_em.cpp cmd_sc_multinom_gibbs.cpp cmd_sc_map_stamps.cpp cmd_sc_kallisto_count.cpp \
 	Sort.cpp MathVector.cpp MathGold.cpp MathGenMin.cpp MathMatrix.cpp \
 	Random.cpp cmd_vcf_infer_ancestry.cpp ancestry_estimator.cpp \
 	cmd_vcf_infer_isaf.cpp frequency_estimator.cpp cmd_vcf_update_sites.cpp \
@@ -70,7 +70,8 @@ cramore_SOURCES = cramore.cpp \
 	cmd_cram_dense_genotype.cpp joint_genotype_block_reader.cpp joint_genotype_block_record.cpp variant.cpp variant_manip.cpp augmented_bam_record.cpp sex_ploidy_map.cpp allele.cpp vntr.cpp \
 	cmd_fasta_gc_content.cpp fastaGC.cpp \
 	cmd_vcf_normalize_depth.cpp \
-	cmd_bgen_to_vcf.cpp
+	cmd_bgen_to_vcf.cpp \
+	cmd_cram_verify_bam.cpp contam_estimator.cpp
 
 cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
 #cramore_LDFLAGS = -fopenmp

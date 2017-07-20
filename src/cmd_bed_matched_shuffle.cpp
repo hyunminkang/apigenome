@@ -28,7 +28,21 @@
 #include "genomeLoci.h"
 #include "reference_sequence.h"
 
-int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
+class locusCovariate {
+  int32_t gcBin;
+  int32_t fracBin;
+};
+
+class genomeSampler {
+public:
+  std::vector<std::string> seqnames;
+  std::vector<int64_t> seqlens;
+  genomeLoci sampled;
+
+  //bool sample(int32_t len, 
+};
+
+int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {/*
   std::string inBed;
   std::string outBed;
   std::string gcFile;
@@ -42,14 +56,14 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   paramList pl;
   BEGIN_LONG_PARAMS(longParameters)
     LONG_PARAM_GROUP("Required parameters", NULL)
-    LONG_STRING_PARAM("bed",&inBed,"Input BED file representing the positive labels")
+    LONG_STRING_PARAM("in",&inBed,"Input BED file representing the positive labels")
     LONG_STRING_PARAM("out",&outBed,"Output BED file name")
     LONG_STRING_PARAM("gc",&gcFile,"GC content find generated from cramore fasta_gc_content")
-    LONG_STRING_PARAM("rmask",&repeatBed,"Repeat mask BED file")    
 
     LONG_PARAM_GROUP("Options parameters", NULL)    
-    LONG_INT_PARAM("bin-gc",&gcBin,"Unit of binning GC content values")
-    LONG_DOUBLE_PARAM("bin-frac",&repeatFracBin,"Unit of binning repeat mask fraction")
+    LONG_INT_PARAM("bin-gc",&gcBin,"Unit of binning GC content values for matching")
+    LONG_STRING_PARAM("mask-bed",&repeatBed,"Repeat mask BED file")        
+    LONG_DOUBLE_PARAM("bin-frac",&repeatFracBin,"Unit of binning repeat mask fraction for matching")
     LONG_INT_PARAM("verbose",&verbose,"Frequency of verbose output")
     LONG_INT_PARAM("seed",&seed,"Seed for random number generator")      
   END_LONG_PARAMS();
@@ -59,24 +73,20 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   pl.Status();
 
   // sanity check of input arguments
-  if ( inBed.empty() || outBed.empty() || gcFile.empty() || repeatBed.empty() )
-    error("[E:%s:%d %s] --pos --neg, --out, --ref are required parameters",__FILE__,__LINE__,__FUNCTION__);
+  if ( inBed.empty() || outBed.empty() || gcFile.empty() )
+    error("[E:%s:%d %s] --in --out, --gc are required parameters",__FILE__,__LINE__,__FUNCTION__);
 
-  /*
-  
-  // read reference sequences
-  ReferenceSequence ref(refFasta);
+  notice("Loading GC content file from %s", gcFile.c_str());
+
+  fastaGC fGC;
+  if ( !fGC.openGC(gcFile.c_str()) )
+    error("Failed loading GC content file %s", gcFile.c_str());
+
+  notice("Loading BED file %s of repeat mask", repeatBed.c_str());
+
   genomeLoci maskLoci;
-
-  if ( seed == 0 )
-    srand(time(NULL));
-  else
-    srand(seed);
-
-  //std::set<string> maskChrs;
-
-  if ( !maskBed.empty() ) {
-    htsFile* hp = hts_open(maskBed.c_str(),"r");
+  if ( !repeatBed.empty() ) {
+    htsFile* hp = hts_open(repeatBed.c_str(),"r");
     if ( hp == NULL )
       error("[E:%s:%d %s] Cannot open file %s for reading",__FILE__,__LINE__,__FUNCTION__, maskBed.c_str());
     kstring_t str = {0,0,0};
@@ -103,9 +113,15 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
     
     maskLoci.resolveOverlaps();
 
-    notice("After removing overlaps, %d intervals to mask, maxLength = %d", (int32_t)maskLoci.loci.size(), maskLoci.maxLength);    
-  }
+    notice("After removing overlaps, %d intervals to mask, maxLength = %d, total length = %u", (int32_t)maskLoci.loci.size(), maskLoci.maxLength, maskLoci.totalLength());    
+  }  
+  
+  if ( seed == 0 )
+    srand(time(NULL));
+  else
+    srand(seed);
 
+  // try to generate a map bet
   genomeLoci outLoci;
 
   htsFile* hp = hts_open(inBed.c_str(),"r");
@@ -159,8 +175,7 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   hts_close(wp);
 
   notice("Processes %u lines to shffule. Average sampling attempt per locus is %lf", outLoci.loci.size(), sumTries/(double)outLoci.loci.size());
-  */
-
+							 */
   return 0;
 }
 

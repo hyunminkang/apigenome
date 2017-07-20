@@ -16,6 +16,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
   
   std::vector<int32_t> acThres;
   std::vector<double> afThres;
+  bool posOnly = false;
 
   paramList pl;
 
@@ -23,6 +24,7 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
     LONG_PARAM_GROUP("Input Sites", NULL)
     LONG_STRING_PARAM("in-vcf",&inVcf, "Input VCF/BCF file")
     LONG_STRING_PARAM("region",&reg,"Genomic region to focus on")
+    LONG_PARAM("pos-only",&posOnly,"Consider POS field only (not REF field) when determining --region option. This will exclude >1bp variants outside of the region included")
 
     LONG_PARAM_GROUP("Analysis Options", NULL)
     LONG_MULTI_STRING_PARAM("sum-field",&sumFields, "Field values to calculate the sums")
@@ -165,6 +167,12 @@ int32_t cmdVcfSampleSummary(int32_t argc, char** argv) {
     // if minimum distance is specified, skip the variant
     
     if ( ( prev_rid == iv->rid ) && ( iv->pos - prev_pos < minDistBp ) ) {
+      ++nskip;
+      continue;
+    }
+
+    if ( ( !reg.empty() ) && posOnly && ( ( intervals[0].start1 > iv->pos+1 ) || ( intervals[0].end1 < iv->pos+1 ) ) ) {
+      notice("With --pos-only option, skipping variant at %s:%d", bcf_hdr_id2name(odr.hdr, iv->rid), iv->pos+1);      
       ++nskip;
       continue;
     }
