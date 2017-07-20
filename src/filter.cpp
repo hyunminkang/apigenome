@@ -646,7 +646,7 @@ gt_length_too_big:
 
         bcf_format_gt(fmt, i, &str);
         kputc_(0,&str);
-        if ( str.l - plen > blen )
+        if ( (int)str.l - plen > blen )
         {
             // too many alternate alleles or ploidy is too large, the genotype does not fit
             // three characters ("0/0" vs "10/10").
@@ -1315,7 +1315,7 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
     if ( tmp.s[tmp.l-1] == ']' )
     {
         int i;
-        for (i=0; i<tmp.l; i++)
+        for (i=0; i<(int)tmp.l; i++)
             if ( tmp.s[i]=='[' ) { tmp.s[i] = 0; is_array = i+1; break; }
         if ( is_array )
         {
@@ -1440,7 +1440,7 @@ static int filters_init1(filter_t *filter, char *str, int len, token_t *tok)
     // htslib/vcf parser
     char *end;
     tok->threshold = strtol(tmp.s, &end, 10);   // integer?
-    if ( end - tmp.s != strlen(tmp.s) )
+    if ( end - tmp.s != (int)strlen(tmp.s) )
     {
         errno = 0;
         tok->threshold = strtof(tmp.s, &end);   // float?
@@ -1608,7 +1608,7 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
         if ( !strcmp(out[i].tag,"TYPE") )
         {
             if ( i+1==nout ) error("Could not parse the expression: %s\n", filter->str);
-            int itok, ival;
+            int itok = 0, ival = 0;
             if ( out[i+1].tok_type==TOK_EQ || out[i+1].tok_type==TOK_NE ) ival = i - 1, itok = i + 1;
             else if ( out[i+1].tok_type==TOK_LIKE || out[i+1].tok_type==TOK_NLIKE ) ival = i - 1, itok = i + 1;
             else if ( out[i+2].tok_type==TOK_EQ || out[i+2].tok_type==TOK_NE ) itok = i + 2, ival = i + 1;
@@ -1628,7 +1628,7 @@ filter_t *filter_init(bcf_hdr_t *hdr, const char *str)
         if ( !strcmp(out[i].tag,"FILTER") )
         {
             if ( i+1==nout ) error("Could not parse the expression: %s\n", filter->str);
-            int itok = i, ival;
+            int itok = i, ival = 0;
             if ( out[i+1].tok_type==TOK_EQ || out[i+1].tok_type==TOK_NE ) ival = i - 1;
             else if ( out[i+1].tok_type==TOK_LIKE ) out[i+1].tok_type = TOK_EQ, ival = i - 1;
             else if ( out[i+1].tok_type==TOK_NLIKE ) out[i+1].tok_type = TOK_NE, ival = i - 1;

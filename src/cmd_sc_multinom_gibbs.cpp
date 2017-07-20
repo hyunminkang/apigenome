@@ -8,7 +8,7 @@ int32_t cmdScMultinomGibbs(int32_t argc, char** argv) {
   std::string bcdf;
   std::string genef;    
   std::string outPrefix;
-  double doublet = 0;       // doublet proability
+  //double doublet = 0;       // doublet proability
   int32_t burnin = 5;
   int32_t maxIter = 100;
   int32_t thin = 1;

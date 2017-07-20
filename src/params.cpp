@@ -74,7 +74,7 @@ void param::message(const char * format, ...)
   va_end(ap);
 
   if (messages == NULL) {
-    ::printf(buf);
+    ::printf("%s",buf);
   }
   else {
     (*messages) += buf;

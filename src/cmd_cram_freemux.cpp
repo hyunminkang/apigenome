@@ -330,7 +330,7 @@ int32_t cmdCramFreemux(int32_t argc, char** argv) {
   
   notice("Finished reading %d markers from the VCF file", (int32_t)snpids.size());
 
-  int32_t nAlpha = (int32_t)gridAlpha.size();
+  //int32_t nAlpha = (int32_t)gridAlpha.size();
 
   //notice("Finished processing %d reads across %d variants across %d barcodes", nReadsPass, (int32_t)v_poss.size(), (int32_t)bcMap.size(), (int32_t)bcMap.size());
   notice("Total number input reads : %d", sr.n_read);
@@ -432,7 +432,7 @@ int32_t cmdCramFreemux(int32_t argc, char** argv) {
       GLs[2] /= tmp;
 
       snpcell2idx[((int64_t)i << 32) & (int64_t)(it->first)] = k;
-      cellsnp2idx[((int64_t)(it->first << 32)) & (int64_t)i] = k;      
+      cellsnp2idx[((int64_t)it->first << 32) & (int64_t)i] = k;      
       gls[3*k] = GLs[0]/tmp;
       gls[3*k+1] = GLs[1]/tmp;
       gls[3*k+2] = GLs[2]/tmp;

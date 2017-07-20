@@ -85,11 +85,11 @@ int32_t cmdVcfNormalizeDepth(int32_t argc, char** argv) {
   std::vector<int32_t> auto_tids;
   int32_t x_tid = -1;
   int32_t y_tid = -1;
-  int32_t mt_tid = -1;
+  //int32_t mt_tid = -1;
   for(int32_t i=0; i < (int32_t)fGC.seqnames.size(); ++i) {
     if ( fGC.seqnames[i].compare(xLabel) == 0 )       x_tid = i;
     else if ( fGC.seqnames[i].compare(yLabel) == 0 )  y_tid = i;
-    else if ( fGC.seqnames[i].compare(mtLabel) == 0 ) mt_tid = i;
+    else if ( fGC.seqnames[i].compare(mtLabel) == 0 ) {} // mt_tid = i;
     else {
       std::string core = ( fGC.seqnames[i].size() > 3 && fGC.seqnames[i].compare(0,3,"chr") == 0 ) ? fGC.seqnames[i].substr(3) : fGC.seqnames[i];
       //if ( i < 30 ) notice("%s | %s",fGC.seqnames[i].c_str(), core.c_str());      

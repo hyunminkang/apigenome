@@ -378,7 +378,8 @@ void Matrix::Print(FILE * f, int r, int c)
 
     int columnZero = label.size() > 15 ? label.size() : 15;
 
-    fprintf(f, "\n%*s =\n%*s ", columnZero, label.size(), columnZero, dimensions);
+    const char* p_d = dimensions;
+    fprintf(f, "\n%*s =\n%*s ", columnZero, label.c_str(), columnZero, p_d);
 
     int * precision = new int [c + 1];
     int * width = new int [c + 1];

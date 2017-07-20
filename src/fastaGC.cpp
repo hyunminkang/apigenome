@@ -183,7 +183,7 @@ bool fastaGC::openGC(const char* filename) {
       return false;
     }
     char* chrom = new char[len+1];
-    if ( bgzf_read(fp, chrom, sizeof(char)*len) != sizeof(char)*len ) {
+    if ( bgzf_read(fp, chrom, sizeof(char)*len) != (ssize_t)(sizeof(char)*len) ) {
       error("Failed reading %s bytes tid=%d",len,i);                  
       return false;
     }
@@ -205,7 +205,7 @@ bool fastaGC::openGC(const char* filename) {
     byteOffset += sizeof(uint16_t) * nbins;
     if ( on_memory ) {
       mem_gcs.push_back( new uint16_t[nbins] );
-      if ( bgzf_read(fp, mem_gcs.back(), nbins * sizeof(uint16_t) ) != sizeof(uint16_t)*nbins ) {
+      if ( bgzf_read(fp, mem_gcs.back(), nbins * sizeof(uint16_t) ) != (ssize_t)(sizeof(uint16_t)*nbins) ) {
 	error("Failed reading stored GC contents for %s",seqnames[i].c_str());
       }
     }
@@ -261,7 +261,7 @@ uint16_t fastaGC::nextGC(int32_t pos_to_add) {
       if ( bgzf_read(fp, &cur_gc, sizeof(int16_t)) != sizeof(int16_t) )
 	error("[E:%s] Cannot bgzf_read at position %s:%lld = %lld", seqnames[cur_tid].c_str(), cur_pos1, new_offset);  
     
-      return cur_gc;
     }
+    return cur_gc;
   }
 }

@@ -83,7 +83,7 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
   FILE* fp = fopen(bgen.c_str(), "r");
   //int32_t int4;
   uint32_t uint4, ret;
-  int32_t  int4;
+  //int32_t  int4;
   uint8_t  uint1;
   //int16_t int2;
   //uint16_t uint2;
@@ -147,8 +147,9 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
   else if ( nsample != (int32_t) sample_ids.size() )
     error("The number of sample IDs provided by --sample parameter (%u) does not match with BGEN file (%d)", sample_ids.size(), nsample);
 
-  while(toskip > 0) {
-    if ( fread(&uint1, sizeof(char), 1, fp) < 0 ) error("[E:%s:%d %s]",__FILE__,__LINE__,__FUNCTION__);
+  while( toskip > 0 ) {
+    if ( (ret = fread(&uint1, sizeof(char), 1, fp)) < 0 )
+      error("[E:%s:%d %s]",__FILE__,__LINE__,__FUNCTION__);
     --toskip;
   }
 
@@ -173,7 +174,7 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
   Bytef*    comp = (Bytef*) malloc(6 * nsample + 6); //10000000); //char[6 * sample_ids.size()];
   uint32_t  compsz = 6 * nsample + 6;
   uint16_t* gps = new uint16_t[ 3 * nsample ];
-  uint32_t  gpssz = 6 * nsample;
+  //uint32_t  gpssz = 6 * nsample;
   float*    dss = new float[ nsample ];
   uint8_t*  gts = new uint8_t[ nsample ];
   Bytef*    uncomp = NULL;
@@ -300,7 +301,7 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
       if ( uncompressValue != Z_OK )
 	error("Error in uncompressing the data %d, %u, %u", uncompressValue, sz, uint4);
 
-      if ( nsample != *(uint32_t*)(uncomp) )    error("Number of individual in genotype block for %s (%s, %d-th) does not match to %d", varid, rsid, i+1, nsample);
+      if ( (uint32_t)nsample != *(uint32_t*)(uncomp) )    error("Number of individual in genotype block for %s (%s, %d-th) does not match to %d", varid, rsid, i+1, nsample);
       if ( *(uint16_t*)(uncomp+4) != 2 )        error("Cannot handle multi-allelic variants");
       if ( *(uint8_t*)(uncomp+6) != 2 )         error("Non-diploid cannot be handled");
       if ( *(uint8_t*)(uncomp+7) != 2 )         error("Non-diploid cannot be handled");

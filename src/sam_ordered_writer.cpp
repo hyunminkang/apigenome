@@ -103,7 +103,9 @@ void SAMOrderedWriter::link_hdr(bam_hdr_t *hdr)
  */
 void SAMOrderedWriter::write_hdr()
 {
-    sam_hdr_write(file, hdr);
+  if ( sam_hdr_write(file, hdr) != 0 ) {
+    error("[E:%s:%d %s] Cannot write the header file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+  }
 }
 
 /**
@@ -158,7 +160,9 @@ void SAMOrderedWriter::write(bam1_t *v)
     }
     else
     {
-      sam_write1(file, hdr, v);
+      if ( sam_write1(file, hdr, v) < 0 ) {
+	error("[E:%s:%d %s] Cannot write the header file", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      }      
     }
 }
 
@@ -205,7 +209,9 @@ bam1_t* SAMOrderedWriter::get_bam1_from_pool()
 void SAMOrderedWriter::flush(bool force) {
   if (force) {
     while (!buffer.empty()) {
-      sam_write1(file, hdr, buffer.back());
+      if ( sam_write1(file, hdr, buffer.back()) < 0 ) {
+	  error("[E:%s:%d %s] Cannot write the record", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      }            
       store_bam1_into_pool(buffer.back());
       buffer.pop_back();
     }
@@ -216,7 +222,9 @@ void SAMOrderedWriter::flush(bool force) {
       
       while (buffer.size()>1) {
 	if (bam_get_pos1(buffer.back())<=cutoff_pos1) {
-	  sam_write1(file, hdr, buffer.back());
+	  if ( sam_write1(file, hdr, buffer.back()) < 0 ) {
+	    error("[E:%s:%d %s] Cannot write the record", __FILE__, __LINE__, __PRETTY_FUNCTION__);	    
+	  }
 	  store_bam1_into_pool(buffer.back());
 	  buffer.pop_back();
 	}

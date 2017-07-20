@@ -104,7 +104,7 @@ int32_t cmdFastaGCContent(int32_t argc, char** argv) {
     }
 
     for(int32_t i=0; i < (int32_t)chrs.size(); ++i) {
-      printf("%s\t%lld\t%u\n", chrs[i].c_str(), pos1s[i], (uint32_t)fGC.getGC(chrs[i].c_str(), pos1s[i]));
+      printf("%s\t%ld\t%u\n", chrs[i].c_str(), pos1s[i], (uint32_t)fGC.getGC(chrs[i].c_str(),pos1s[i]));
     }
   }
 
