@@ -90,8 +90,8 @@ bool VariantManip::is_normalized(bcf1_t *v)
 
     if (n_allele==1) return true;
 
-    char first_base;
-    char last_base;
+    char first_base = '\0';
+    char last_base = '\0';
     size_t rlen, alen, len;
     bool exists_len_one_allele = false;
     bool first_base_same = true;
@@ -138,7 +138,7 @@ bool VariantManip::is_normalized(bcf1_t *v)
     else
     {
         bool same = true;
-        for (size_t i=0; i<n_allele; ++i)
+        for (size_t i=0; i<(int32_t)n_allele; ++i)
         {
             if (i)
             {
@@ -187,7 +187,7 @@ int32_t VariantManip::classify_variant(bcf_hdr_t *h, bcf1_t *v, Variant& var)
     int32_t n_allele = bcf_get_n_allele(v);
 
     uint32_t pos1 = var.pos1;
-    int32_t pos0 = pos1-1;
+    //int32_t pos0 = pos1-1;
     var.ts = 0;
     var.tv = 0;
     var.ins = 0;
@@ -201,7 +201,7 @@ int32_t VariantManip::classify_variant(bcf_hdr_t *h, bcf1_t *v, Variant& var)
     int32_t rlen = strlen(ref);
 
     //if only ref allele, skip this entire for loop
-    for (size_t i=1; i<n_allele; ++i)
+    for (size_t i=1; i<(int32_t)n_allele; ++i)
     {
         int32_t type = VT_REF;
 

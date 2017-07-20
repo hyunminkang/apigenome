@@ -201,11 +201,11 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
       while( ( it_r != it_end ) && ( it_r->first.pos1 < endpos ) ) ++it_r;
 
       if ( it_l != it_r ) {
-	const char* rg = ".";
+	//const char* rg = ".";
 	if ( !ignoreRG && !tagRG.empty() ) {
 	  uint8_t *tag = (*gtag) ? (uint8_t*) bam_aux_get(b, gtag) : NULL;
 	  if ( ( tag != NULL ) && ( *tag == 'Z' ) ) {
-	    rg = bam_aux2Z(tag);
+	    //rg = bam_aux2Z(tag);
 	  }
 	  else {
 	    if ( n_warning_no_gtag < 10 ) {

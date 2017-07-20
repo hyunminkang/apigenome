@@ -170,7 +170,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
                     if (len)
                     {
                         //another I
-                        if (len>mlen)
+		      if (len>(int32_t)mlen)
                         {
                             aug_cigar.push_back(bam_cigar_gen(mlen, BAM_CEQUAL));
                             aug_ref.push_back("");
@@ -206,7 +206,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
         }
         else if (opchr=='D')
         {
-            bool is_del = false;
+	  //bool is_del = false;
 
             if (*mdp=='0') ++mdp;
 
@@ -259,7 +259,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
                 //insertions are not present in MD tags
                 //may be handled independently of future matches
                 std::string ins = "";
-                for (size_t i=0; i<oplen ; ++i)
+                for (size_t i=0; i<(size_t)oplen ; ++i)
                 {
                     ins += bam_base2char(bam_seqi(seq, rpos0+i));
                 }
@@ -382,7 +382,7 @@ void AugmentedBAMRecord::print()
         bam_get_cigar_string(s, &cigar_string);
         kstring_t cigar_expanded_string = {0,0,0};
         bam_get_cigar_expanded_string(s, &cigar_expanded_string);
-        uint16_t flag = bam_get_flag(s);
+        //uint16_t flag = bam_get_flag(s);
         uint32_t mapq = bam_get_mapq(s);
 
         uint8_t *aux;
@@ -396,8 +396,8 @@ void AugmentedBAMRecord::print()
 
         for (uint32_t i=0; i<aug_cigar.size(); ++i)
         {
-            int32_t oplen = bam_cigar_oplen(aug_cigar[i]);
-            char opchr = bam_cigar_opchr(aug_cigar[i]);
+	  //int32_t oplen = (int32_t)bam_cigar_oplen(aug_cigar[i]);
+	  char opchr = bam_cigar_opchr(aug_cigar[i]);
 
             if (opchr=='I' || opchr=='D')
             {
@@ -439,7 +439,7 @@ void AugmentedBAMRecord::print()
 
         for (uint32_t i=0; i<aug_cigar.size(); ++i)
         {
-            int32_t oplen = bam_cigar_oplen(aug_cigar[i]);
+	  //int32_t oplen = bam_cigar_oplen(aug_cigar[i]);
             char opchr = bam_cigar_opchr(aug_cigar[i]);
 
             if (opchr=='I' || opchr=='D')
@@ -484,7 +484,7 @@ void AugmentedBAMRecord::print()
         {
             ref.append(oplen, '-');
 
-            for (uint32_t j=0; j<oplen; ++j)
+            for (uint32_t j=0; j<(uint32_t)oplen; ++j)
             {
                 seq.append(1, bam_base2char(bam_seqi(bam_get_seq(this->s), spos0+j)));
                 quals.append(1, qual[spos0+j]+33);
@@ -497,7 +497,7 @@ void AugmentedBAMRecord::print()
 	}
         else if (opchr=='=')
         {
-            for (uint32_t j=0; j<oplen; ++j)
+	  for (uint32_t j=0; j<(uint32_t)oplen; ++j)
             {
                 ref.append(1, bam_base2char(bam_seqi(bam_get_seq(this->s), spos0+j)));
                 seq.append(1, bam_base2char(bam_seqi(bam_get_seq(this->s), spos0+j)));
@@ -524,7 +524,7 @@ void AugmentedBAMRecord::print()
             seq.append(aug_alt[i]);
             align.append( oplen, 'I');
 
-            for (uint32_t j=0; j<oplen; ++j)
+            for (uint32_t j=0; j<(uint32_t)oplen; ++j)
             {
                 quals.append(1, qual[spos0+j]+33);
             }

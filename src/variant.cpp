@@ -64,7 +64,7 @@ void Variant::print()
     std::cerr << "motif: " << vntr.motif << "\n";
     std::cerr << "rlen : " << vntr.motif.size() << "\n";
 
-    for (int32_t i=0; i<alleles.size(); ++i)
+    for (int32_t i=0; i<(int32_t)alleles.size(); ++i)
     {
         std::cerr << "\tallele: " << i << "\n";
         std::cerr << "\t  type: " << vtype2string(alleles[i].type) << "\n";

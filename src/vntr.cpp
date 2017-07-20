@@ -108,6 +108,7 @@ void VNTR::print()
     std::cerr << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
 
 
+    /*
     std::string fuzzy_repeat_tract;   //repeat tract
     int32_t fuzzy_rbeg1;              //beginning of repeat tract
     int32_t fuzzy_rend1;              //end of repeat tract
@@ -118,4 +119,5 @@ void VNTR::print()
     int32_t fuzzy_total_no_ru;        //total no of repeat units from hmm
     std::string fuzzy_lflank;         //left flank
     std::string fuzzy_rflank;         //right flank
+    */
 };

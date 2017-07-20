@@ -1,5 +1,5 @@
 #include "sex_ploidy_map.h"
-#include "Error.h"x
+#include "Error.h"
 
 int8_t* sex_ploidy_map::get_ploidies(bcf1_t* v) {
   int32_t cur_ploidy_type = get_ploidy_type(v);

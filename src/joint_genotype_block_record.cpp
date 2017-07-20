@@ -186,9 +186,9 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
   int32_t* gq = (int32_t*) calloc ( nsamples * 1, sizeof(int32_t) );
   //float MLE_HWE_AF[2];
   //float MLE_HWE_GF[3];
-  double gp, gp_sum, max_gp;
+  double gp = 0, gp_sum = 0, max_gp = 0;
   int32_t best_gt = 0;
-  int32_t best_a1, best_a2;
+  int32_t best_a1 = 0, best_a2 = 0;
   int32_t an = 0;
   int32_t acs[2] = {0,0};
   int32_t gcs[3] = {0,0,0};

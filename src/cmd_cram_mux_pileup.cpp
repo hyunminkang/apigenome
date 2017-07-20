@@ -374,10 +374,11 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
   hts_close(wC);
 
   notice("Build indices for sparse matrix");
-  size_t k;
+  //size_t k;
   int32_t i;
-  double tmp;
-  for(i=0, k=0; i < scl.nsnps; ++i) {
+  //double tmp;
+  //for(i=0, k=0; i < scl.nsnps; ++i) {
+  for(i=0; i < scl.nsnps; ++i) {    
     hprintf(wV, "%s\t%d\t%c\t%c\t%.5lf\n", rchroms[scl.snps[i].rid].c_str(), scl.snps[i].pos+1, scl.snps[i].ref, scl.snps[i].alt, 0.5*gp0s[i*3+1] + gp0s[i*3+2]);
     
     std::map<int32_t,sc_snp_droplet_t*>& cells = scl.snp_umis[i];
