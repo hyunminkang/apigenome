@@ -22,7 +22,7 @@ class frequency_estimator { //: public VectorFunc {
   bool skipInfo;
   bool siteOnly;
   std::string field;
-  bool gtError;
+  double gtError;
   
   int32_t nsamples;
   int32_t ndims;

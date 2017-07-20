@@ -499,7 +499,7 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
       float fic = 0;
       n = 0;
       est->compute_gl_fic(p_XX_pls, j, ploidy, MLE_HWE_AF_XX, 2, MLE_GF_XX, fic, n);
-      if ( isnanf(fic) ) fic = 0;	  
+      if ( isnan(fic) ) fic = 0;	  
       if (n) {
 	bcf_update_info_float(odw.hdr, nv, "IBC", &fic, 1);
       }
@@ -525,7 +525,7 @@ int32_t cmdCramSparseGenotype(int32_t argc, char** argv) {
       float fic = 0;
       n = 0;
       est->compute_gl_fic(pls, nsamples, ploidy, MLE_HWE_AF, 2, MLE_GF, fic, n);
-      if ( isnanf(fic) ) fic = 0;
+      if ( isnan(fic) ) fic = 0;
       if (n) {
 	bcf_update_info_float(odw.hdr, nv, "IBC", &fic, 1);
       }

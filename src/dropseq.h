@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <cstdlib>
 #include "Error.h"
 
 #include "htslib/sam.h"

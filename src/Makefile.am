@@ -8,7 +8,7 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 ## Paths to include
 #TABIX_VER = 0.2.5
 #TABIX = tabix-$(TABIX_VER)
-AM_CPPFLAGS = -fopenmp -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-but-set-variable -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 -I../../htslib #-I../include/ #-I$(TABIX)/
+AM_CPPFLAGS = -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-but-set-variable -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 -I../../htslib #-I../include/ #-I$(TABIX)/
 #AM_CPPFLAGS = -fopenmp -I ${top_builddir}/../htslib/ -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -O2 -L ${top_builddir}/../htslib #-I../include/ #-I$(TABIX)/
 #AM_CPPFLAGS = -I ../htslib/ -I ../htslib/htslib -pipe -D__STDC_LIMIT_MACROS -Wall -Wno-unused-local-typedefs -Wno-enum-compare -fpic -g #-O2 #-I../include/ #-I$(TABIX)/
 
@@ -74,9 +74,9 @@ cramore_SOURCES = cramore.cpp \
 	cmd_bgen_to_vcf.cpp \
 	cmd_cram_verify_bam.cpp contam_estimator.cpp
 
-#cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
+#cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lcurl -lcrypto
 #cramore_LDFLAGS = -all-static -Wl,-Bdynamic,-L../../htslib,-lhts,-Bstatic
-cramore_LDADD = -L../../htslib -lhts -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
+cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lgomp -lcurl -lcrypto
 
 ## vcfast files
 #bcfast_SOURCES = bcfast.cpp Error.cpp PhredHelper.cpp params.cpp bcf_ordered_reader.cpp interval.cpp interval_tree.cpp utils.cpp hts_utils.cpp genome_interval.cpp

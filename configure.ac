@@ -58,15 +58,15 @@ AC_CHECK_LIB([ssl], [SSL_CTX_new], [], [AC_MSG_ERROR([SSL library is not found i
 AC_CHECK_LIB([curl],[curl_easy_init],[], [AC_MSG_ERROR([libcurl is not found in the library path. In Ubuntu, it can be installed by running 'sudo pt-get install libcurl4-openssl-dev'])])
 AC_CHECK_LIB([lzma], [lzma_code], [], [AC_MSG_ERROR([liblzma is not found in the library path. In Ubuntu, it can be installed by running 'sudo apt-get install lzma'])])
 
-AC_CHECK_HEADERS([omp.h], [], [AC_MSG_ERROR([omp.h is not found in the inclusion path. In Ubuntu, it can be installed by running 'sudo apt-get install libomp-dev'])])
-AC_CHECK_LIB([gomp],[omp_get_num_threads], [], [AC_MSG_ERROR([libgomp is not found in the library path. In Ubuntu, it can be installed by running 'sudo apt-get install libomp-dev'])])
+#AC_CHECK_HEADERS([omp.h], [], [AC_MSG_ERROR([omp.h is not found in the inclusion path. In Ubuntu, it can be installed by running 'sudo apt-get install libomp-dev'])])
+#AC_CHECK_LIB([gomp],[omp_get_num_threads], [], [AC_MSG_ERROR([libgomp is not found in the library path. In Ubuntu, it can be installed by running 'sudo apt-get install libomp-dev'])])
 
 AC_CHECK_HEADERS([math.h], [], [AC_MSG_ERROR([math.h is not found in the inclusion path. In Ubuntu, it can be installed by running 'sudo apt-get install libc6-dev'])])
 AC_CHECK_LIB([m],[erf],[AC_DEFINE([HAVE_ERF],[1],[libm includes erf])])
 AC_CHECK_LIB([m],[erfc],[AC_DEFINE([HAVE_ERFC],[1],[libm includes erfc])])
 
-AC_CHECK_HEADERS([htslib/bgzf.h], [], [AC_MSG_ERROR([htslib/hts.h is not found in the inclusion path (typically under the parent directory. Visit http://github.com/samtools/htslib for installation and setup])])
-AC_CHECK_LIB([hts], [hts_open], [], [AC_MSG_ERROR([htslib is not found in the library path (typically under the parent directory). Visit http://github.com/samtools/htslib for installation and setup])])
+#AC_CHECK_HEADERS([htslib/bgzf.h], [], [AC_MSG_ERROR([htslib/hts.h is not found in the inclusion path (typically under the parent directory. Visit http://github.com/samtools/htslib for installation and setup])])
+#AC_CHECK_LIB([hts], [hts_open], [], [AC_MSG_ERROR([htslib is not found in the library path (typically under the parent directory). Visit http://github.com/samtools/htslib for installation and setup])])
 #AC_CHECK_LIB(R, R_alloc, [], [AC_MSG_ERROR([libR.{so,a} was not found. Please install it at http://www.r-project.org/ first])])
 
 LT_PREREQ([2.2])
