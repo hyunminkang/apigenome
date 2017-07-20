@@ -9,4 +9,4 @@ SUBDIRS = src data scripts
 include Makefile.vars
 
 install-exec-hook:
-	cd data && rm -rf $(CONFIG) && tar xzvf $(CONFIG).tar.gz; cd $(CONFIG) && perl Makefile.PL INSTALL_BASE=$(prefix) && make && make test && make install
+	cd data && rm -rf $(CONFIG) && tar xzvf $(CONFIG).tar.gz; cd $(CONFIG) && perl Makefile.PL INSTALL_BASE=$(prefix) && make && make test && make install && cd .. && rm -rf $(CONFIG)
