@@ -230,11 +230,11 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
     std::vector<int32_t> snpids;
     //std::vector<int32_t> cellids;
 
-    //if ( !vr.read() )
-    //error("[E:%s Cannot read any single variant from %s]", __PRETTY_FUNCTION__, vr.bcf_file_name.c_str());      
+    if ( !vr.read() )
+      error("[E:%s Cannot read any single variant from %s]", __PRETTY_FUNCTION__, vr.bcf_file_name.c_str());      
     
-    //if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
-    //error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
+    if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
+      error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
         
     // check if the chromosome names are in the same order between BCF and SAM
     std::map<int32_t,int32_t> rid2tids;
