@@ -16,7 +16,7 @@ frequency_estimator::frequency_estimator(Eigen::MatrixXd* _pEigVecs, double _tol
   tol = _tol;
   maxLambda = _maxLambda;  
   
-  hdr = NULL; iv = NULL;
+  hdr = NULL; wdr = NULL; iv = NULL;
   hwe0z = hwe1z = ibc0 = ibc1 = 0;
 
   pls = NULL; n_pls = 0; ploidies = NULL;
@@ -46,7 +46,7 @@ frequency_estimator::frequency_estimator(Eigen::BDCSVD<Eigen::MatrixXd>* _pSVD, 
   tol = _tol;
   maxLambda = _maxLambda;    
   
-  hdr = NULL; iv = NULL;
+  hdr = NULL; wdr = NULL; iv = NULL;
   hwe0z = hwe1z = ibc0 = ibc1 = 0;
 
   pls = NULL; n_pls = 0; ploidies = NULL;
@@ -56,41 +56,44 @@ frequency_estimator::frequency_estimator(Eigen::BDCSVD<Eigen::MatrixXd>* _pSVD, 
   isaf_computed = false;  
 }
 
-bool frequency_estimator::set_hdr(bcf_hdr_t* _hdr) {
+bool frequency_estimator::set_hdr(bcf_hdr_t* _hdr, bcf_hdr_t* _wdr ) {
   if ( hdr != _hdr ) {
     hdr = _hdr;
+    wdr = _wdr;
     char buffer[65535];
     if ( !skipInfo ) {
       sprintf(buffer,"##INFO=<ID=HWE_SLP_P,Number=1,Type=Float,Description=\"Z-score of HWE test with pooled allele frequencyes\">\n");
-      bcf_hdr_append(hdr, buffer);
+      bcf_hdr_append(wdr, buffer);
       sprintf(buffer,"##INFO=<ID=IBC_P,Number=1,Type=Float,Description=\"Inbreeding coefficient with pooled allele frequencies\">\n");
-      bcf_hdr_append(hdr, buffer);    
+      bcf_hdr_append(wdr, buffer);    
       sprintf(buffer,"##INFO=<ID=HWE_SLP_I,Number=1,Type=Float,Description=\"Z-score of HWE test with individual-sepcific allele frequencyes\">\n");
-      bcf_hdr_append(hdr, buffer);
+      bcf_hdr_append(wdr, buffer);
       sprintf(buffer,"##INFO=<ID=IBC_I,Number=1,Type=Float,Description=\"Inbreeding coefficient with individual-sepcific allele frequencies\">\n");
-      bcf_hdr_append(hdr, buffer);
+      bcf_hdr_append(wdr, buffer);
       sprintf(buffer,"##INFO=<ID=MAX_IF,Number=1,Type=Float,Description=\"Maximum Individual-specific allele frequency\">\n");
-      bcf_hdr_append(hdr, buffer);    
+      bcf_hdr_append(wdr, buffer);    
       sprintf(buffer,"##INFO=<ID=MIN_IF,Number=1,Type=Float,Description=\"Minimum Individual-specific allele frequency\">\n");
-      bcf_hdr_append(hdr, buffer);
+      bcf_hdr_append(wdr, buffer);
       sprintf(buffer,"##INFO=<ID=BETA_IF,Number=%d,Type=Float,Description=\"Coefficients for intercept and each eigenvector to obtain ISAF\">\n", ndims);
-      bcf_hdr_append(hdr, buffer);      
+      bcf_hdr_append(wdr, buffer);      
     }
     if ( ( !skipIf ) && ( !siteOnly ) ) {
       sprintf(buffer,"##FORMAT=<ID=IF,Number=1,Type=Float,Description=\"Individual-specific allele frequencies\">\n");
-      bcf_hdr_append(hdr, buffer);
+      bcf_hdr_append(wdr, buffer);
     }
-    bcf_hdr_sync(hdr);
+    bcf_hdr_sync(wdr);
     return true;
   }
   else return false;
 }
 
-bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _pl) {
+bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _pl) { //, std::vector<int32_t>* p_icols) {
   iv = _iv;
   ploidies = _ploidies;
   if ( iv->n_sample != nsamples )
     error("[E:%s:%d %s] nsamples %d != %d in the EigenVector", __FILE__, __LINE__, __PRETTY_FUNCTION__, iv->n_sample, nsamples);
+
+  //error("%d %d %d",bcf_hdr_nsamples(hdr),iv->n_sample,nsamples);      
     
   // parse PL fields
   bcf_unpack(iv, BCF_UN_ALL);
@@ -129,12 +132,13 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _
     int32_t n_gts = 0;
 
     double tmp = gtError + gtError*gtError;
-    int32_t errM[9] = { 0, (int32_t)floor(-10*log10(gtError/(1-tmp))+0.5), (int32_t)floor(-10*log10(gtError*gtError/(1-tmp))+0.5),
-			(int32_t)floor(-10*log10(tmp/(2-tmp-tmp))+0.5), 0, 0,
-			0, 0, 0 };
-    errM[7] = errM[1];
-    errM[6] = errM[2];
+    int32_t errM[9] =
+      { 0, (int32_t)floor(-10*log10(gtError/(1-tmp))+0.5), (int32_t)floor(-10*log10(gtError*gtError/(1-tmp))+0.5),
+	(int32_t)floor(-10*log10(tmp/(2-tmp-tmp))+0.5), 0, 0,
+	0, 0, 0 };
     errM[5] = errM[3];
+    errM[6] = errM[2];    
+    errM[7] = errM[1];
     
     if ( bcf_get_genotypes(hdr, iv, &gts, &n_gts) < 0 ) {
       error("[E:%s:%d %s] Cannot parse GT field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -145,21 +149,19 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _
 	error("[E:%s:%d %s] Multi-allelic (or Mono-allelic) variants found", __FILE__, __LINE__, __PRETTY_FUNCTION__);	
       if ( pls == NULL ) pls = new int32_t[nsamples*3];      
       for(int32_t i=0; i < nsamples; ++i) {
-	// when gt is missing
-	int32_t g1 = bcf_gt_allele(gts[2*i]);
-	int32_t g2 = bcf_gt_allele(gts[2*i+1]);
-
-	// this one does not handle ploidy correctly
-	if ( bcf_gt_is_missing(g2) )
-	  g2 = g1;
-
-	if ( bcf_gt_is_missing(g1) ) { pls[3*i] = pls[3*i+1] = pls[3*i+2] = 0; }
-	else {
-	  int32_t geno = bcf_gt_allele(g1) + bcf_gt_allele(g2); // genotypes in 0,1,2
-	  pls[3*i] = errM[geno*3];
-	  pls[3*i+1] = errM[geno*3+1];
-	  pls[3*i+2] = errM[geno*3+2];	  
+	int32_t geno = bcf_gt_allele(gts[2*i])+bcf_gt_allele(gts[2*i+1]);	
+	if ( bcf_gt_is_missing(gts[2*i+1]) ) { // haploid or missing
+	  if ( bcf_gt_is_missing(gts[2*i]) ) { // missing
+	    pls[3*i] = pls[3*i+1] = pls[3*i+2] = 0;
+	    continue;
+	  }
+	  else { // pretend to be homozygous for haploid
+	    geno = bcf_gt_allele(gts[2*i]) + bcf_gt_allele(gts[2*i]);
+	  }
 	}
+	pls[3*i] = errM[geno*3];
+	pls[3*i+1] = errM[geno*3+1];
+	pls[3*i+2] = errM[geno*3+2];
       }
       free(gts);
       n_pls = nsamples*3;
@@ -260,7 +262,7 @@ bool frequency_estimator::score_test_hwe(bool use_isaf) {
     sum0 = l0*pp0 + l1*pp1 + l2*pp2 + 1e-100;
     ph0 = l1*pp1;
     obsH0 += (ph0/sum0);
-    U0 = (l0-2*l1+l2)/sum0;
+    U0 = pooled_af*(1-pooled_af)*(l0-2*l1+l2)/sum0;
     sumU0 += U0;
     sqU0 += (U0*U0);
     
@@ -271,7 +273,7 @@ bool frequency_estimator::score_test_hwe(bool use_isaf) {
       ph1 = 2*l1*(1.-ifs[i])*ifs[i];
       obsH1 += (ph1/sum1);
       expH1 += (2*(1.-ifs[i])*ifs[i]);
-      U1 = (l0-2*l1+l2)/sum1;
+      U1 = (1-ifs[i])*ifs[i]*(l0-2*l1+l2)/sum1;
       sumU1 += U1;
       sqU1 += (U1*U1);
     }
@@ -425,20 +427,24 @@ bool frequency_estimator::update_variant() {
     if ( ifs[j] < min_if ) min_if = ifs[j];
   }
 
+  if ( siteOnly ) {
+    //notice("foo");
+    bcf_subset(hdr, iv, 0, 0);
+    //notice("goo");    
+  }  
+
   if ( !skipInfo ) {
-    bcf_update_info_float(hdr, iv, "HWE_SLP_P", &hweslp0, 1);
-    bcf_update_info_float(hdr, iv, "IBC_P", &ibc0, 1);
-    bcf_update_info_float(hdr, iv, "HWE_SLP_I", &hweslp1, 1);
-    bcf_update_info_float(hdr, iv, "IBC_I", &ibc1, 1);
-    bcf_update_info_float(hdr, iv, "MAX_IF", &max_if, 1);
-    bcf_update_info_float(hdr, iv, "MIN_IF", &min_if, 1);
-    bcf_update_info_float(hdr, iv, "BETA_IF", betas, ndims);
+    bcf_update_info_float(wdr, iv, "HWE_SLP_P", &hweslp0, 1);
+    bcf_update_info_float(wdr, iv, "IBC_P", &ibc0, 1);
+    bcf_update_info_float(wdr, iv, "HWE_SLP_I", &hweslp1, 1);
+    bcf_update_info_float(wdr, iv, "IBC_I", &ibc1, 1);
+    bcf_update_info_float(wdr, iv, "MAX_IF", &max_if, 1);
+    bcf_update_info_float(wdr, iv, "MIN_IF", &min_if, 1);
+    bcf_update_info_float(wdr, iv, "BETA_IF", betas, ndims);
   }
   if ( ( !skipIf ) && ( !siteOnly ) ) {
-    bcf_update_format_float(hdr, iv, "IF", ifs, nsamples);
+    bcf_update_format_float(wdr, iv, "IF", ifs, nsamples);
   }
-  if ( siteOnly )
-    bcf_subset(hdr, iv, 0, 0);
   
   return true;
 }

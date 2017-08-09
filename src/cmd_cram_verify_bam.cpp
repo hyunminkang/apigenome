@@ -34,10 +34,12 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
   bool withinAncestry = false;
 
   bool refBias = false;
+  bool writePileup = false;
+  bool skipDup = false;
 
   std::vector<std::string> smIDs;
 
-  vr.verbose = 10000;
+  vr.verbose = 1000000;
   sr.verbose = 10000000;  
 
   paramList pl;
@@ -52,6 +54,7 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
     LONG_INT_PARAM("excl-flag", &sr.filt.exclude_flag, "SAM/BAM FLAGs to be excluded")
     LONG_STRING_PARAM("tag-rg", &tagRG, "Tag representing readgroup")
     LONG_PARAM("ignore-rg",&ignoreRG, "Do not group by readgroups")
+    LONG_PARAM("skip-dup",&skipDup, "Skip potential duplicate aggressively based on start position")
     LONG_INT_PARAM("min-DP", &minDP, "Minimum depth of reads with coverage to include the site")
     LONG_INT_PARAM("cap-DP", &capDP, "Maximum depth of reads with coverage to cap the depth")    
     
@@ -74,8 +77,8 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
     LONG_STRING_PARAM("fix-pc", &fixPC, "Fix principal component coordinates in [x,y] format")
     LONG_DOUBLE_PARAM("fix-alpha", &fixAlpha, "Fix the contamination value")
     LONG_PARAM("within-ancestry", &withinAncestry, "Make the ancestries of intended and contaminating samples the same")
-    LONG_PARAM("ref-bias", &refBias, "Estimate the reference bias parameters together")    
-
+    LONG_PARAM("ref-bias", &refBias, "Estimate the reference bias parameters together")
+    LONG_PARAM("write-pileup", &writePileup, "Writeup pileup information for each allele")
 
     LONG_PARAM_GROUP("Other toptions", NULL)    
     LONG_INT_PARAM("sam-verbose",&sr.verbose, "Verbose message frequency for SAM/BAM/CRAM")
@@ -145,6 +148,23 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
     }
   }
 
+  // calculate the mean and variance of PCs
+  std::vector<double> sumv(numPC,0);
+  std::vector<double> ssqv(numPC,0);
+  std::vector<double> muv(numPC,0);
+  std::vector<double> sdv(numPC,0);    
+  for(int32_t i=0; i < (int32_t)matv.size(); ++i) {
+    for(int32_t j=0; j < numPC; ++j) {
+      sumv[j] += matv[i][j];
+      ssqv[j] += (matv[i][j] * matv[i][j]);
+    }
+  }
+
+  for(int32_t i=0; i < numPC; ++i) {
+    muv[i] = sumv[i] / (int32_t)matv.size();
+    sdv[i] = sqrt(ssqv[i]/(int32_t)matv.size() - muv[i]*muv[i]);
+  }
+
   double minMAF = 0.25 / (double) matv.size();
     
   sr.set_buffer_size(1);
@@ -182,12 +202,18 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
   std::string it_chr;
   var_dict<vb_plp>::var_it_t it, it_l, it_r, it_beg, it_end;
   int32_t nreads = 0, nskips = 0, ncaps = 0;
+  int32_t prevpos = 0;
 
   while( sr.read() ) { // read SAM file
     bam1_t* b = sr.cursor();    
     int32_t endpos = bam_endpos(b);
     int32_t begpos = b->core.pos;
     const char* chrom = bam_get_chrom(sr.hdr, b);
+
+    if ( skipDup ) {
+      if ( prevpos == begpos ) continue;
+      prevpos = begpos;
+    }
     
     if ( it_chr != chrom ) {
       it_chr = chrom;
@@ -219,7 +245,7 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
 	}
 
 	for(it = it_l; it != it_r; ++it) {
-	  bam_get_base_and_qual_and_read_and_qual(b, (int32_t)it->first.pos1-1, base, qual, rpos, &readseq, &readqual);
+	  bam_get_base_and_qual_and_read_and_qual(b, (int32_t)it->first.pos1, base, qual, rpos, &readseq, &readqual);
 	  if ( rpos == BAM_READ_INDEX_NA ) {
 	    //if ( rand() % 1000 == 0 ) 
 	    //notice("Cannot find any informative read between %s:%d-%d at %s:%d", bam_get_chrom(sr.hdr, b), b->core.pos+1, bam_endpos(b), bcf_hdr_id2name(vr.cdr.hdr, scl.snps[i].rid), scl.snps[i].pos);
@@ -234,7 +260,7 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
 	  if ( rpos < minTD-1 ) { continue; }
 	  if ( rpos + minTD > b->core.l_qseq ) { continue; }
 
-	  allele = ( it->first.ref[0] == base ) ? 0 : ( ( it->first.alts[0][0] == base ) ? 1 : 2 );
+	  allele = ( ( it->first.ref[0] == base ) ? 0 : ( ( it->first.alts[0][0] == base ) ? 1 : 2 ) );
 	  bq = qual-33 > capBQ ? capBQ : qual-33;
 
 	  if ( (int32_t)it->second.depth() < capDP ) {
@@ -246,7 +272,7 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
 	}
 	++nreads;
 
-	if ( nreads % 10000 == 0 )
+	if ( nreads % vr.verbose == 0 )
 	  notice("Processed %d reads that overlap with sites in SVD", nreads);
       }
     }
@@ -261,6 +287,8 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
   //notice("Finished reading %d reads across %d markers", nreads, var2u.nvar);
 
   contam_estimator est(numPC, minMAF);
+  est.muPCs = muv;
+  est.sdPCs = sdv;
 
   var2u.vectorize(est.plps);      // assign input data
 
@@ -290,15 +318,20 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
   else {
     int32_t i;
     size_t j = 0, k = 0;
+
+    est.fixPC = new double[numPC];
     for(i=0; i < numPC; ++i) {
       if ( ( k = fixPC.find(',',j) ) == std::string::npos ) {
 	if ( i != numPC -1 )
 	  error("Cannot parse %s as %d dimensional vector. Expecting more separator ','", fixPC.c_str(), numPC);
+	k = (int32_t)fixPC.size();
       }
       else if ( i == numPC - 1 )
 	error("Cannot parse %s as %d dimensional vector. More separators ',' observed as expected", fixPC.c_str(), numPC);
-      est.fixPC[i] = atof(&fixPC[j]);
-      ++k;
+      //notice("%d %d %d %s %lf %s", i, j, k, fixPC.c_str(), atof("0,0"), fixPC.substr(j,k-j).c_str());
+      est.fixPC[i] = atof(fixPC.substr(j,k-j).c_str());
+      j = k+1;
+      //notice("%d %d %d %lf", i, j, k, est.fixPC[i]);
     }
   }
 
@@ -454,6 +487,14 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
   
   hts_close(wf);
   
+  if ( writePileup ) {
+    htsFile* plpf = hts_open( (outPrefix + ".plp.gz").c_str(), "wz" );
+    if ( plpf == NULL )
+      error("Cannot open %s for writing", (outPrefix+".plp.gz").c_str());
+    est.writePileup(plpf, alpha, pc1, pc2);
+    hts_close(plpf);
+  }
+  
 
   delete [] pc1;
   delete [] pc2;
@@ -461,3 +502,4 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
 
   return 0;
 }
+

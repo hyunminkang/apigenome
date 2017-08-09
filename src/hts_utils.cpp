@@ -1181,6 +1181,79 @@ char *samfaipath(const char *fn_ref)
     return fn_list;
 };
 
+// Minimal sanitisation of a header to ensure.
+// - null terminated string.
+// - all lines start with @ (also implies no blank lines).
+//
+// Much more could be done, but currently is not, including:
+// - checking header types are known (HD, SQ, etc).
+// - syntax (eg checking tab separated fields).
+// - validating n_targets matches @SQ records.
+// - validating target lengths against @SQ records.
+bam_hdr_t *sam_hdr_sanitise(bam_hdr_t *h) {
+    if (!h)
+        return NULL;
+
+    // Special case for empty headers.
+    if (h->l_text == 0)
+        return h;
+
+    uint32_t i, lnum = 0;
+    char *cp = h->text, last = '\n';
+    for (i = 0; i < h->l_text; i++) {
+        // NB: l_text excludes terminating nul.  This finds early ones.
+        if (cp[i] == 0)
+            break;
+
+        // Error on \n[^@], including duplicate newlines
+        if (last == '\n') {
+            lnum++;
+            if (cp[i] != '@') {
+                error("Malformed SAM header at line %u", lnum);
+                bam_hdr_destroy(h);
+                return NULL;
+            }
+        }
+
+        last = cp[i];
+    }
+
+    if (i < h->l_text) { // Early nul found.  Complain if not just padding.
+        uint32_t j = i;
+        while (j < h->l_text && cp[j] == '\0') j++;
+        if (j < h->l_text)
+            warning("Unexpected NUL character in header. Possibly truncated");
+    }
+
+    // Add trailing newline and/or trailing nul if required.
+    if (last != '\n') {
+        warning("Missing trailing newline on SAM header. Possibly truncated");
+
+        if (h->l_text == UINT32_MAX) {
+            error("No room for extra newline");
+            bam_hdr_destroy(h);
+            return NULL;
+        }
+
+        if (i >= h->l_text - 1) {
+	  cp = (char*)realloc(h->text, (size_t) h->l_text+2);
+            if (!cp) {
+                bam_hdr_destroy(h);
+                return NULL;
+            }
+            h->text = cp;
+        }
+        cp[i++] = '\n';
+
+        // l_text may be larger already due to multiple nul padding
+        if (h->l_text < i)
+            h->l_text = i;
+        cp[h->l_text] = '\0';
+    }
+
+    return h;
+}
+
 /*
 bam_hdr_t* bam_hdr_merge(std::vector<bam_hdr_t*> hdrs) {
   bam_hdr_t* merged_hdr* merged_hdr =

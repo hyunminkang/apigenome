@@ -185,8 +185,17 @@ int32_t cmdVcfExtract(int32_t argc, char** argv) {
 	  //notice("bar i=%d/%d, j=%d, nRead=%d, %d %d", i, nvar, j, nRead, iv->pos, variantList[i].pos);	  
 	  ++nRead;
 	  variantKeyS key(bfr.cdr.hdr, bfr.cursor());
-	  if ( ( it->chrom.compare(bcf_get_chrom(bfr.cdr.hdr, bfr.cursor())) != 0 ) || ( bfr.cursor()->pos > it->pos ) )
+
+	  while ( ( bfr.cursor()->pos > it->pos ) && ( it->chrom.compare(bcf_get_chrom(bfr.cdr.hdr, bfr.cursor())) == 0 ) ) {
+	    ++it;
+	  }
+
+	  if ( it->chrom.compare(bcf_get_chrom(bfr.cdr.hdr, bfr.cursor())) != 0 )
 	    break;
+	  
+	  
+	  //if ( ( it->chrom.compare(bcf_get_chrom(bfr.cdr.hdr, bfr.cursor())) != 0 ) || ( bfr.cursor()->pos > it->pos ) )
+	  //break;
 
 	  //if ( variants.find(key) != variants.end() ) {
 	  if ( key == *it ) {

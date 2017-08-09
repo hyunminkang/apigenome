@@ -9,6 +9,7 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   std::string field("GP");
   double genoError = 0.01;
   std::string outPrefix;
+  std::string plpPrefix;
   std::string tagGroup("CB");
   std::string tagUMI("UB");
   int32_t capBQ = 40;
@@ -39,6 +40,9 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
     LONG_STRING_PARAM("sam",&sr.sam_file_name, "Input SAM/BAM/CRAM file. Must be sorted by coordinates and indexed")
     LONG_STRING_PARAM("tag-group",&tagGroup, "Tag representing readgroup or cell barcodes, in the case to partition the BAM file into multiple groups. For 10x genomics, use CB")
     LONG_STRING_PARAM("tag-UMI",&tagUMI, "Tag representing UMIs. For 10x genomiucs, use UB")
+
+    LONG_PARAM_GROUP("Options for input Pileup format", NULL)
+    LONG_STRING_PARAM("plp",&plpPrefix, "Input pileup format")
 
     LONG_PARAM_GROUP("Options for input VCF/BCF", NULL)
     LONG_STRING_PARAM("vcf",&vr.bcf_file_name, "Input VCF/BCF file, containing the individual genotypes (GT), posterior probability (GP), or genotype likelihood (PL)")
@@ -90,284 +94,363 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   }
 
   std::set<std::string> bcdSet;
-  if ( !groupList.empty() ) {
-    tsv_reader tsv_group_list(groupList.c_str());
-    while( tsv_group_list.read_line() > 0 ) {
-      bcdSet.insert(tsv_group_list.str_field_at(0));
-    }
-    notice("Finished loading %u droplet/cell barcodes to consider", bcdSet.size());
-  }
+  sc_dropseq_lib_t scl;
+  int32_t nAlpha = (int32_t)gridAlpha.size();
 
   for(int32_t i=0; i < (int32_t)smIDs.size(); ++i) {
     vr.add_specified_sample(smIDs[i].c_str());
   }
-
+    
   vr.unlimited_buffer = true;
   vr.vfilt.maxAlleles = 2;
-  sr.set_buffer_size(1);
-  //sr.unlimited_buffer = true;
-  
   vr.init_params();
-  sr.init_params();
 
-  int32_t n_warning_no_gtag = 0;
-  int32_t n_warning_no_utag = 0;  
-  
-  if ( outPrefix.empty() )
-    error("[E:%s:%d %s] --out parameter is missing",__FILE__,__LINE__,__PRETTY_FUNCTION__);
-
-  char gtag[2] = {0,0};
-  char utag[2] = {0,0};    
-
-  if ( tagGroup.empty() ) { // do nothing
-  }
-  else if ( tagGroup.size() == 2 ) {
-    gtag[0] = tagGroup.at(0);
-    gtag[1] = tagGroup.at(1);    
-  }
-  else {
-    error("[E:%s:%d %s] Cannot recognize group tag %s. It is suppose to be a length 2 string",__FILE__,__LINE__,__FUNCTION__,tagGroup.c_str());
-  }
-
-  if ( tagUMI.empty() ) { // do nothing
-  }
-  else if ( tagUMI.size() == 2 ) {
-    utag[0] = tagUMI.at(0);
-    utag[1] = tagUMI.at(1);    
-  }
-  else {
-    error("[E:%s:%d %s] Cannot recognize UMI tag %s. It is suppose to be a length 2 string",__FILE__,__LINE__,__FUNCTION__,tagUMI.c_str());
-  }    
-
-  // scan VCF and CRAM simultaneously
-  // read a variant first
-
-  sc_dropseq_lib_t scl;
-
-  std::vector<int32_t> snpids;
-  //std::vector<int32_t> cellids;  
-  
-  if ( !vr.read() )
-    error("[E:%s Cannot read any single variant from %s]", __PRETTY_FUNCTION__, vr.bcf_file_name.c_str());
-  
-  if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
-    error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
-
-
-  // check if the chromosome names are in the same order between BCF and SAM
-  std::map<int32_t,int32_t> rid2tids;
-  std::map<int32_t,int32_t> tid2rids;
-  int32_t ntids = bam_hdr_get_n_targets(sr.hdr);
-  int32_t prevrid = -1;
-  for(int32_t i=0; i < ntids; ++i) {
-    const char* chrom = bam_get_chromi(sr.hdr, i);
-    int32_t rid = bcf_hdr_name2id(vr.cdr.hdr, chrom);
-    if ( rid >= 0 ) {
-      if ( prevrid >= rid ) {
-	const char* prevchrom = bcf_hdr_id2name(vr.cdr.hdr, prevrid);
-	error("[E:%s] Your VCF/BCF files and SAM/BAM/CRAM files have different ordering of chromosomes. SAM/BAM/CRAM file has %s before %s, but VCF/BCF file has %s after %s", __PRETTY_FUNCTION__, prevchrom, chrom, prevchrom, chrom);
-      }
-      rid2tids[rid] = i;
-      tid2rids[i] = rid;
-      prevrid = rid;
-    }
-  }
-
-  if ( rid2tids.empty() || tid2rids.empty() || ( rid2tids.size() != tid2rids.size() ) ) {
-    error("[E:%s] Your VCF/BCF files and SAM/BAM/CRAM files does not have any matching chromosomes, or some chromosome names are duplicated");
-  }
-  
   int32_t nv = vr.get_nsamples();
-  double* gps = new double[nv*3];
-  for(int32_t i=0; i < nv * 3; ++i) 
-    gps[i] = vr.get_posterior_at(i);
-  int32_t snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
-  snpids.push_back(snpid);
-
-  int32_t ibeg = 0;
-  char base, qual;
-  int32_t rpos;
-  kstring_t readseq = {0,0,0};
-  kstring_t readqual = {0,0,0};
-
-  int32_t nReadsMultiSNPs = 0, nReadsSkipBCD = 0, nReadsPass = 0, nReadsRedundant = 0, nReadsN = 0, nReadsLQ = 0, nReadsTMP = 0;
+  double* gps = NULL;
     
-  while( sr.read() ) { // read SAM file
-    int32_t endpos = bam_endpos(sr.cursor());
-    int32_t tid2rid = bcf_hdr_name2id(vr.cdr.hdr, bam_get_chrom(sr.hdr, sr.cursor()));
-    if ( tid2rid < 0 ) { // no matching BCF entry in the chromosome, skip;
-      continue;
+  if ( !plpPrefix.empty() ) {
+    if ( !sr.sam_file_name.empty() ) {      
+      error("with --plp option, neither --sam option cannot be used");
     }
 
-    int32_t n_cleared = vr.clear_buffer_before( bcf_hdr_id2name(vr.cdr.hdr, vr.cursor()->rid), sr.cursor()->core.pos );
-    //for(int32_t i=ibeg; i < ibeg+n_cleared; ++i) {
-    //  v_umis.clear();
-    //}
-    ibeg += n_cleared;
-
-    // add new snps
-    while( ( !vr.eof ) && ( ( vr.cursor()->rid < tid2rid ) || ( ( vr.cursor()->rid == tid2rid ) && ( vr.cursor()->pos < endpos ) ) ) ) {
-      if ( vr.read() ) {
-	if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
-	  error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
-	
-	gps = new double[nv*3];
-	for(int32_t i=0; i < nv * 3; ++i) {
-	  gps[i] = vr.get_posterior_at(i);
-	}
-	snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
-	snpids.push_back(snpid);
-      }
-      else {
-	//error("Cannot read new SNP");
-      }
+    notice("Reading barcode information from %s.cel.gz..", plpPrefix.c_str());
+    tsv_reader tsv_bcdf( (plpPrefix + ".cel.gz").c_str() );
+    while( tsv_bcdf.read_line() > 0 ) {
+      scl.add_cell(tsv_bcdf.str_field_at(0));
+      //bcds.push_back(tsv_bcdf.str_field_at(0));
+      //bcdCnts.push_back(tsv_bcdf.int_field_at(1));
     }
 
-    // get barcode
-    int32_t ibcd = 0;
-    if ( tagGroup.empty() ) {
-      ibcd = scl.add_cell(".");
+    if ( !vr.read() )
+      error("[E:%s Cannot read any single variant from %s]", __PRETTY_FUNCTION__, vr.bcf_file_name.c_str());      
+    
+    if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
+      error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);    
+
+    notice("Reading variant information from %s.var.gz..", plpPrefix.c_str());    
+    tsv_reader tsv_varf( (plpPrefix + ".var.gz").c_str() );
+
+    while( tsv_varf.read_line() > 0 ) {
+      int32_t rid = bcf_hdr_name2id(vr.cdr.hdr, tsv_varf.str_field_at(0));
+      if ( rid < 0 )
+	error("Cannot find chromosome %s from VCF file", tsv_varf.str_field_at(0));
+      int32_t pos = tsv_varf.int_field_at(1);
+      char    ref = tsv_varf.str_field_at(2)[0];
+      char    alt = tsv_varf.str_field_at(3)[0];
+
+      // find the variant from VCF
+      while( ( !vr.eof ) && ( ( vr.cursor()->rid != rid ) || ( vr.cursor()->pos + 1 != pos ) || ( vr.cursor()->d.allele[0][0] != ref ) || ( vr.cursor()->d.allele[1][0] != alt ) ) ) {
+	if ( vr.cursor()->rid > rid )
+	  error("Could not find variant %s:%d:%c:%c from VCF file", tsv_varf.str_field_at(0), pos, ref, alt);	  
+
+	if ( rand() % 10000 == 0 )
+	  notice("Reading variant info %s:%d:%c:%c at %s:%d:%c:%c", tsv_varf.str_field_at(0), pos, ref, alt, bcf_hdr_id2name(vr.cdr.hdr, vr.cursor()->rid), vr.cursor()->pos+1, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0] );
+	vr.read();
+      }
+
+      if ( vr.eof ) {
+	error("[E:%s] Cannot find variant at %s:%d:%c:%c", tsv_varf.str_field_at(0), pos, ref, alt);
+      }
+
+      if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
+	error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
+	  
+      gps = new double[nv*3];
+      for(int32_t i=0; i < nv * 3; ++i) {
+	gps[i] = vr.get_posterior_at(i);
+      }
+      if ( scl.add_snp(rid, pos, ref, alt, vr.get_af(1), gps) + 1 != tsv_varf.nlines )
+	error("Expected SNP nID = %d but observed %s", tsv_varf.nlines-1, scl.nsnps-1);
+    }
+
+    char buf[255];
+    notice("Reading pileup information from %s.plp.gz..", plpPrefix.c_str());
+    tsv_reader tsv_plpf( (plpPrefix + ".plp.gz").c_str() );
+    int32_t numi = 0;
+    while( tsv_plpf.read_line() > 0 ) {
+      const char* pa = tsv_plpf.str_field_at(2);
+      const char* pq = tsv_plpf.str_field_at(3);
+      int32_t l = (int32_t)strlen(pq);
+      
+      if ( (int32_t)strlen(pq) != l )
+	error("Length are different between %s and %s", pa, pq);
+      
+      for(int32_t i=0; i < l; ++i) {
+	sprintf(buf, "%x", numi++);
+	++scl.cell_totl_reads[tsv_plpf.int_field_at(0)];    	
+	scl.add_read( tsv_plpf.int_field_at(1), tsv_plpf.int_field_at(0), buf, (char)(pa[i]-(char)'0'), (char)(pq[i]-(char)33) ); 
+      }
+    }
+  }
+  else {
+    if ( !groupList.empty() ) {
+      tsv_reader tsv_group_list(groupList.c_str());
+      while( tsv_group_list.read_line() > 0 ) {
+	bcdSet.insert(tsv_group_list.str_field_at(0));
+      }
+      notice("Finished loading %u droplet/cell barcodes to consider", bcdSet.size());
+    }
+    
+    sr.set_buffer_size(1);
+    //sr.unlimited_buffer = true;
+    sr.init_params();
+    
+    int32_t n_warning_no_gtag = 0;
+    int32_t n_warning_no_utag = 0;  
+    
+    //if ( outPrefix.empty() )
+    //  error("[E:%s:%d %s] --out parameter is missing",__FILE__,__LINE__,__PRETTY_FUNCTION__);
+    
+    char gtag[2] = {0,0};
+    char utag[2] = {0,0};    
+    
+    if ( tagGroup.empty() ) { // do nothing
+    }
+    else if ( tagGroup.size() == 2 ) {
+      gtag[0] = tagGroup.at(0);
+      gtag[1] = tagGroup.at(1);    
     }
     else {
-      uint8_t *bcd = (*gtag) ? (uint8_t*) bam_aux_get(sr.cursor(), gtag) : NULL;
-      const char* sbcd = ".";
-      if ( ( bcd != NULL ) && ( *bcd == 'Z' ) ) {
-	sbcd = bam_aux2Z(bcd);
+      error("[E:%s:%d %s] Cannot recognize group tag %s. It is suppose to be a length 2 string",__FILE__,__LINE__,__FUNCTION__,tagGroup.c_str());
+    }
+    
+    if ( tagUMI.empty() ) { // do nothing
+    }
+    else if ( tagUMI.size() == 2 ) {
+      utag[0] = tagUMI.at(0);
+      utag[1] = tagUMI.at(1);    
+    }
+    else {
+      error("[E:%s:%d %s] Cannot recognize UMI tag %s. It is suppose to be a length 2 string",__FILE__,__LINE__,__FUNCTION__,tagUMI.c_str());
+    }    
+    
+    // scan VCF and CRAM simultaneously
+    // read a variant first
+    
+    std::vector<int32_t> snpids;
+    //std::vector<int32_t> cellids;
+
+    //if ( !vr.read() )
+    //error("[E:%s Cannot read any single variant from %s]", __PRETTY_FUNCTION__, vr.bcf_file_name.c_str());      
+    
+    //if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
+    //error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
+        
+    // check if the chromosome names are in the same order between BCF and SAM
+    std::map<int32_t,int32_t> rid2tids;
+    std::map<int32_t,int32_t> tid2rids;
+    int32_t ntids = bam_hdr_get_n_targets(sr.hdr);
+    int32_t prevrid = -1;
+    for(int32_t i=0; i < ntids; ++i) {
+      const char* chrom = bam_get_chromi(sr.hdr, i);
+      int32_t rid = bcf_hdr_name2id(vr.cdr.hdr, chrom);
+      if ( rid >= 0 ) {
+	if ( prevrid >= rid ) {
+	  const char* prevchrom = bcf_hdr_id2name(vr.cdr.hdr, prevrid);
+	  error("[E:%s] Your VCF/BCF files and SAM/BAM/CRAM files have different ordering of chromosomes. SAM/BAM/CRAM file has %s before %s, but VCF/BCF file has %s after %s", __PRETTY_FUNCTION__, prevchrom, chrom, prevchrom, chrom);
+	}
+	rid2tids[rid] = i;
+	tid2rids[i] = rid;
+	prevrid = rid;
       }
-      else {
-	if ( n_warning_no_gtag < 10 ) {
-	  notice("WARNING: Cannot find Droplet/Cell tag %s from %d-th read %s at %s:%d-%d. Treating all of them as a single group", tagUMI.c_str(), sr.n_read, bam_get_qname(sr.cursor()), bam_get_chrom(sr.hdr, sr.cursor()), sr.cursor()->core.pos, bam_endpos(sr.cursor()));
-	}
-	else if ( n_warning_no_gtag == 10 ) {
-	  notice("WARNING: Suppressing 10+ missing Droplet/Cell tag warnings...");
-	}
-	++n_warning_no_gtag;	
+    }
+    
+    if ( rid2tids.empty() || tid2rids.empty() || ( rid2tids.size() != tid2rids.size() ) ) {
+      error("[E:%s] Your VCF/BCF files and SAM/BAM/CRAM files does not have any matching chromosomes, or some chromosome names are duplicated");
+    }
+    
+    //nv = vr.get_nsamples();
+    gps = new double[nv*3];
+    for(int32_t i=0; i < nv * 3; ++i) 
+      gps[i] = vr.get_posterior_at(i);
+    
+    int32_t snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos+1, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
+    snpids.push_back(snpid);
+    
+    int32_t ibeg = 0;
+    char base, qual;
+    int32_t rpos;
+    kstring_t readseq = {0,0,0};
+    kstring_t readqual = {0,0,0};
+    
+    int32_t nReadsMultiSNPs = 0, nReadsSkipBCD = 0, nReadsPass = 0, nReadsRedundant = 0, nReadsN = 0, nReadsLQ = 0, nReadsTMP = 0;
+    
+    while( sr.read() ) { // read SAM file
+      int32_t endpos = bam_endpos(sr.cursor());
+      int32_t tid2rid = bcf_hdr_name2id(vr.cdr.hdr, bam_get_chrom(sr.hdr, sr.cursor()));
+      if ( tid2rid < 0 ) { // no matching BCF entry in the chromosome, skip;
+	continue;
       }
       
-      if ( bcdSet.empty() || ( bcdSet.find(sbcd) != bcdSet.end() ) ) {
-	ibcd = scl.add_cell(sbcd);
+      int32_t n_cleared = vr.clear_buffer_before( bcf_hdr_id2name(vr.cdr.hdr, vr.cursor()->rid), sr.cursor()->core.pos );
+      //for(int32_t i=ibeg; i < ibeg+n_cleared; ++i) {
+      //  v_umis.clear();
+      //}
+      ibeg += n_cleared;
+      
+      // add new snps
+      while( ( !vr.eof ) && ( ( vr.cursor()->rid < tid2rid ) || ( ( vr.cursor()->rid == tid2rid ) && ( vr.cursor()->pos < endpos ) ) ) ) {
+	if ( vr.read() ) {
+	  if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )
+	    error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
+	  
+	  gps = new double[nv*3];
+	  for(int32_t i=0; i < nv * 3; ++i) {
+	    gps[i] = vr.get_posterior_at(i);
+	  }
+	  snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos + 1, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
+	  snpids.push_back(snpid);
+	}
+	else {
+	  //error("Cannot read new SNP");
+	}
+      }
+      
+      // get barcode
+      int32_t ibcd = 0;
+      if ( tagGroup.empty() ) {
+	ibcd = scl.add_cell(".");
       }
       else {
-	++nReadsSkipBCD;
-	continue;
+	uint8_t *bcd = (*gtag) ? (uint8_t*) bam_aux_get(sr.cursor(), gtag) : NULL;
+	const char* sbcd = ".";
+	if ( ( bcd != NULL ) && ( *bcd == 'Z' ) ) {
+	  sbcd = bam_aux2Z(bcd);
+	}
+	else {
+	  if ( n_warning_no_gtag < 10 ) {
+	    notice("WARNING: Cannot find Droplet/Cell tag %s from %d-th read %s at %s:%d-%d. Treating all of them as a single group", tagUMI.c_str(), sr.n_read, bam_get_qname(sr.cursor()), bam_get_chrom(sr.hdr, sr.cursor()), sr.cursor()->core.pos, bam_endpos(sr.cursor()));
+	  }
+	  else if ( n_warning_no_gtag == 10 ) {
+	    notice("WARNING: Suppressing 10+ missing Droplet/Cell tag warnings...");
+	  }
+	  ++n_warning_no_gtag;	
+	}
+	
+	if ( bcdSet.empty() || ( bcdSet.find(sbcd) != bcdSet.end() ) ) {
+	  ibcd = scl.add_cell(sbcd);
+	}
+	else {
+	  ++nReadsSkipBCD;
+	  continue;
+	}
       }
-    }
 
-    ++nReadsTMP;
-
-    // get UMI
-    std::string sumi(".");
-    if ( tagUMI.empty() ) {
-      catprintf(sumi,"%x",rand()); // give a random UMI
-    }
-    else {
-      uint8_t *umi = (*utag) ? (uint8_t*) bam_aux_get(sr.cursor(), utag) : NULL;      
-      if ( ( umi != NULL ) && ( *umi == 'Z' ) ) {
-	sumi = bam_aux2Z(umi);
+      ++nReadsTMP;
+      
+      // get UMI
+      std::string sumi(".");
+      if ( tagUMI.empty() ) {
+	catprintf(sumi,"%x",rand()); // give a random UMI
       }
       else {
-	if ( n_warning_no_utag < 10 ) {
-	  notice("WARNING: Cannot find UMI tag %s from %d-th read %s at %s:%d-%d. Treating all of them as a single UMI", tagUMI.c_str(), sr.n_read, bam_get_qname(sr.cursor()), bam_get_chrom(sr.hdr, sr.cursor()), sr.cursor()->core.pos, bam_endpos(sr.cursor()));
+	uint8_t *umi = (*utag) ? (uint8_t*) bam_aux_get(sr.cursor(), utag) : NULL;      
+	if ( ( umi != NULL ) && ( *umi == 'Z' ) ) {
+	  sumi = bam_aux2Z(umi);
 	}
-	else if ( n_warning_no_utag == 10 ) {
-	  notice("WARNING: Suppressing 10+ UMI warnings...");
+	else {
+	  if ( n_warning_no_utag < 10 ) {
+	    notice("WARNING: Cannot find UMI tag %s from %d-th read %s at %s:%d-%d. Treating all of them as a single UMI", tagUMI.c_str(), sr.n_read, bam_get_qname(sr.cursor()), bam_get_chrom(sr.hdr, sr.cursor()), sr.cursor()->core.pos, bam_endpos(sr.cursor()));
+	  }
+	  else if ( n_warning_no_utag == 10 ) {
+	    notice("WARNING: Suppressing 10+ UMI warnings...");
+	  }
+	  ++n_warning_no_utag;
+	  //error("[E:%s] Cannot find UMI tag %d %d %x %s %s %x", __PRETTY_FUNCTION__, sr.nbuf, sr.ridx, sr.cursor(), bcd, utag, umi);
 	}
-	++n_warning_no_utag;
-	//error("[E:%s] Cannot find UMI tag %d %d %x %s %s %x", __PRETTY_FUNCTION__, sr.nbuf, sr.ridx, sr.cursor(), bcd, utag, umi);
       }
-    }
-
-    ++scl.cell_totl_reads[ibcd];    
-    
-    // genotype all reads together
-    int32_t nv_pass = 0;
-    int32_t nv_redundant = 0;
-    int32_t nv_valid = 0;
-    int32_t allele, bq;
-
-    //if ( rand() % 10000 == 0 )
-    //notice("Reading between %s:%d-%d at %s:%d to %d i=beg=%d, nbuf=%d, vidx=%d, size=%u prevpos=%d", bam_get_chrom(sr.hdr, sr.cursor()), sr.cursor()->core.pos+1, bam_endpos(sr.cursor()), bcf_hdr_id2name(vr.cdr.hdr, scl.snps[ibeg].rid), scl.snps[ibeg].pos, scl.snps[ibeg+vr.nbuf-1].pos, ibeg, vr.nbuf, vr.vidx, vr.vbufs.size(), scl.snps[ibeg-1].pos);
-    
-    for(int32_t i=ibeg; i < ibeg+vr.nbuf; ++i) {
-      bam1_t* b = sr.cursor();
-      bam_get_base_and_qual_and_read_and_qual(b, (uint32_t)scl.snps[i].pos, base, qual, rpos, &readseq, &readqual);
-      if ( rpos == BAM_READ_INDEX_NA ) {
-	//if ( rand() % 1000 == 0 ) 
-	//notice("Cannot find any informative read between %s:%d-%d at %s:%d", bam_get_chrom(sr.hdr, b), b->core.pos+1, bam_endpos(b), bcf_hdr_id2name(vr.cdr.hdr, scl.snps[i].rid), scl.snps[i].pos);
-	continue;
+      
+      ++scl.cell_totl_reads[ibcd];    
+      
+      // genotype all reads together
+      int32_t nv_pass = 0;
+      int32_t nv_redundant = 0;
+      int32_t nv_valid = 0;
+      int32_t allele, bq;
+      
+      //if ( rand() % 10000 == 0 )
+      //notice("Reading between %s:%d-%d at %s:%d to %d i=beg=%d, nbuf=%d, vidx=%d, size=%u prevpos=%d", bam_get_chrom(sr.hdr, sr.cursor()), sr.cursor()->core.pos+1, bam_endpos(sr.cursor()), bcf_hdr_id2name(vr.cdr.hdr, scl.snps[ibeg].rid), scl.snps[ibeg].pos, scl.snps[ibeg+vr.nbuf-1].pos, ibeg, vr.nbuf, vr.vidx, vr.vbufs.size(), scl.snps[ibeg-1].pos);
+      
+      for(int32_t i=ibeg; i < ibeg+vr.nbuf; ++i) {
+	bam1_t* b = sr.cursor();
+	bam_get_base_and_qual_and_read_and_qual(b, (uint32_t)scl.snps[i].pos-1, base, qual, rpos, &readseq, &readqual);
+	if ( rpos == BAM_READ_INDEX_NA ) {
+	  //if ( rand() % 1000 == 0 ) 
+	  //notice("Cannot find any informative read between %s:%d-%d at %s:%d", bam_get_chrom(sr.hdr, b), b->core.pos+1, bam_endpos(b), bcf_hdr_id2name(vr.cdr.hdr, scl.snps[i].rid), scl.snps[i].pos);
+	  continue;
+	}
+	if ( base == 'N' ) continue;
+	
+	++nv_valid;
+	
+	if ( qual-33 < minBQ ) { continue; }
+	if ( rpos < minTD-1 ) { continue; }
+	if ( rpos + minTD > b->core.l_qseq ) { continue; }
+	
+	allele = ( base == scl.snps[i].ref ) ? 0 : ( ( base == scl.snps[i].alt ) ? 1 : 2 );
+	bq = qual-33 > capBQ ? capBQ : qual-33;
+	
+	if ( scl.add_read(snpids[i], ibcd, sumi.c_str(), allele, bq) )
+	  ++nv_pass;
+	else
+	  ++nv_redundant;
       }
-      if ( base == 'N' ) continue;
-
-      ++nv_valid;
-
-      if ( qual-33 < minBQ ) { continue; }
-      if ( rpos < minTD-1 ) { continue; }
-      if ( rpos + minTD > b->core.l_qseq ) { continue; }
-
-      allele = ( base == scl.snps[i].ref ) ? 0 : ( ( base == scl.snps[i].alt ) ? 1 : 2 );
-      bq = qual-33 > capBQ ? capBQ : qual-33;
-
-      if ( scl.add_read(snpids[i], ibcd, sumi.c_str(), allele, bq) )
-	++nv_pass;
-      else
-	++nv_redundant;
+      
+      if ( nv_pass > 1 ) ++nReadsMultiSNPs;
+      if ( nv_pass > 0 ) ++nReadsPass;
+      else if ( nv_redundant > 0 ) ++nReadsRedundant;
+      else if ( nv_valid > 0 ) ++nReadsLQ;
+      else ++nReadsN;
+      
+      //if ( nv_valid > 0 ) ++scl.cell_totl_reads[ibcd];    
     }
-
-    if ( nv_pass > 1 ) ++nReadsMultiSNPs;
-    if ( nv_pass > 0 ) ++nReadsPass;
-    else if ( nv_redundant > 0 ) ++nReadsRedundant;
-    else if ( nv_valid > 0 ) ++nReadsLQ;
-    else ++nReadsN;
-
-    //if ( nv_valid > 0 ) ++scl.cell_totl_reads[ibcd];    
-  }
-
-  if ( n_warning_no_utag > 10 ) 
+    
+    if ( n_warning_no_utag > 10 ) 
     notice("WARNING: Suppressed a total of %d UMI warnings...", n_warning_no_utag);
     
-  if ( n_warning_no_gtag > 10 ) 
-    notice("WARNING: Suppressed a total of %d droplet/cell barcode warnings...", n_warning_no_gtag);
-  
-  notice("Finished reading %d markers from the VCF file", (int32_t)snpids.size());
+    if ( n_warning_no_gtag > 10 ) 
+      notice("WARNING: Suppressed a total of %d droplet/cell barcode warnings...", n_warning_no_gtag);
+    
+    notice("Finished reading %d markers from the VCF file", (int32_t)snpids.size());
+    
+    
+    //notice("Finished processing %d reads across %d variants across %d barcodes", nReadsPass, (int32_t)v_poss.size(), (int32_t)bcMap.size(), (int32_t)bcMap.size());
+    notice("Total number input reads : %d", sr.n_read);
+    notice("Total number of read-QC-passed reads : %d ", sr.n_read - sr.n_skip); //, nReadsN + nReadsUnique + nReadsLQ + nReadsPass);
+    notice("Total number of skipped reads with ignored barcodes : %d", nReadsSkipBCD);
+    notice("Total number of non-skipped reads with considered barcodes : %d", nReadsTMP);  
+    notice("Total number of gapped/noninformative reads : %d", nReadsN);
+    notice("Total number of base-QC-failed reads : %d", nReadsLQ);  
+    notice("Total number of redundant reads : %d", nReadsRedundant);
+    notice("Total number of pass-filtered reads : %d", nReadsPass);
+    notice("Total number of pass-filtered reads overlapping with multiple SNPs : %d", nReadsMultiSNPs);
+    
+    //notice("Finished processing %d reads across %d variants across %d barcodes, filtering %d (%.2lf%%) reads, including %d (%.2lf%%) gapped reads, %d (%.2lf%%) low quality reads, and %d (%.2lf%%) redundant/qcfail reads from the BAM file %s", nReadsPass, (int32_t)v_poss.size(), (int32_t)bcMap.size(), nReadsLQ + nReadsUnique + nReadsN, 100.0 * (nReadsLQ + nReadsUnique + nReadsN) / (nReads, nReadsN, 100.0 * nReadsN / (nReadsPass + nReadsLQ + nReadsUnique + nReadsN), nReadsLQ, 100.0 * nReadsLQ / nR, nReadsRedundant, 100.0 * nReadsRedundant / nReadsAll,  inSam.c_str());
 
-  int32_t nAlpha = (int32_t)gridAlpha.size();
-
-  //notice("Finished processing %d reads across %d variants across %d barcodes", nReadsPass, (int32_t)v_poss.size(), (int32_t)bcMap.size(), (int32_t)bcMap.size());
-  notice("Total number input reads : %d", sr.n_read);
-  notice("Total number of read-QC-passed reads : %d ", sr.n_read - sr.n_skip); //, nReadsN + nReadsUnique + nReadsLQ + nReadsPass);
-  notice("Total number of skipped reads with ignored barcodes : %d", nReadsSkipBCD);
-  notice("Total number of non-skipped reads with considered barcodes : %d", nReadsTMP);  
-  notice("Total number of gapped/noninformative reads : %d", nReadsN);
-  notice("Total number of base-QC-failed reads : %d", nReadsLQ);  
-  notice("Total number of redundant reads : %d", nReadsRedundant);
-  notice("Total number of pass-filtered reads : %d", nReadsPass);
-  notice("Total number of pass-filtered reads overlapping with multiple SNPs : %d", nReadsMultiSNPs);
-
-  //notice("Finished processing %d reads across %d variants across %d barcodes, filtering %d (%.2lf%%) reads, including %d (%.2lf%%) gapped reads, %d (%.2lf%%) low quality reads, and %d (%.2lf%%) redundant/qcfail reads from the BAM file %s", nReadsPass, (int32_t)v_poss.size(), (int32_t)bcMap.size(), nReadsLQ + nReadsUnique + nReadsN, 100.0 * (nReadsLQ + nReadsUnique + nReadsN) / (nReads, nReadsN, 100.0 * nReadsN / (nReadsPass + nReadsLQ + nReadsUnique + nReadsN), nReadsLQ, 100.0 * nReadsLQ / nR, nReadsRedundant, 100.0 * nReadsRedundant / nReadsAll,  inSam.c_str());
-
-  sr.close();
-  //vr.close();
-
-  notice("Starting to prune out cells with too few reads...");
-  int32_t nRemoved = 0;
-  if ( minTotalReads + minUniqReads + minCoveredSNPs < 0 ) {
-    for(int32_t i=0; i < scl.nbcs; ++i) {
-      if ( ( scl.cell_totl_reads[i] < minTotalReads ) || ( scl.cell_uniq_reads[i] < minUniqReads) || ( (int32_t)scl.cell_umis[i].size() < minCoveredSNPs ) ) {
-	for(std::map<int32_t,sc_snp_droplet_t*>::iterator it = scl.cell_umis[i].begin();
-	    it != scl.cell_umis[i].end(); ++it) {
-	  delete it->second;
-	  scl.snp_umis[it->first].erase(i);
+    sr.close();
+    //vr.close();
+    
+    notice("Starting to prune out cells with too few reads...");
+    int32_t nRemoved = 0;
+    if ( minTotalReads + minUniqReads + minCoveredSNPs < 0 ) {
+      for(int32_t i=0; i < scl.nbcs; ++i) {
+	if ( ( scl.cell_totl_reads[i] < minTotalReads ) || ( scl.cell_uniq_reads[i] < minUniqReads) || ( (int32_t)scl.cell_umis[i].size() < minCoveredSNPs ) ) {
+	  for(std::map<int32_t,sc_snp_droplet_t*>::iterator it = scl.cell_umis[i].begin();
+	      it != scl.cell_umis[i].end(); ++it) {
+	    delete it->second;
+	    scl.snp_umis[it->first].erase(i);
+	  }
+	  scl.cell_umis[i].clear();
+	  ++nRemoved;
 	}
-	scl.cell_umis[i].clear();
-	++nRemoved;
       }
     }
+    notice("Finishing pruning out %d cells with too few reads...", nRemoved);
+
+
+    if ( (int32_t)snpids.size() != scl.nsnps )
+      error("[E:%s snpids.size() = %u != scl.nsnps = %d",__PRETTY_FUNCTION__, snpids.size(), scl.nsnps);
   }
-  notice("Finishing pruning out %d cells with too few reads...", nRemoved);
-
-
-  if ( (int32_t)snpids.size() != scl.nsnps )
-    error("[E:%s snpids.size() = %u != scl.nsnps = %d",__PRETTY_FUNCTION__, snpids.size(), scl.nsnps);
 
 
   // Calculate average genotype probability
@@ -716,16 +799,6 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
       }
     }
 
-    /*
-    for(j=jbeg; j < jend; ++j) {
-      for(k=0; k < nv; ++k) {
-	for(n=0; n < nAlpha; ++n) {
-	  postAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] = (exp(llksAB[(j-jbeg)*nv*nAlpha+k*nAlpha+n] - maxLLK) * (n == 0 ? 1.-doublet_prior : doublet_prior) / (jend-jbeg) / nv / (n == 0 ? 1 : (nAlpha-1)))/(sumSingle+sumDouble);
-	}
-      }
-      }*/
-
-
     int32_t iSing1 = -1, iSing2 = -1;
     double maxSing1 = -1e300, maxSing2 = -1e300;
     for(j=jbeg; j < jend; ++j) {
@@ -861,6 +934,6 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   if ( writePair ) hts_close(wpair);
   hts_close(wbest);
   hts_close(wsing2);  
-  
-  return 0;
+
+  return 0; 
 }

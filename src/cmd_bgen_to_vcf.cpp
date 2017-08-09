@@ -213,6 +213,12 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
       if ( ( ret = fread(chr, sizeof(char), l_chr, fp) ) < 0 ) error("[E:%s:%d %s]",__FILE__,__LINE__,__FUNCTION__);
     chr[l_chr] = '\0';
 
+    // if chr starts with 0..
+    if ( chr[0] == '0' ) {
+      int32_t nchr = atoi(chr);
+      sprintf(chr, "%d", nchr);
+    }
+
     uint32_t pos1;
     if ( ( ret = fread(&pos1, sizeof(uint32_t), 1, fp) ) < 0 ) error("[E:%s:%d %s]",__FILE__,__LINE__,__FUNCTION__);
     uint16_t nalleles = 2;
@@ -268,6 +274,9 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
     // read compressed data
     if ( ( uint4 = fread(comp, sizeof(Bytef), sz - (layout == 2 ? 4 : 0), fp) ) < 0 ) error("[E:%s:%d %s]",__FILE__,__LINE__,__FUNCTION__);
 
+    if ( i % verbose == 0 ) 
+      notice("Processing %d/%d variants, writing %d variants at %s:%u", i+1, nvar, nwritten, chr, pos1);    
+
     // skip if don't need to uncompress
     if ( !region.empty() ) {
       if ( interval.seq.compare(chr) != 0 ) continue;
@@ -282,8 +291,6 @@ int32_t cmdBgenToVcf(int32_t argc, char** argv) {
     // or write the variant
 
     ++nwritten;
-    if ( i % verbose == 0 )
-      notice("Processing %d/%d variants, writing %d variants at %s:%u", i+1, nvar, nwritten, chr, pos1);
 
     uLongf usz = dsz;
     uLongf csz = sz;

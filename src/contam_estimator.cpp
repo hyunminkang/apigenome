@@ -1,5 +1,26 @@
 #include "contam_estimator.h"
 
+void contam_estimator::writePileup(htsFile* wf, double alpha, double* pc1, double* pc2) {
+  int32_t nvars = (int32_t)plps.size();
+  hprintf(wf,"#CHROM\tPOS\tREF\tALT\tAF\tISAF1\tISAF2\tDEPTH\tALLELES\tBQ\n");
+  for(int32_t i=0; i < nvars; ++i) {
+    vb_plp& plp = plps[i].val;
+    double af = plp.ud[0];
+    double isaf1 = plp.get_isaf(numPC, pc1, minMAF);
+    double isaf2 = plp.get_isaf(numPC, pc2, minMAF);
+    int32_t d = plp.depth();
+    std::string als, bqs;
+    for(int32_t j=0; j < d; ++j) {
+      als += (char)('0' + plp.albqs->at(j).first);
+      bqs += (char)(33  + plp.albqs->at(j).second);
+    }
+    hprintf(wf,"%s\t%ld\t%s\t%s\t%.4lg\t%.4lg\t%.4lg\t%d\t%s\t%s\n",
+	    plps[i].chr.c_str(), plps[i].var.pos1, plps[i].var.ref.c_str(),
+	    plps[i].var.alts[0].c_str(), af, isaf1, isaf2, d,
+	    als.c_str(), bqs.c_str());
+  }
+}
+
 double* contam_estimator::get_relative_depths(double* optPC) {
   // Relative DP = [OBS_DP_AT_G]/[OBS_DP_AT_R]
   // With no sequencing error, we should expect
@@ -12,7 +33,7 @@ double* contam_estimator::get_relative_depths(double* optPC) {
   double gf[3], p, q;
   int32_t i, j;
   for(i=0; i < (int32_t)plps.size(); ++i) {
-    vb_plp_t& plp = plps[i];
+    vb_plp_t& plp = plps[i].val;
     p = plp.get_isaf(numPC, optPC, minMAF);
     q = 1-p;
     gf[0] = q*q; gf[1] = 2*p*q; gf[2] = p*p;    
@@ -48,26 +69,26 @@ double contam_estimator::optimizeLLK(double* optAlpha, double* optPC1, double* o
       optPC1[i] = optPC2[i] = fixPC[i];
   }
 
+  // calculate 
+
   Vector startingPoint(ndims);
   cont_llk_func lf(*this);
   
   if ( withinAncestry ) {
     startingPoint.Zero();
+    if ( fixAlpha < 0 )
+      startingPoint[0] = log(0.001/0.999);
     lf.withinAncestry = true;
   }
   else {
+    int32_t o = 0;
     if ( fixAlpha < 0 ) {
       startingPoint[0] = log(*optAlpha/(1 - *optAlpha));
-      for(int32_t i=0; i < numPC; ++i) {
-	startingPoint[i+1] = optPC1[i];
-	startingPoint[i+numPC+1] = optPC2[i];
-      }
+      o = 1;
     }
-    else {
-      for(int32_t i=0; i < numPC; ++i) {
-	startingPoint[i] = optPC1[i];
-	startingPoint[i+numPC] = optPC2[i];
-      }      
+    for(int32_t i=0; i < numPC; ++i) {
+      startingPoint[i+o] = (optPC1[i] - muPCs[i])/sdPCs[i];
+      startingPoint[i+numPC+o] = (optPC2[i] - muPCs[i])/sdPCs[i];
     }
     lf.withinAncestry = false;
   }
@@ -103,8 +124,8 @@ double contam_estimator::optimizeLLK(double* optAlpha, double* optPC1, double* o
   
   if ( fixPC == NULL ) {
     for(int32_t i=0; i < numPC; ++i) {
-      optPC1[i] = conMinimizer.point[i + (fixAlpha < 0 ? 1 : 0) + o1];
-      optPC2[i] = conMinimizer.point[i + (fixAlpha < 0 ? 1 : 0) + o2];	
+      optPC1[i] = conMinimizer.point[i + (fixAlpha < 0 ? 1 : 0) + o1] * sdPCs[i] + muPCs[i];
+      optPC2[i] = conMinimizer.point[i + (fixAlpha < 0 ? 1 : 0) + o2] * sdPCs[i] + muPCs[i];	
     }
   }
 

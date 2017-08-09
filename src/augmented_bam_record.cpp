@@ -22,6 +22,7 @@
 */
 
 #include "augmented_bam_record.h"
+//#include "Error.h"
 
 /**
  * Constructor.
@@ -66,6 +67,10 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
     ((md_aux=bam_aux_get(s, "MD")) &&  (md = bam_aux2Z(md_aux)));
     char* mdp = md; //pointer to md
 
+    //kstring_t scigar = {0, 0, 0};
+    //bam_get_cigar_string(s,&scigar);
+    //notice("Initializing cigar %s",scigar.s);
+    //free(scigar.s);
 
     //variables for keep track of CIGAR and MD tag
     uint32_t rpos0 = 0;                //current 0-based position in read sequence and qual field
@@ -92,7 +97,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
 
             rpos0 += oplen;
         }
-	else if ( opchr=='H')
+	else if ( opchr=='H' )
 	{
             aug_cigar.push_back(cigar[i]);
             aug_ref.push_back("");
@@ -111,7 +116,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
                 //CIGAR: 6M4I6M
                 //MD   : 12
                 //to process the next insertion or SNP
-                if (md_mlen_left>mlen)
+                if (md_mlen_left > mlen)
                 {
                     aug_cigar.push_back(bam_cigar_gen(mlen, BAM_CEQUAL));
                     aug_ref.push_back("");
@@ -170,7 +175,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
                     if (len)
                     {
                         //another I
-		      if (len>(int32_t)mlen)
+		      if ((uint32_t)len>mlen)
                         {
                             aug_cigar.push_back(bam_cigar_gen(mlen, BAM_CEQUAL));
                             aug_ref.push_back("");
@@ -287,6 +292,8 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
         uint32_t oplen = bam_cigar_oplen(aug_cigar[i]);
         char opchr = bam_cigar_opchr(aug_cigar[i]);
 
+	//notice("oplen = %u, opchr = %c", oplen, opchr);
+
         if (opchr=='S')
         {
             rpos0 += oplen;
@@ -298,7 +305,7 @@ void AugmentedBAMRecord::initialize(bam_hdr_t* h, bam1_t* s)
         else if (opchr=='=')
         {
             rpos0 += oplen;
-            end1 +=oplen;
+            end1 += oplen;
         }
         else if (opchr=='X')
         {

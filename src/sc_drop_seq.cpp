@@ -36,6 +36,9 @@ bool sc_dropseq_lib_t::add_read(int32_t snpid, int32_t cellid, const char* umi, 
   sc_snp_droplet_t* p_snp_drop = NULL;
   bool ret = false;
 
+  //if ( ( allele > 2 ) || ( qual > 50 ) )
+  //  error("umi = %s, allele = %c, qual = %c", umi, allele, qual);
+
   ++cell_pass_reads[cellid];
 
   // check if (snp,cell) is empty

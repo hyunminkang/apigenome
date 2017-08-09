@@ -160,7 +160,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
   double* gps = new double[nv*3];
   for(int32_t i=0; i < nv * 3; ++i) 
     gps[i] = vr.get_posterior_at(i);
-  int32_t snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
+  int32_t snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos+1, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
   snpids.push_back(snpid);
 
   int32_t ibeg = 0;
@@ -194,7 +194,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
 	for(int32_t i=0; i < nv * 3; ++i) {
 	  gps[i] = vr.get_posterior_at(i);
 	}
-	snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
+	snpid = scl.add_snp( vr.cursor()->rid, vr.cursor()->pos+1, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0], vr.get_af(1), gps);
 	snpids.push_back(snpid);
       }
       else {
@@ -269,7 +269,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
     
     for(int32_t i=ibeg; i < ibeg+vr.nbuf; ++i) {
       bam1_t* b = sr.cursor();
-      bam_get_base_and_qual_and_read_and_qual(b, (uint32_t)scl.snps[i].pos, base, qual, rpos, &readseq, &readqual);
+      bam_get_base_and_qual_and_read_and_qual(b, (uint32_t)scl.snps[i].pos-1, base, qual, rpos, &readseq, &readqual);
       if ( rpos == BAM_READ_INDEX_NA ) {
 	//if ( rand() % 1000 == 0 ) 
 	//notice("Cannot find any informative read between %s:%d-%d at %s:%d", bam_get_chrom(sr.hdr, b), b->core.pos+1, bam_endpos(b), bcf_hdr_id2name(vr.cdr.hdr, scl.snps[i].rid), scl.snps[i].pos);
@@ -367,9 +367,17 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
     error("[E:%s:%d %s] Cannot create %s.* file",__FILE__,__LINE__,__FUNCTION__,outPrefix.c_str());
 
   notice("Writing cell information");
+  std::vector<std::string> v_bcs(scl.bc_map.size());
   for(std::map<std::string,int32_t>::iterator it = scl.bc_map.begin(); it != scl.bc_map.end(); ++it) {
-    hprintf(wC, "%s\t%d\n", it->first.c_str(), it->second);
+    if ( !v_bcs[it->second].empty() )
+      error("Duplicate position for barcode %s at %d", it->first.c_str(), it->second);
+    v_bcs[it->second] = it->first;
+    //hprintf(wC, "%s\t%d\n", it->first.c_str(), it->second);
   }
+  for(int32_t i=0; i < (int32_t)v_bcs.size(); ++i) {
+    hprintf(wC, "%s\t%d\n", v_bcs[i].c_str(), i);
+  }
+  v_bcs.clear();
   notice("Finished writing cell information");
   hts_close(wC);
 
@@ -379,7 +387,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
   //double tmp;
   //for(i=0, k=0; i < scl.nsnps; ++i) {
   for(i=0; i < scl.nsnps; ++i) {    
-    hprintf(wV, "%s\t%d\t%c\t%c\t%.5lf\n", rchroms[scl.snps[i].rid].c_str(), scl.snps[i].pos+1, scl.snps[i].ref, scl.snps[i].alt, 0.5*gp0s[i*3+1] + gp0s[i*3+2]);
+    hprintf(wV, "%s\t%d\t%c\t%c\t%.5lf\n", rchroms[scl.snps[i].rid].c_str(), scl.snps[i].pos, scl.snps[i].ref, scl.snps[i].alt, 0.5*gp0s[i*3+1] + gp0s[i*3+2]);
     
     std::map<int32_t,sc_snp_droplet_t*>& cells = scl.snp_umis[i];
     if ( cells.empty() ) continue;

@@ -64,7 +64,7 @@ cramore_SOURCES = cramore.cpp \
 	Sort.cpp MathVector.cpp MathGold.cpp MathGenMin.cpp MathMatrix.cpp \
 	Random.cpp cmd_vcf_infer_ancestry.cpp ancestry_estimator.cpp \
 	cmd_vcf_infer_isaf.cpp frequency_estimator.cpp cmd_vcf_update_sites.cpp \
-	cmd_cram_demuxlet.cpp sam_filtered_reader.cpp sc_drop_seq.cpp cmd_cram_freemux.cpp \
+	sam_filtered_reader.cpp sc_drop_seq.cpp cmd_cram_freemux.cpp \
 	sam_ordered_writer.cpp \
 	cmd_cram_simuxlet.cpp  \
 	cmd_cram_mux_pileup.cpp \
@@ -72,7 +72,9 @@ cramore_SOURCES = cramore.cpp \
 	cmd_fasta_gc_content.cpp fastaGC.cpp \
 	cmd_vcf_normalize_depth.cpp \
 	cmd_bgen_to_vcf.cpp \
-	cmd_cram_verify_bam.cpp contam_estimator.cpp
+	cmd_cram_verify_bam.cpp contam_estimator.cpp \
+	cmd_cram_demuxlet.cpp \
+	cmd_cram_update_rg.cpp
 
 #cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lcurl -lcrypto
 #cramore_LDFLAGS = -all-static -Wl,-Bdynamic,-L../../htslib,-lhts,-Bstatic

@@ -12,6 +12,7 @@ dist_bin_SCRIPTS = \
 	dropseq-resolve-barcode-trimming \
 	dropseq-kallisto \
 	demux-fastq \
+	fbin-lookup \
 	gene-conv-names \
 	gtf2GenePred \
 	inspect-sv \

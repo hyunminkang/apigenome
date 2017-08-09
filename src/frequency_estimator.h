@@ -30,6 +30,7 @@ class frequency_estimator { //: public VectorFunc {
   double maxLambda;
   
   bcf_hdr_t* hdr;
+  bcf_hdr_t* wdr;
   bcf1_t* iv;
   float hwe0z;
   float hwe1z;
@@ -49,8 +50,8 @@ class frequency_estimator { //: public VectorFunc {
   frequency_estimator(Eigen::BDCSVD<Eigen::MatrixXd>* pSVD, double _tol = 1e-10, double maxLambda = 1.0);  
   ~frequency_estimator();
 
-  bool set_hdr(bcf_hdr_t* _hdr);
-  bool set_variant(bcf1_t* _iv, int8_t* ploidies, int32_t* _pl = NULL);
+  bool set_hdr(bcf_hdr_t* _hdr, bcf_hdr_t* _wdr);
+  bool set_variant(bcf1_t* _iv, int8_t* ploidies, int32_t* _pl = NULL); //, std::vector<int32_t>* p_icols = NULL);
   double estimate_pooled_af_em(int32_t maxiter=10);
   
   double estimate_isaf_em(int32_t maxiter = 20);

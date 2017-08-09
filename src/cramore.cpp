@@ -62,6 +62,7 @@ int32_t cmdVcfNormalizeDepth(int32_t argc, char** argv);
 
 int32_t cmdBgenToVcf(int32_t argc, char** argv);
 int32_t cmdCramVerifyBam(int32_t argc, char** argv);
+int32_t cmdCramUpdateRG(int32_t argc, char** argv);
 
 int32_t main(int32_t argc, char** argv) {
   commandList cl;
@@ -77,6 +78,7 @@ int32_t main(int32_t argc, char** argv) {
     LONG_COMMAND("cram-simul-contam", &cmdCramSimulContam, "Simulate contaminated sequence reads")
     LONG_COMMAND("cram-context-indel-analysis", &cmdCramContextIndelAnalysis, "Context-specific analysis of indels")
     LONG_COMMAND("cram-flagstat-all", &cmdCramFlagStat, "Comprehensive flagstat analysis")
+    LONG_COMMAND("cram-update-rg", &cmdCramUpdateRG, "Update readgroup information")
 
     LONG_COMMAND("cram-verify-bam", &cmdCramVerifyBam, "Ancestry-agnostic contamination estimation")
     

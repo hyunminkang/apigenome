@@ -131,11 +131,14 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   //double* optLoadings = new double[numPC+1];
 
   BCFOrderedWriter odw(outVcf.c_str(), 0);
-  odw.set_hdr(bfr.cdr.hdr);
   if ( siteOnly ) {
-    bcf_hdr_t* hnull = bcf_hdr_subset(odw.hdr, 0, 0, 0);
+    bcf_hdr_t* hnull = bcf_hdr_subset(bfr.cdr.hdr, 0, 0, 0);
     bcf_hdr_remove(hnull, BCF_HL_FMT, NULL);
-  }    
+    odw.set_hdr(hnull);
+  }
+  else {
+    odw.set_hdr(bfr.cdr.hdr);
+  }
 
   frequency_estimator freqest(&eV);
   // assign command arguments
@@ -145,7 +148,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   freqest.skipInfo = skipInfo;
   freqest.siteOnly = siteOnly;
   
-  freqest.set_hdr(odw.hdr);
+  freqest.set_hdr(bfr.cdr.hdr, odw.hdr);
   odw.write_hdr();
 
   /*
@@ -161,14 +164,27 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
     //notice("bar");
 
     bcf1_t* nv = bcf_dup(bfr.cursor());
-    freqest.set_variant(nv, bfr.ploidies);
+    freqest.set_variant(nv, bfr.ploidies); //, NULL, bfr.sm_icols.empty() ? NULL : &bfr.sm_icols);
+
+    //notice("bar");    
 
     //freqest.estimate_isaf_simplex();
     freqest.estimate_isaf_em();
     freqest.score_test_hwe(true);    
     freqest.update_variant();
+
+    //notice("car %d %d",bcf_hdr_nsamples(odw.hdr),nv->n_sample);    
+
     odw.write(nv);
+
+    //notice("dar");
+    
     bcf_destroy(nv);
+
+    //notice("far");        
+
+    //error("%d",bcf_hdr_nsamples(odw.hdr));    
+
        
     //frequency_estimator frqest( &evecs, &bfr, numPC, 0.5/ns );
 

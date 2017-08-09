@@ -202,7 +202,7 @@ bool fastaGC::openGC(const char* filename) {
     // when the length is L, the window is W, and the bin size is B
     // the total number of bins are ceiling(L/B), with some inefficiencies
     int32_t nbins = (int32_t)ceil((double)seqlens[i]/(double)sliding_unit);    
-    byteOffset += sizeof(uint16_t) * nbins;
+    byteOffset += ( sizeof(uint16_t) * nbins );
     if ( on_memory ) {
       mem_gcs.push_back( new uint16_t[nbins] );
       if ( bgzf_read(fp, mem_gcs.back(), nbins * sizeof(uint16_t) ) != (ssize_t)(sizeof(uint16_t)*nbins) ) {

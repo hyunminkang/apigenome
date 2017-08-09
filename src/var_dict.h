@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include "Error.h"
 
@@ -34,6 +35,18 @@ struct var_dict_key {
 };
 
 typedef struct var_dict_key var_dict_key_t;
+
+template <class T>
+class var_elem {
+ public:
+  std::string chr;
+  var_dict_key var;
+  T val;
+ var_elem(const char* _chr, const var_dict_key& _var, const T& _val) :
+  chr(_chr), var(_var), val(_val) {}
+};
+
+typedef struct chr_var_plp chr_var_plp_t;
 
 template <class T>
 class var_dict {
@@ -131,14 +144,14 @@ class var_dict {
     return ( dict[tmp_chr = chr].upper_bound(tmp_key) );
   }
 
-  int32_t vectorize(std::vector<T>& v, bool remove = true) {
+  int32_t vectorize(std::vector< var_elem<T> >& v, bool remove = true) {
     var_dict_it_t d_it = dict.begin();
     var_dict_it_t d_it_tmp;
     while( d_it != dict.end() ) {
       notice("Processing %s", d_it->first.c_str());
       var_it_t it = d_it->second.begin();
       while( it != d_it->second.end() ) {
-	v.push_back(it->second);
+	v.push_back( var_elem<T>(d_it->first.c_str(), it->first, it->second) );
 	++it;
       }
 
