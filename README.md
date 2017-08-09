@@ -16,23 +16,38 @@ Note that some of the software tools in this repository **_MAY MIGRATE OUT TO A 
 
 ### Installing APIGenome
 
+#### Requirement before installation
+
+Currently, APIGenome installation was tested in Ubuntu and Mac OS X. If you find installation problems in other OS, please let the authors know.
+
+First, you need standard UNIX tools including `grep, mv, rm, make, cat, cut, dirname, head, mkdir, sort, zcat` installed.
+
+Next, you will need to have a number of tools installed, including `autoconf, automake, libtool, perl, R, Rscript`.
+
+Most importantly, you need `htslib` cloned and compiled before installing **_APIGenome_**. At the directory you would like to run `git clone` command, `htslib` directory must present, so that `htslib/` and `apigenome` are sibling directories (similar to when installing `samtools` or `bcftools`
+
 #### Cloning from github repository
 
-You can clone the current snapshot of this repository to install as well
+At the parent directory of `htslib/`, you can clone the current snapshot of this repository to install as well. 
 
 <pre>
 $ git clone https://github.com/hyunminkang/apigenome.git
 $ cd apigenome/
+$ autoreconf -vfi
 $ ./configure --prefix [/path/to/install]
 $ make
 $ make install </pre>
+
+It is recommended to specify `--prefix` explictly as the installation without `--prefix` argument has not been extensively tested.
 
 ### How to use APIGenome utilities
 
 APIGenome contains a list of many self-documented command line utilities. To understand how to use each of them, you can run each utility with -man or -help option to see the command line usages.
 
 <pre>
-$ [path/to/apigenome]/bin/[utility-name] -man </pre>
+$ [path/to/apigenome]/bin/[utility-name] -man 
+$ [path/to/apigenome]/bin/[utility-name] -help
+</pre>
 
 ### List of available APIGenome utilities
 
