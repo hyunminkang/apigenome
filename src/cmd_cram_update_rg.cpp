@@ -3,18 +3,18 @@
 
 int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
   std::string inSam;   // SAM, BAM, or CRAM
-  std::string outSam; // Output file name
+  std::string outSam;  // Output file name
   std::string rgMap;   // List of RGs to update
+  std::string fasta;   // Name of reference FASTA file
   int32_t verbose = 10000000;
   
   paramList pl;
 
   BEGIN_LONG_PARAMS(longParameters)
-    LONG_PARAM_GROUP("Options for input SAM/BAM/CRAM", NULL)
+    LONG_PARAM_GROUP("Input Options", NULL)
     LONG_STRING_PARAM("sam",&inSam, "Input SAM/BAM/CRAM file. Must be sorted by coordinates and indexed")
-
-    LONG_PARAM_GROUP("Options for readgroup information", NULL)
-    LONG_STRING_PARAM("rg-map",&rgMap, "Map of readgroups with [REPRESENTITAIVE_RG] [RG1] [RG2] ...")    
+    LONG_STRING_PARAM("rg-map",&rgMap, "Map of readgroups with [REPRESENTITAIVE_RG] [RG1] [RG2] ...")
+    LONG_STRING_PARAM("ref", &fasta, "FASTA file (with .fai index) of the reference sequence")
 
     LONG_PARAM_GROUP("Output Options", NULL)
     LONG_STRING_PARAM("out",&outSam,"Output file name")
@@ -25,8 +25,8 @@ int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
   pl.Read(argc, argv);
   pl.Status();
 
-  if ( inSam.empty() || outSam.empty() || rgMap.empty() )
-    error("[E:%s:%d %s] required parameters --in, --out --rg-map is missing",__FILE__,__LINE__,__FUNCTION__);
+  if ( inSam.empty() || outSam.empty() || rgMap.empty() || fasta.empty() )
+    error("[E:%s:%d %s] required parameters --in, --out --rg-map, --ref is missing",__FILE__,__LINE__,__FUNCTION__);
 
   // load VCF files. This VCF should only contain hard genotypes in GT field
   samFile* in = NULL;
@@ -37,6 +37,8 @@ int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
   std::map<std::string,std::string> mRG;
   std::map<std::string,bool> rgs2remove;
   std::map<std::string,bool> rgs2keep;
+
+  const char* fn_list = samfaipath(fasta.c_str());
   
   tsv_reader tsvf(rgMap.c_str());
   while( tsvf.read_line() > 0 ) {
@@ -57,16 +59,19 @@ int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
     error("[E:%s:%d %s] Cannot open file %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());    
   }
 
-
   if ( ( header = sam_hdr_read(in) ) == 0 ) {
     error("[E:%s:%d %s] Cannot open header from %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());
   }
   
   // make a new header
-  if ( ( out = sam_open(outSam.c_str(), "w") ) == 0 ) {
+  const char* mode = ( outSam.substr( outSam.size() - 5 ).compare(".cram") == 0 ? "wc" : ( outSam.substr( outSam.size() - 5 ).compare(".bam") == 0 ? "wb" : "w" ) );
+  if ( ( out = sam_open(outSam.c_str(), mode ) ) == 0 ) {
     error("[E:%s:%d %s] Cannot open file %s\n",__FILE__,__LINE__,__FUNCTION__,outSam.c_str());        
   }
   else {
+    if ( hts_set_fai_filename(out, fn_list) != 0 ) 
+      error("Failed to use reference %s", fn_list);
+    
     kstring_t str = {0, 0, 0};
     char *cp, *line;
     int32_t j, l;
