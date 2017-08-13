@@ -172,7 +172,7 @@ int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
   int32_t i;
   for( i=0; sam_read1(in, header, b) >= 0; ++i ) {
     if ( i % verbose == 0 )
-      notice("Processing %d records at %s:%d", i, bam_get_chrom(header,b), b->core.pos);
+      notice("Processing %d records at %s:%d", i, (b->core.flag & BAM_FUNMAP) ? "*" : bam_get_chrom(header,b), b->core.pos);
     // get RG ID
     uint8_t *uid = (uint8_t*) bam_aux_get(b, rgtag);
     const char* sid = ( ( uid != NULL ) && ( *uid == 'Z' ) ) ?  bam_aux2Z(uid) : NULL;
@@ -183,8 +183,8 @@ int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
       error("Cannot write SAM record");
   }
   notice("Finished processing %d records");
-  hts_close(in);
   hts_close(out);
+  hts_close(in);
   
   return 0;
 }
