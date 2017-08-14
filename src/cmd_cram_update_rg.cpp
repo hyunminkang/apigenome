@@ -58,6 +58,8 @@ int32_t cmdCramUpdateRG(int32_t argc, char** argv) {
   if ( ( in = sam_open(inSam.c_str(), "r") ) == 0 ) {
     error("[E:%s:%d %s] Cannot open file %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());    
   }
+  if ( hts_set_fai_filename(in, fn_list) != 0 ) 
+    error("Failed to use reference %s", fn_list);  
 
   if ( ( header = sam_hdr_read(in) ) == 0 ) {
     error("[E:%s:%d %s] Cannot open header from %s\n",__FILE__,__LINE__,__FUNCTION__,inSam.c_str());
