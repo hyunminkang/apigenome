@@ -62,20 +62,34 @@ bool frequency_estimator::set_hdr(bcf_hdr_t* _hdr, bcf_hdr_t* _wdr ) {
     wdr = _wdr;
     char buffer[65535];
     if ( !skipInfo ) {
-      sprintf(buffer,"##INFO=<ID=HWE_SLP_P,Number=1,Type=Float,Description=\"Z-score of HWE test with pooled allele frequencyes\">\n");
-      bcf_hdr_append(wdr, buffer);
-      sprintf(buffer,"##INFO=<ID=IBC_P,Number=1,Type=Float,Description=\"Inbreeding coefficient with pooled allele frequencies\">\n");
-      bcf_hdr_append(wdr, buffer);    
-      sprintf(buffer,"##INFO=<ID=HWE_SLP_I,Number=1,Type=Float,Description=\"Z-score of HWE test with individual-sepcific allele frequencyes\">\n");
-      bcf_hdr_append(wdr, buffer);
-      sprintf(buffer,"##INFO=<ID=IBC_I,Number=1,Type=Float,Description=\"Inbreeding coefficient with individual-sepcific allele frequencies\">\n");
-      bcf_hdr_append(wdr, buffer);
-      sprintf(buffer,"##INFO=<ID=MAX_IF,Number=1,Type=Float,Description=\"Maximum Individual-specific allele frequency\">\n");
-      bcf_hdr_append(wdr, buffer);    
-      sprintf(buffer,"##INFO=<ID=MIN_IF,Number=1,Type=Float,Description=\"Minimum Individual-specific allele frequency\">\n");
-      bcf_hdr_append(wdr, buffer);
-      sprintf(buffer,"##INFO=<ID=BETA_IF,Number=%d,Type=Float,Description=\"Coefficients for intercept and each eigenvector to obtain ISAF\">\n", ndims);
-      bcf_hdr_append(wdr, buffer);      
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "HWE_SLP_P" ) < 0 ) {
+	sprintf(buffer,"##INFO=<ID=HWE_SLP_P,Number=1,Type=Float,Description=\"Z-score of HWE test with pooled allele frequencyes\">\n");
+	bcf_hdr_append(wdr, buffer);
+      }
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "IBC_P" ) < 0 ) {      
+	sprintf(buffer,"##INFO=<ID=IBC_P,Number=1,Type=Float,Description=\"Inbreeding coefficient with pooled allele frequencies\">\n");
+	bcf_hdr_append(wdr, buffer);
+      }
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "HWE_SLP_I" ) < 0 ) {      
+	sprintf(buffer,"##INFO=<ID=HWE_SLP_I,Number=1,Type=Float,Description=\"Z-score of HWE test with individual-sepcific allele frequencyes\">\n");
+	bcf_hdr_append(wdr, buffer);
+      }
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "IBC_I" ) < 0 ) {
+	sprintf(buffer,"##INFO=<ID=IBC_I,Number=1,Type=Float,Description=\"Inbreeding coefficient with individual-sepcific allele frequencies\">\n");
+	bcf_hdr_append(wdr, buffer);
+      }
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "MAX_IF" ) < 0 ) {
+	sprintf(buffer,"##INFO=<ID=MAX_IF,Number=1,Type=Float,Description=\"Maximum Individual-specific allele frequency\">\n");
+	bcf_hdr_append(wdr, buffer);
+      }
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "MIN_IF" ) < 0 ) {      
+	sprintf(buffer,"##INFO=<ID=MIN_IF,Number=1,Type=Float,Description=\"Minimum Individual-specific allele frequency\">\n");
+	bcf_hdr_append(wdr, buffer);
+      }
+      if ( bcf_hdr_id2int(_hdr, BCF_DT_ID, "BETA_IF" ) < 0 ) {      
+	sprintf(buffer,"##INFO=<ID=BETA_IF,Number=%d,Type=Float,Description=\"Coefficients for intercept and each eigenvector to obtain ISAF\">\n", ndims);
+	bcf_hdr_append(wdr, buffer);
+      }
     }
     if ( ( !skipIf ) && ( !siteOnly ) ) {
       sprintf(buffer,"##FORMAT=<ID=IF,Number=1,Type=Float,Description=\"Individual-specific allele frequencies\">\n");
@@ -99,76 +113,85 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _
   bcf_unpack(iv, BCF_UN_ALL);
     
   if ( _pl != NULL ) { pls = _pl; n_pls = 3*nsamples; }
-  else if ( field.empty() || ( field.compare("PL") == 0 ) ) {
-    if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
-      error("[E:%s:%d %s] Cannot parse PL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-  }
-  else if ( field.compare("GL") == 0 ) {
-    float* gls = NULL;
-    int32_t n_gls = 0;
-    if ( bcf_get_format_float(hdr, iv, "GL", &gls, &n_gls) < 0 ) {
-      error("[E:%s:%d %s] Cannot parse GL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-    else {
-      if ( pls == NULL ) pls = new int32_t[n_gls];      
-      for(int32_t i=0; i < nsamples; ++i) {
-	float maxgl = gls[3*i];
-	if ( gls[3*i+1] > maxgl ) maxgl = gls[3*i+1];
-	if ( gls[3*i+2] > maxgl ) maxgl = gls[3*i+2];
-	pls[3*i] = (int32_t)floor(-10*(gls[3*i]-maxgl)+0.5);
-	pls[3*i+1] = (int32_t)floor(-10*(gls[3*i+1]-maxgl)+0.5);
-	pls[3*i+2] = (int32_t)floor(-10*(gls[3*i+2]-maxgl)+0.5);
-	if ( pls[3*i] > 255 ) pls[3*i] = 255;
-	if ( pls[3*i+1] > 255 ) pls[3*i+1] = 255;
-	if ( pls[3*i+2] > 255 ) pls[3*i+2] = 255;
-      }
-      free(gls);
-      n_pls = n_gls;
-    }
-  }
-  else if ( field.compare("GT") == 0 ) {
-    int32_t* gts = NULL;
-    int32_t n_gts = 0;
-
-    double tmp = gtError + gtError*gtError;
-    int32_t errM[9] =
-      { 0, (int32_t)floor(-10*log10(gtError/(1-tmp))+0.5), (int32_t)floor(-10*log10(gtError*gtError/(1-tmp))+0.5),
-	(int32_t)floor(-10*log10(tmp/(2-tmp-tmp))+0.5), 0, 0,
-	0, 0, 0 };
-    errM[5] = errM[3];
-    errM[6] = errM[2];    
-    errM[7] = errM[1];
+  else {
+    bool plfound = false;
     
-    if ( bcf_get_genotypes(hdr, iv, &gts, &n_gts) < 0 ) {
-      error("[E:%s:%d %s] Cannot parse GT field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+    if ( field.empty() || ( field.compare("PL") == 0 ) ) {
+      if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
+	if ( field.compare("PL") == 0 ) 
+	  error("[E:%s:%d %s] Cannot parse PL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      }
+      else
+	plfound = true;
     }
-    else {
-      int32_t max_ploidy = n_gts/nsamples;
-      if ( max_ploidy != 2 )
-	error("[E:%s:%d %s] Multi-allelic (or Mono-allelic) variants found", __FILE__, __LINE__, __PRETTY_FUNCTION__);	
-      if ( pls == NULL ) pls = new int32_t[nsamples*3];      
-      for(int32_t i=0; i < nsamples; ++i) {
-	int32_t geno = bcf_gt_allele(gts[2*i])+bcf_gt_allele(gts[2*i+1]);	
-	if ( bcf_gt_is_missing(gts[2*i+1]) ) { // haploid or missing
-	  if ( bcf_gt_is_missing(gts[2*i]) ) { // missing
-	    pls[3*i] = pls[3*i+1] = pls[3*i+2] = 0;
-	    continue;
-	  }
+    
+    if ( ( (!plfound) && field.empty() ) || field.compare("GL") == 0 ){
+      float* gls = NULL;
+      int32_t n_gls = 0;
+      if ( bcf_get_format_float(hdr, iv, "GL", &gls, &n_gls) < 0 ) {
+	error("[E:%s:%d %s] Cannot parse GL field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      }
+      else {
+	if ( pls == NULL ) pls = new int32_t[n_gls];      
+	for(int32_t i=0; i < nsamples; ++i) {
+	  float maxgl = gls[3*i];
+	  if ( gls[3*i+1] > maxgl ) maxgl = gls[3*i+1];
+	  if ( gls[3*i+2] > maxgl ) maxgl = gls[3*i+2];
+	  pls[3*i] = (int32_t)floor(-10*(gls[3*i]-maxgl)+0.5);
+	  pls[3*i+1] = (int32_t)floor(-10*(gls[3*i+1]-maxgl)+0.5);
+	  pls[3*i+2] = (int32_t)floor(-10*(gls[3*i+2]-maxgl)+0.5);
+	  if ( pls[3*i] > 255 ) pls[3*i] = 255;
+	  if ( pls[3*i+1] > 255 ) pls[3*i+1] = 255;
+	  if ( pls[3*i+2] > 255 ) pls[3*i+2] = 255;
+	}
+	free(gls);
+	n_pls = n_gls;
+      }
+    }
+    else if ( field.compare("GT") == 0 ) {
+      int32_t* gts = NULL;
+      int32_t n_gts = 0;
+      
+      double tmp = gtError + gtError*gtError;
+      int32_t errM[9] =
+	{ 0, (int32_t)floor(-10*log10(gtError/(1-tmp))+0.5), (int32_t)floor(-10*log10(gtError*gtError/(1-tmp))+0.5),
+	  (int32_t)floor(-10*log10(tmp/(2-tmp-tmp))+0.5), 0, 0,
+	  0, 0, 0 };
+      errM[5] = errM[3];
+      errM[6] = errM[2];    
+      errM[7] = errM[1];
+      
+      if ( bcf_get_genotypes(hdr, iv, &gts, &n_gts) < 0 ) {
+	error("[E:%s:%d %s] Cannot parse GT field", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+      }
+      else {
+	int32_t max_ploidy = n_gts/nsamples;
+	if ( max_ploidy != 2 )
+	  error("[E:%s:%d %s] Multi-allelic (or Mono-allelic) variants found", __FILE__, __LINE__, __PRETTY_FUNCTION__);	
+	if ( pls == NULL ) pls = new int32_t[nsamples*3];      
+	for(int32_t i=0; i < nsamples; ++i) {
+	  int32_t geno = bcf_gt_allele(gts[2*i])+bcf_gt_allele(gts[2*i+1]);	
+	  if ( bcf_gt_is_missing(gts[2*i+1]) ) { // haploid or missing
+	    if ( bcf_gt_is_missing(gts[2*i]) ) { // missing
+	      pls[3*i] = pls[3*i+1] = pls[3*i+2] = 0;
+	      continue;
+	    }
 	  else { // pretend to be homozygous for haploid
 	    geno = bcf_gt_allele(gts[2*i]) + bcf_gt_allele(gts[2*i]);
 	  }
+	  }
+	  pls[3*i] = errM[geno*3];
+	  pls[3*i+1] = errM[geno*3+1];
+	  pls[3*i+2] = errM[geno*3+2];
 	}
-	pls[3*i] = errM[geno*3];
-	pls[3*i+1] = errM[geno*3+1];
-	pls[3*i+2] = errM[geno*3+2];
+	free(gts);
+	n_pls = nsamples*3;
       }
-      free(gts);
-      n_pls = nsamples*3;
     }
-  }
-  else {
-    error("[E:%s:%d %s] Cannot recognize the field %s", __FILE__, __LINE__, __PRETTY_FUNCTION__, iv->n_sample, nsamples, field.c_str());    
+    else {
+      if ( !plfound ) 
+	error("[E:%s:%d %s] Cannot recognize the field [%s]", __FILE__, __LINE__, __PRETTY_FUNCTION__, field.c_str());
+    }
   }
 
   /*

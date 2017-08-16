@@ -90,7 +90,7 @@ class genomeLocus {
   } 
 
   bool overlaps(const char* _chrom, int32_t _beg1, int32_t _end0) const {
-    if ( chrom == _chrom ) {
+    if ( !chrom.empty() && ( chrom == _chrom ) ) {
       if ( ( beg1 <= _end0 )  && ( _beg1 <= end0 ) ) {
 	return true;
       }
@@ -167,7 +167,7 @@ class genomeLoci {
   // functions for iterating each locus
   inline void rewind() { it = loci.begin(); }
   inline bool next() { ++it; return ( it != loci.end() ); }
-  inline bool isend() { return ( it == loci.end() ); }
+  inline bool isend() { return ( it == loci.end() );  }
   inline const genomeLocus& currentLocus() { return (*it); }
 
   // check the size 
@@ -214,6 +214,8 @@ class genomeLoci {
     resolveOverlaps();
 
     notice("After removing overlaps, %d intervals remained, maxLength = %d, total length = %u", (int32_t)loci.size(), maxLength, totalLength());
+
+    rewind();
 
     return i > 0;
   }
@@ -283,33 +285,41 @@ class genomeLoci {
   }
 
   bool moveTo(const char* chr = NULL, int32_t pos1 = INT_MAX) {
-    if ( it->contains1(chr, pos1) ) return true;
+    notice("[%s:%d %s] (%s, %d)", __FILE__, __LINE__, __PRETTY_FUNCTION__, chr == NULL ? "NULL" : chr, pos1);
+    
+    if ( loci.empty() ) return false;
+
+    if ( ( it != loci.end() ) && it->contains1(chr, pos1) ) return true;
     
     if ( chr == NULL ) chr = it->chrom.c_str();
     
     genomeLocus locus(chr, pos1, pos1);
     it = loci.lower_bound(locus);
     if ( it == loci.begin() ) { // do nothing
+      notice("beg");
       return (it->contains1(chr,pos1));
     }
     else if ( it == loci.end() ) {
+      notice("end");      
       std::set<genomeLocus>::iterator i = it;
       --i;
       if ( i->contains1(chr,pos1) ) { it = i; return true; }
-      else { return false; }
+      else { rewind(); return false; }
     }
     else {
+      notice("mid");                  
       if ( it->contains1(chr,pos1) ) return true;
       else {
 	std::set<genomeLocus>::iterator i = it;
 	--i;
 	if ( i->contains1(chr,pos1) ) { it = i; return true; }
-	else { return false; }
+	else { rewind(); return false; }
       }
     }
   }
 
   bool contains1(const char* chr, int32_t pos1) {
+    if ( loci.empty() ) return false;
     notice("contains1(%s,%d) called", chr, pos1);    
     genomeLocus locus(chr, pos1, pos1);
     std::set<genomeLocus>::iterator it2 = loci.lower_bound(locus);
@@ -323,6 +333,8 @@ class genomeLoci {
   }
 
   bool overlaps(const char* chr, int32_t beg1, int32_t end0) {
+    if ( loci.empty() ) return false;
+    
     genomeLocus locus(chr, overlapResolved ? beg1 : beg1-maxLength, overlapResolved ? beg1 : beg1-maxLength);
     if ( loci.empty() ) return false;
     std::set<genomeLocus>::iterator it2 = loci.lower_bound(locus);
@@ -362,9 +374,10 @@ class genomeLocusMap {
   typename std::map<genomeLocus,T>::iterator it;
   int32_t maxLength;
 
-  genomeLocusMap() : maxLength(0) {}
+ genomeLocusMap() : maxLength(0) { it = loci.end(); }
   genomeLocusMap(const char* reg, const T& val) : maxLength(0) {
     add(reg, val);
+    it = loci.end();
   }
 
   // functions for iterating each locus
@@ -412,7 +425,11 @@ class genomeLocusMap {
   }
 
   bool moveTo(const char* chr = NULL, int32_t pos1 = INT_MAX) {
-    if ( it->first.contains1(chr, pos1) ) return true;
+    notice("[%s:%d %s] (%s, %d)", __FILE__, __LINE__, __PRETTY_FUNCTION__, chr == NULL ? "NULL" : chr, pos1);
+
+    if ( loci.empty() ) return false;    
+
+    if ( ( it != loci.end() ) && it->first.contains1(chr, pos1) ) return true;    
     
     if ( chr == NULL ) chr = it->first.chrom.c_str();
 
@@ -425,7 +442,7 @@ class genomeLocusMap {
       typename std::map<genomeLocus,T>::iterator i = it;
       --i;
       if ( i->first.contains1(chr,pos1) ) { it = i; return true; }
-      else { return false; }
+      else { rewind(); return false; }
     }
     else {
       if ( it->first.contains1(chr,pos1) ) return true;
@@ -433,7 +450,7 @@ class genomeLocusMap {
 	typename std::map<genomeLocus,T>::iterator i = it;
 	--i;
 	if ( i->first.contains1(chr,pos1) ) { it = i; return true; }
-	else { return false; }
+	else { rewind(); return false; }
       }
     }
   }

@@ -20,7 +20,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   bool skipIf   = false;
   bool skipInfo = false;
   bool siteOnly = false;
-  std::string field("PL");
+  std::string field;
   double gtError = 0.005;
 
   bfr.vfilt.maxAlleles = 2;

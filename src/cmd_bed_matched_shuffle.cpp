@@ -145,13 +145,13 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   for(int32_t i=0; i < (int32_t)fGC.seqnames.size(); ++i) {
     const char* chr = fGC.seqnames[i].c_str();
     
-    notice("i=%d, chr=%s",i,chr);
-    
     uint16_t* m   = fGC.mem_gcs[i];
     int32_t nbins = (int32_t)ceil((double)fGC.seqlens[i]/(double)fGC.sliding_unit);
     int32_t prevpos = -1;
     int32_t gc  = m[0] / gcBin;
     int32_t pos1  = 1 + fGC.sliding_unit / 2;
+
+    notice("i=%d, chr=%s, gc = %d, pos1 = %d", i,chr, gc, pos1);    
 
     bool mflag = maskLoci.moveTo(chr, pos1);
     bool rflag = repeatLoci.moveTo(chr, pos1);
@@ -172,7 +172,6 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
       pos1 += fGC.sliding_unit;
 
       //notice("j=%d, pos1=d",j,pos1);      
-
       if ( j % 100000 == 0 )
 	notice("Processing %d loci and %ld bases at %s:%d",nLoci, nBases, chr, pos1);      
       
@@ -244,8 +243,10 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
     int64_t s_pos1 = 0;
     int32_t med1 = (beg1+end0)/2;
 
-    glm.moveTo(chr, med1);
-    if ( glm.it->first.overlaps(chr, beg1, end0) ) {
+    if ( !glm.moveTo(chr, med1) )
+      error("Cannot move to %s:%d", chr, med1);
+    
+    if ( ( glm.it != glm.loci.end() ) && ( glm.it->first.overlaps(chr, beg1, end0) ) ){
       locusCovariate lcov = glm.it->second;
       lcov.inMask = true;
       std::map<locusCovariate, baseSampler>::iterator it = cov2loc.find(lcov);
