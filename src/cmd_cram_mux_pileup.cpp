@@ -21,6 +21,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
   vr.vfilt.minCallRate = 0.5;
   vr.vfilt.maxAlleles = 2;  
   std::string groupList;
+  std::string field("GT");
   int32_t minTotalReads = 0;
   int32_t minUniqReads = 0;
   int32_t minCoveredSNPs = 0;
@@ -35,6 +36,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
 
     LONG_PARAM_GROUP("Options for input VCF/BCF", NULL)
     LONG_STRING_PARAM("vcf",&vr.bcf_file_name, "Input VCF/BCF file, containing the AC and AN field")
+    LONG_STRING_PARAM("field",&field,"FORMAT field to extract the genotype, likelihood, or posterior from")    
     LONG_INT_PARAM("min-mac",&vr.vfilt.minMAC, "Minimum minor allele frequency")
     LONG_DOUBLE_PARAM("min-callrate",&vr.vfilt.minCallRate, "Minimum call rate")    
     LONG_MULTI_STRING_PARAM("sm",&smIDs, "List of sample IDs to compare to (default: use all)")
@@ -124,7 +126,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
   if ( !vr.read() )
     error("[E:%s Cannot read any single variant from %s]", __PRETTY_FUNCTION__, vr.bcf_file_name.c_str());
   
-  if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), "GP", 0.01) )
+  if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), 0.01) )
     error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
 
 
