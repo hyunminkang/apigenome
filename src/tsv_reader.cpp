@@ -24,12 +24,15 @@ int32_t tsv_reader::read_line() {
   else {
     lstr = tbx_itr_next(hp, tbx, itr, &str);
   }
-  
+
   if ( lstr <= 0 ) {
     nfields = 0;
     return lstr;
   }
-  fields = ksplit(&str, 0, &nfields);
+  fields = ksplit(&str, delimiter, &nfields);
+
+  //notice("lstr = %d, str = %s, delim = %d", lstr, str.s, delimiter);
+    
   ++nlines;
   return nfields;
 }

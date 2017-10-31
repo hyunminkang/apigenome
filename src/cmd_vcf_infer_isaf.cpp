@@ -86,7 +86,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   std::map<std::string, double*> sm2evecs;
   while( ( ncols = tsv_svd_v.read_line() ) > 0 ) {
     if ( ncols < numPC + 1 )
-      error("[E:%s:%d %s] observed %d < %d+1 columns in the file",__FILE__,__LINE__,__PRETTY_FUNCTION__, ncols, numPC);
+      error("[E:%s:%d %s] observed %d < %d+1 columns in the file %s line number %d",__FILE__,__LINE__,__PRETTY_FUNCTION__, ncols, numPC, evecFile.c_str(), tsv_svd_v.nlines);
 
     std::string smID = tsv_svd_v.str_field_at(0);
     double* v = new double[numPC];

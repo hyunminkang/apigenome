@@ -22,7 +22,7 @@ public:
   int32_t nfields;
   int32_t* fields;
   int32_t nlines;
-
+  int32_t delimiter;
   
   bool open(const char* filename);
   int32_t read_line();
@@ -33,11 +33,11 @@ public:
   bool jump_to(const char* reg);
   bool jump_to(const char* chr, int32_t beg, int32_t end = INT_MAX);
 
- tsv_reader() : hp(NULL), tbx(NULL), itr(NULL), lstr(0), nfields(0), fields(NULL), nlines(0) {
+ tsv_reader() : hp(NULL), tbx(NULL), itr(NULL), lstr(0), nfields(0), fields(NULL), nlines(0), delimiter(0) {
     str.l = str.m = 0; str.s = NULL;
   }
 
- tsv_reader(const char* filename) : hp(NULL), tbx(NULL), itr(NULL), lstr(0), nfields(0), fields(NULL), nlines(0) {
+ tsv_reader(const char* filename) : hp(NULL), tbx(NULL), itr(NULL), lstr(0), nfields(0), fields(NULL), nlines(0), delimiter(0) {
     str.l = str.m = 0; str.s = NULL;    
     open(filename);
   }  
