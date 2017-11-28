@@ -23,9 +23,11 @@
  * Constructor.
  * @v - VCF record.
  */
-JointGenotypeBlockRecord::JointGenotypeBlockRecord(bcf_hdr_t *h, bcf1_t *v, int32_t vtype, int32_t nsamples)
+JointGenotypeBlockRecord::JointGenotypeBlockRecord(bcf_hdr_t *h, bcf1_t *v, int32_t vtype, int32_t nsamples, bool _printTmpInfo)
 {
     clear();
+
+    printTmpInfo = _printTmpInfo;
 
     //est = &globEst; //new Estimator();  
     
@@ -291,6 +293,30 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
   nv->qual = (float)max_gq;
 
   //if ( acs[1] > 0 ) notice("AC=%d, max-gq=%d, QUAL=%f",acs[1], max_gq, nv->qual);
+  
+  float flt20[20];
+  if ( printTmpInfo ) {
+    flt20[0] = bqr_num;
+    flt20[1] = bqr_den;
+    flt20[2] = mqr_num;
+    flt20[3] = mqr_den;
+    flt20[4] = cyr_num;
+    flt20[5] = cyr_den;
+    flt20[6] = str_num;
+    flt20[7] = str_den;
+    flt20[8] = nmr_num;
+    flt20[9] = nmr_den;
+    flt20[10] = ior_num;
+    flt20[11] = ior_den;
+    flt20[12] = nm0_num;
+    flt20[13] = nm0_den;
+    flt20[14] = nm1_num;
+    flt20[15] = nm1_den;
+    flt20[16] = abe_num;
+    flt20[17] = abe_den;
+    flt20[18] = abz_num;
+    flt20[19] = abz_den;
+  }
 
   bcf_update_info_float(hdr, nv, "AVGDP", &avgdp, 1);	  
   bcf_update_info_int32(hdr, nv, "AC", &acs[1], 1);
@@ -315,7 +341,8 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
     if ( ifs[j] < min_if ) min_if = ifs[j];
   }
   bcf_update_info_float(hdr, nv, "MAX_IF", &max_if, 1);
-  bcf_update_info_float(hdr, nv, "MIN_IF", &min_if, 1);    
+  bcf_update_info_float(hdr, nv, "MIN_IF", &min_if, 1);
+  bcf_update_info_float(hdr, nv, "BETA_IF", pFreqEst->betas, pFreqEst->ndims);
 
   float abe = (adSumHet[0] + 0.5)/(adSumHet[0] + adSumHet[1] + 1.0);
   bcf_update_info_float(hdr, nv, "ABE", &abe, 1);
@@ -338,7 +365,12 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
   nmr_num /= sqrt(nmr_den+1e-6); bcf_update_info_float(hdr, nv, "NMZ", &nmr_num, 1);
   ior_num = log(ior_num/ior_den+1e-6)/log(10.); bcf_update_info_float(hdr, nv, "IOR", &ior_num, 1);
   nm1_num /= (nm1_den+1e-6); bcf_update_info_float(hdr, nv, "NM1", &nm1_num, 1);
-  nm0_num /= (nm0_den+1e-6); bcf_update_info_float(hdr, nv, "NM0", &nm0_num, 1);	  
+  nm0_num /= (nm0_den+1e-6); bcf_update_info_float(hdr, nv, "NM0", &nm0_num, 1);
+
+  if ( printTmpInfo ) {
+    bcf_update_info_float(hdr, nv, "FLT20", flt20, 20);
+  }
+
   //odw->write(nv);
   //bcf_destroy(nv);
   free(gt);

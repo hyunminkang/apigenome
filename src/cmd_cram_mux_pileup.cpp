@@ -189,7 +189,7 @@ int32_t cmdCramMuxPileup(int32_t argc, char** argv) {
     // add new snps
     while( ( !vr.eof ) && ( ( vr.cursor()->rid < tid2rid ) || ( ( vr.cursor()->rid == tid2rid ) && ( vr.cursor()->pos < endpos ) ) ) ) {
       if ( vr.read() ) {
-	if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), "GP", 0.01) )
+	if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), 0.01) )
 	  error("[E:%s] Cannot parse posterior probability at %s:%d", __PRETTY_FUNCTION__, bcf_hdr_id2name(vr.cdr.hdr,vr.cursor()->rid), vr.cursor()->pos+1);
 	
 	gps = new double[nv*3];

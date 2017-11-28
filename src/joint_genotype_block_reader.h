@@ -106,7 +106,7 @@ class JointGenotypeBlockReader
     /**
      * Constructor.
      */
-    JointGenotypeBlockReader(std::string in_vcf_filename, std::vector<GenomeInterval>& intervals, std::string out_tmp_prefix, int32_t nsamples, int32_t nUnit);
+    JointGenotypeBlockReader(std::string in_vcf_filename, std::vector<GenomeInterval>& intervals, std::string out_tmp_prefix, int32_t nsamples, int32_t nUnit, bool printTmpInfo);
     ~JointGenotypeBlockReader();
 
     void set_sample(int32_t sampleIndex, const char* sampleName, double contam, std::vector<double>& evec);
@@ -121,7 +121,7 @@ class JointGenotypeBlockReader
 
     inline int32_t numVariants() { return (int32_t)gRecords.size(); }
     bcf1_t* flush_variant(int32_t variantIndex, bcf_hdr_t* hdr, sex_ploidy_map& spmap);
-    void write_header(BCFOrderedWriter* odw);
+    void write_header(BCFOrderedWriter* odw, bool printTmpInfo = false);
 };
 
 #endif

@@ -24,13 +24,20 @@ frequency_estimator::frequency_estimator(Eigen::MatrixXd* _pEigVecs, double _tol
   betas = new float[ndims];
   pooled_af = -1;
   isaf_computed = false;
+
+  gt = NULL;
+  gq = NULL;
 }
 
 frequency_estimator::~frequency_estimator() {
   if ( ( pEigVecs ) && ( pSVD ) )
     delete pSVD;
   if (ifs != NULL )
-    delete [] ifs;  
+    delete [] ifs;
+  if ( gt != NULL )
+    free(gt);
+  if ( gq != NULL )
+    free(gq);
 }
 
 frequency_estimator::frequency_estimator(Eigen::BDCSVD<Eigen::MatrixXd>* _pSVD, double _tol, double _maxLambda) :
@@ -193,7 +200,6 @@ bool frequency_estimator::set_variant(bcf1_t* _iv, int8_t* _ploidies, int32_t* _
 	error("[E:%s:%d %s] Cannot recognize the field [%s]", __FILE__, __LINE__, __PRETTY_FUNCTION__, field.c_str());
     }
   }
-
   /*
   else if ( bcf_get_format_int32(hdr, iv, "PL", &pls, &n_pls) < 0 ) {
     //float gls[nsamples+1];
@@ -440,6 +446,96 @@ double frequency_estimator::estimate_isaf_simplex() {
 }
 */
 
+bool frequency_estimator::update_gt_gq(bool update_gq) {
+  if ( siteOnly ) return false;
+  double gp = 0, gp_sum = 0, max_gp = 0;
+  int32_t best_gt = 0;
+  int32_t best_a1 = 0, best_a2 = 0;
+  int32_t an = 0;
+  int32_t acs[2] = {0,0};
+  int32_t gcs[3] = {0,0,0};
+  float afs[3];
+  int32_t max_gq = 0;
+
+  if ( gt == NULL ) 
+    gt = (int32_t*) malloc(sizeof(int32_t)*2*nsamples);
+  if ( ( update_gq ) && ( gq == NULL ) ) 
+    gq = (int32_t*) malloc(sizeof(int32_t)*nsamples);    
+  
+  for(int32_t i=0; i < nsamples; ++i) {
+    int32_t* pli = &pls[ i * 3 ];
+    
+    if ( ploidies[i] == 1 ) {
+      max_gp = gp_sum = gp = ( phredConv.toProb((uint32_t)pli[0]) * (1.0 - ifs[i]) );
+      best_gt = 0; best_a1 = 0; best_a2 = 0;
+      gp = ( phredConv.toProb((uint32_t)pli[2]) * ifs[i] );
+      gp_sum += gp;
+      if ( max_gp < gp ) {
+	max_gp = gp;
+	best_gt = 2; best_a1 = 1; best_a2 = 1;
+      }      
+    }
+    else if ( ploidies[i] == 2 ) {
+      max_gp = gp_sum = gp = ( phredConv.toProb((uint32_t)pli[0]) * (1.0-ifs[i]) * (1.0-ifs[i]) );
+      best_gt = 0; best_a1 = 0; best_a2 = 0;
+
+      gp = phredConv.toProb((uint32_t)pli[1]) * 2.0 * ifs[i] * (1.0-ifs[i]);
+      gp_sum += gp;
+      if ( max_gp < gp ) { max_gp = gp; best_gt = 1; best_a1 = 0; best_a2 = 1; }
+
+      gp = phredConv.toProb((uint32_t)pli[2]) * ifs[i] * ifs[i];
+      gp_sum += gp;
+      if ( max_gp < gp ) { max_gp = gp; best_gt = 2; best_a1 = 1; best_a2 = 1; }      
+    }
+    else if ( ploidies[i] == 0 ) {
+      best_gt = 0;
+      max_gp = 0;
+      gp_sum = 1e-100;      
+    }
+    else
+      error("[E:%s:%d %s] Unexpected ploidy %d", __FILE__, __LINE__, __PRETTY_FUNCTION__, (int32_t)ploidies[i]);
+
+    if ( update_gq ) {
+      double prob = 1.-max_gp/gp_sum;  // to calculate GQ
+      if ( prob <= 3.162278e-26 )
+	prob = 3.162278e-26;
+      if ( prob > 1 )
+	prob = 1;
+    
+      gq[i] = (int32_t)phredConv.err2Phred((double)prob);
+      if ( ( best_gt > 0 ) && ( max_gq < gq[i] ) ) {
+	max_gq = gq[i];
+      }
+    }
+    
+    gt[2*i]   = ((best_a1 + 1) << 1);
+    gt[2*i+1] = ((best_a2 + 1) << 1);	    
+    an += 2;             // still use diploid representation of chrX for now.
+    ++acs[best_a1];
+    ++acs[best_a2];
+    ++gcs[best_gt];    
+  }
+
+  for(size_t i=0; i < 2; ++i) {
+    afs[i] = acs[i]/(float)an;
+  }
+
+  //notice("Calling bcf_update_format_int32() with nsamples=%d",nsamples);
+
+  bcf_update_format_int32(hdr, iv, "GT", gt, nsamples * 2);
+  if ( update_gq )
+    bcf_update_format_int32(hdr, iv, "GQ", gq, nsamples );	  
+
+  iv->qual = (float)max_gq;
+
+  bcf_update_info_int32(hdr, iv, "AC", &acs[1], 1);
+  bcf_update_info_int32(hdr, iv, "AN", &an, 1);
+  bcf_update_info_float(hdr, iv, "AF", &afs[1], 1);
+  bcf_update_info_int32(hdr, iv, "GC", gcs, 3);
+  bcf_update_info_int32(hdr, iv, "GN", &nsamples, 1);
+
+  return true;
+}
  
 bool frequency_estimator::update_variant() {
   float hweslp0 = (float)((hwe0z > 0 ? -1 : 1) * log10( erfc(fabs(hwe0z)/sqrt(2.0)) + 1e-100 ));
@@ -457,10 +553,12 @@ bool frequency_estimator::update_variant() {
   }  
 
   if ( !skipInfo ) {
+    float hweaf = (float)pooled_af;
+    bcf_update_info_float(wdr, iv, "HWEAF_P", &hweaf, 1);
+    bcf_update_info_float(wdr, iv, "FIBC_P", &ibc0, 1);    
     bcf_update_info_float(wdr, iv, "HWE_SLP_P", &hweslp0, 1);
-    bcf_update_info_float(wdr, iv, "IBC_P", &ibc0, 1);
+    bcf_update_info_float(wdr, iv, "FIBC_I", &ibc1, 1);    
     bcf_update_info_float(wdr, iv, "HWE_SLP_I", &hweslp1, 1);
-    bcf_update_info_float(wdr, iv, "IBC_I", &ibc1, 1);
     bcf_update_info_float(wdr, iv, "MAX_IF", &max_if, 1);
     bcf_update_info_float(wdr, iv, "MIN_IF", &min_if, 1);
     bcf_update_info_float(wdr, iv, "BETA_IF", betas, ndims);

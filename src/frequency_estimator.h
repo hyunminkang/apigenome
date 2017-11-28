@@ -42,6 +42,8 @@ class frequency_estimator { //: public VectorFunc {
   int8_t* ploidies;
   float* ifs;
   float* betas;
+  int32_t* gt;
+  int32_t* gq;
 
   double pooled_af;
   bool isaf_computed;
@@ -59,6 +61,7 @@ class frequency_estimator { //: public VectorFunc {
   
   bool score_test_hwe(bool use_isaf = true);
   bool update_variant();
+  bool update_gt_gq(bool update_gq = true);
   //virtual double Evaluate(Vector& v);  
 
   /*

@@ -82,13 +82,13 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   if ( gridAlpha.empty() ) {
     gridAlpha.push_back(0);    
     //gridAlpha.push_back(0.05);
-    gridAlpha.push_back(0.1);
+    //gridAlpha.push_back(0.1);
     //gridAlpha.push_back(0.15);
-    gridAlpha.push_back(0.2);
-    //gridAlpha.push_back(0.25);        
-    gridAlpha.push_back(0.3);
+    //gridAlpha.push_back(0.2);
+    gridAlpha.push_back(0.25);        
+    //gridAlpha.push_back(0.3);
     //gridAlpha.push_back(0.35);    
-    gridAlpha.push_back(0.4);
+    //gridAlpha.push_back(0.4);
     //gridAlpha.push_back(0.45);    
     gridAlpha.push_back(0.5);    
   }
@@ -109,6 +109,7 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
   double* gps = NULL;
     
   if ( !plpPrefix.empty() ) {
+    int nrd = 0;
     if ( !sr.sam_file_name.empty() ) {      
       error("with --plp option, neither --sam option cannot be used");
     }
@@ -146,10 +147,11 @@ int32_t cmdCramDemuxlet(int32_t argc, char** argv) {
 	if ( rand() % 10000 == 0 )
 	  notice("Reading variant info %s:%d:%c:%c at %s:%d:%c:%c", tsv_varf.str_field_at(0), pos, ref, alt, bcf_hdr_id2name(vr.cdr.hdr, vr.cursor()->rid), vr.cursor()->pos+1, vr.cursor()->d.allele[0][0], vr.cursor()->d.allele[1][0] );
 	vr.read();
+	++nrd;
       }
 
       if ( vr.eof ) {
-	error("[E:%s] Cannot find variant at %s:%d:%c:%c", tsv_varf.str_field_at(0), pos, ref, alt);
+	error("[E:%s] Cannot find variant at %s:%d:%c:%c nrd = %d", tsv_varf.str_field_at(0), pos, ref, alt, nrd);
       }
 
       if ( !vr.parse_posteriors(vr.cdr.hdr, vr.cursor(), field.c_str(), genoError) )

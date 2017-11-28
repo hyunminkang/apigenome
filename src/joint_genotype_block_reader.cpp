@@ -26,7 +26,7 @@
 /**
  * Constructor.
  */
-JointGenotypeBlockReader::JointGenotypeBlockReader(std::string filename, std::vector<GenomeInterval>& intervals, std::string out_tmp_prefix, int32_t nsamples, int32_t nUnit)
+JointGenotypeBlockReader::JointGenotypeBlockReader(std::string filename, std::vector<GenomeInterval>& intervals, std::string out_tmp_prefix, int32_t nsamples, int32_t nUnit, bool printTmpInfo)
 {
     vm = new VariantManip();  
 
@@ -51,7 +51,7 @@ JointGenotypeBlockReader::JointGenotypeBlockReader(std::string filename, std::ve
 	
       if ( ( vtype == VT_VNTR ) || ( bcf_get_n_allele(v) != 2 ) ) continue;
 
-      JointGenotypeBlockRecord* jgr = new JointGenotypeBlockRecord(odr->hdr, v, vtype, nsamples);
+      JointGenotypeBlockRecord* jgr = new JointGenotypeBlockRecord(odr->hdr, v, vtype, nsamples, printTmpInfo);
       gRecords.push_back(jgr);
       blockEnds.back() = vidx;
       blockIDs.push_back(bidx);
@@ -324,9 +324,9 @@ bcf1_t* JointGenotypeBlockReader::flush_variant(int32_t variantIndex, bcf_hdr_t*
   return gRecords[variantIndex]->flush_variant(hdr, spmap, blockPLs + offset, blockADs + offset, pFreqEst);
 }
 
-void JointGenotypeBlockReader::write_header(BCFOrderedWriter* odw) {
+void JointGenotypeBlockReader::write_header(BCFOrderedWriter* odw, bool printTmpInfo) {
   // contig and sample names must be added beforehand
-  
+  // write eigenvectors here
   bcf_hdr_append(odw->hdr, "##INFO=<ID=AVGDP,Number=1,Type=Float,Description=\"Average Depth per Sample\">\n");	
   bcf_hdr_append(odw->hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"Alternate Allele Counts\">\n");
   bcf_hdr_append(odw->hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Total Number Allele Counts\">\n");
@@ -340,7 +340,8 @@ void JointGenotypeBlockReader::write_header(BCFOrderedWriter* odw) {
   bcf_hdr_append(odw->hdr, "##INFO=<ID=FIBC_I,Number=1,Type=Float,Description=\"Popultion-structure-adjusted F-statistic (inbreeding coefficient) calculated from genotype likelihoods\">\n");	
   bcf_hdr_append(odw->hdr, "##INFO=<ID=HWE_SLP_I,Number=1,Type=Float,Description=\"Signed log p-values testing statistics based Hardy Weinberg Equilibrium Test adjusting for population substructure\">\n");
   bcf_hdr_append(odw->hdr, "##INFO=<ID=MAX_IF,Number=1,Type=Float,Description=\"Maximum individual-specific allele frequencies\">\n");
-  bcf_hdr_append(odw->hdr, "##INFO=<ID=MIN_IF,Number=1,Type=Float,Description=\"Minimum individual-specific allele frequencies\">\n");      
+  bcf_hdr_append(odw->hdr, "##INFO=<ID=MIN_IF,Number=1,Type=Float,Description=\"Minimum individual-specific allele frequencies\">\n");
+  bcf_hdr_append(odw->hdr, "##INFO=<ID=BETA_IF,Number=%d,Type=Float,Description=\"Coefficients for intercept and each eigenvector to obtain ISAF\">\n");
   bcf_hdr_append(odw->hdr, "##INFO=<ID=ABE,Number=1,Type=Float,Description=\"Expected allele Balance towards Reference Allele on Heterozygous Sites\">\n");
   bcf_hdr_append(odw->hdr, "##INFO=<ID=ABZ,Number=1,Type=Float,Description=\"Average Z-scores of Allele Balance towards Reference Allele on Heterozygous Sites\">\n");	
   bcf_hdr_append(odw->hdr, "##INFO=<ID=NS_NREF,Number=1,Type=Integer,Description=\"Number of samples with non-reference reads\">\n");
@@ -352,6 +353,8 @@ void JointGenotypeBlockReader::write_header(BCFOrderedWriter* odw) {
   bcf_hdr_append(odw->hdr, "##INFO=<ID=IOR,Number=1,Type=Float,Description=\"Inflated rate of observing of other alleles in log10 scale\">\n");
   bcf_hdr_append(odw->hdr, "##INFO=<ID=NM0,Number=1,Type=Float,Description=\"Average number of mismatches in the reads with ref alleles\">\n");	
   bcf_hdr_append(odw->hdr, "##INFO=<ID=NM1,Number=1,Type=Float,Description=\"Average number of mismatches in the reads with non-ref alleles\">\n");
+  if ( printTmpInfo )
+    bcf_hdr_append(odw->hdr, "##INFO=<ID=FLT20,Number=20,Type=Float,Description=\"20 sufficient statistics for enabling hierarchical calls\">\n");  
   bcf_hdr_append(odw->hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
   bcf_hdr_append(odw->hdr, "##FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">\n");
   bcf_hdr_append(odw->hdr, "##FORMAT=<ID=AD,Number=A,Type=Integer,Description=\"Allele Depth\">\n");
@@ -360,7 +363,7 @@ void JointGenotypeBlockReader::write_header(BCFOrderedWriter* odw) {
 
   bcf_hdr_append(odw->hdr, "##FILTER=<ID=overlap_snp,Description=\"Overlaps with snp\">");
   bcf_hdr_append(odw->hdr, "##FILTER=<ID=overlap_indel,Description=\"Overlaps with indel\">");
-  bcf_hdr_append(odw->hdr, "##FILTER=<ID=overlap_vntr,Description=\"Overlaps with VNTR\">");  
+  bcf_hdr_append(odw->hdr, "##FILTER=<ID=overlap_vntr,Description=\"Overlaps with VNTR\">");
 
   odw->write_hdr();
 }

@@ -218,6 +218,7 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   int32_t capBQ = 40;
   //std::string refFasta;
   double minContam = 0.01;
+  bool printTmpInfo = false;
   filter_read_params_t param;
   param.ignore_overlapping_read = false;
   param.read_mapq_cutoff = 0;
@@ -245,6 +246,7 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
     LONG_DOUBLE_PARAM("min-contam",&minContam, "Minimum genotype likelihood adjustment factor at homozygous sites as Pr(1|0/0) or Pr(0|1/1)")    
     LONG_INT_PARAM("exclude-flag",&param.read_exclude_flag, "Flag to exclude reads")
     LONG_PARAM("ignore-overlap",&param.ignore_overlapping_read, "Ignore overlapping reads")
+    LONG_PARAM("print-tmp-info",&printTmpInfo,"Print temporary values INFO fields to allow merging")
 
     LONG_PARAM_GROUP("Sex Chromosomes",NULL)
     LONG_STRING_PARAM("xLabel", &xLabel, "Contig name for X chromosome")
@@ -357,7 +359,7 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
 
   // load the VCF file first
   notice("Loading input VCF file %s in region %s", inVcf.c_str(), intervals[0].to_string().c_str());
-  JointGenotypeBlockReader jgbr(inVcf, intervals, output_tmp_prefix, nsamples, unit);
+  JointGenotypeBlockReader jgbr(inVcf, intervals, output_tmp_prefix, nsamples, unit, printTmpInfo);
 
   BCFOrderedWriter* odw = new BCFOrderedWriter(out);
   bcf_hdr_transfer_contigs(jgbr.odr->hdr, odw->hdr);
@@ -406,7 +408,7 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   bcf_hdr_add_sample(odw->hdr, NULL);
 
   int32_t nvariants = jgbr.numVariants();
-  jgbr.write_header(odw);
+  jgbr.write_header(odw, printTmpInfo);
 
   sex_ploidy_map spmap(xLabel, yLabel, mtLabel, xStart, xStop);
   spmap.load_sex_map_file(sexMap.empty() ? NULL : sexMap.c_str(), odw->hdr);

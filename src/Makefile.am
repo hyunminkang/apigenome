@@ -74,6 +74,7 @@ cramore_SOURCES = cramore.cpp \
 	cmd_bgen_to_vcf.cpp \
 	cmd_cram_verify_bam.cpp contam_estimator.cpp \
 	cmd_cram_demuxlet.cpp \
+	cmd_vcf_paste_calls.cpp \
 	cmd_cram_update_rg.cpp
 
 #cramore_LDADD = ../../htslib/libhts.a -lpthread -llzma -lz -lbz2 -lcurl -lcrypto

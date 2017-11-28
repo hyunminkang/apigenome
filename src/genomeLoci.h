@@ -153,6 +153,7 @@ class genomeLocus {
 // Collection of genomic locus
 class genomeLoci {
  public:
+  std::set<std::string> chroms;
   std::set<genomeLocus> loci;
   std::set<genomeLocus>::iterator it;
   bool overlapResolved;
@@ -226,6 +227,8 @@ class genomeLoci {
     if ( end0-beg1+1 > maxLength ) maxLength = end0-beg1+1;
     std::pair<std::set<genomeLocus>::iterator, bool> ret = loci.insert(genomeLocus(chr,beg1,end0));
     it = ret.first;
+    if ( ret.second )
+      chroms.insert(ret.first->chrom);    
     return ret.second;
   }
 
@@ -233,6 +236,8 @@ class genomeLoci {
   bool add(const char* region) {
     overlapResolved = false;
     std::pair<std::set<genomeLocus>::iterator, bool> ret = loci.insert(genomeLocus(region));
+    if ( ret.second )
+      chroms.insert(ret.first->chrom);
     it = ret.first;
     int32_t l = ret.first->end0 - ret.first->beg1 + 1;
     if ( l > maxLength ) maxLength = l;
@@ -282,6 +287,10 @@ class genomeLoci {
       sz += it2->length();
     }
     return sz;
+  }
+
+  bool hasChrom(const char* chr) {
+    return ( chroms.find(chr) != chroms.end() );
   }
 
   bool moveTo(const char* chr = NULL, int32_t pos1 = INT_MAX) {
@@ -370,6 +379,7 @@ class genomeLoci {
 template <class T>
 class genomeLocusMap {
  public:
+  std::set<std::string> chroms;  
   std::map<genomeLocus,T> loci;
   typename std::map<genomeLocus,T>::iterator it;
   int32_t maxLength;
@@ -404,6 +414,8 @@ class genomeLocusMap {
     if ( end0-beg1+1 > maxLength ) maxLength = end0-beg1+1;
     std::pair<typename std::map<genomeLocus,T>::iterator, bool> ret = loci.insert(std::pair<genomeLocus,T>(genomeLocus(chr,beg1,end0),val));
     it = ret.first;
+    if ( ret.second )
+      chroms.insert(chr);
     return ret.second;
   }
   
@@ -411,6 +423,8 @@ class genomeLocusMap {
   bool add(const char* region, const T& val) {
     std::pair<typename std::map<genomeLocus,T>::iterator, bool> ret = loci.insert(std::pair<genomeLocus,T>(region,val));
     int32_t l = ret.first->end0 - ret.first->beg1 + 1;
+    if ( ret.second )
+      chroms.insert(ret.first->chrom);    
     if ( l > maxLength ) maxLength = l;
     return ret.second;
   }

@@ -51,6 +51,7 @@ int32_t cmdVcfSVD(int32_t argc, char** argv);
 int32_t cmdVcfInferAncestry(int32_t argc, char** argv);
 int32_t cmdVcfInferISAF(int32_t argc, char** argv);
 int32_t cmdVcfUpdateSites(int32_t argc, char** argv);
+int32_t cmdVcfPasteCalls(int32_t argc, char** argv);
 
 int32_t cmdBedDeltaSVMTrain(int32_t argc, char** argv);
 int32_t cmdBedMatchedShuffle(int32_t argc, char** argv);
@@ -73,6 +74,7 @@ int32_t main(int32_t argc, char** argv) {
     LONG_COMMAND("vcf-sample-summary",&cmdVcfSampleSummary, "Sample-level summary from BCF/VCF")
     LONG_COMMAND("vcf-squeeze",&cmdVcfSqueeze, "Squeeze genotype fields from BCF/VCF")
     LONG_COMMAND("vcf-update-sites",&cmdVcfUpdateSites, "Update VCF site information")
+    LONG_COMMAND("vcf-paste-calls",&cmdVcfPasteCalls, "Paste VCF calls produced by cram-dense-genotypes")
 
     LONG_COMMAND_GROUP("Processing SAM/BAM/CRAM", NULL)
     LONG_COMMAND("cram-simul-contam", &cmdCramSimulContam, "Simulate contaminated sequence reads")

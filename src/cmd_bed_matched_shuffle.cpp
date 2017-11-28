@@ -85,7 +85,7 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
   std::string maskBed;  
   int32_t gcBin = 1;
   double repeatFracBin = 0.01;
-  int32_t maxTries = 1000;
+  //int32_t maxTries = 1000;
   int32_t verbose = 100000;
   int32_t seed = 0;
 
@@ -138,26 +138,38 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
     srand(seed);
 
   // try to generate a map between (GCbin, fracBin)
+  // memory needed is roughly [# of bins] * (4)
   notice("Generating a map of regions stratified by covariates");
-  genomeLocusMap<locusCovariate> glm;
-  int32_t nLoci = 0;
-  int64_t nBases = 0;
+  std::vector<uint32_t> chr_nbins;
+  std::vector<uint32_t> cum_nbins;
+  for(int32_t i=0; i < (int32_t)fGC.seqnames.size(); ++i) {
+    int32_t nbins = (int32_t)ceil((double)fGC.seqlens[i]/(double)fGC.sliding_unit);    
+    chr_nbins.push_back( nbins );
+    cum_nbins.push_back( i == 0 ? 0 : cum_nbins[i-1] + chr_nbins[i-1] );
+  }
+  cum_nbins.push_back(cum_nbins.back() + chr_nbins.back());
+
+  //std::map< locusCovariate, std::set<uint32_t> > lcset;
+  std::map< locusCovariate, std::vector<uint32_t> > lcvec;  
+  std::map<std::string,int32_t> chr2ichr; 
   for(int32_t i=0; i < (int32_t)fGC.seqnames.size(); ++i) {
     const char* chr = fGC.seqnames[i].c_str();
-    
     uint16_t* m   = fGC.mem_gcs[i];
     int32_t nbins = (int32_t)ceil((double)fGC.seqlens[i]/(double)fGC.sliding_unit);
-    int32_t prevpos = -1;
+    //int32_t prevpos = -1;
     int32_t gc  = m[0] / gcBin;
     int32_t pos1  = 1 + fGC.sliding_unit / 2;
 
-    notice("i=%d, chr=%s, gc = %d, pos1 = %d", i,chr, gc, pos1);    
+    // mflag and rflag represents whether the chromosome is in the mask/repeat loci
+    bool mflag = maskLoci.hasChrom(chr);
+    bool rflag = repeatLoci.hasChrom(chr);
 
-    bool mflag = maskLoci.moveTo(chr, pos1);
-    bool rflag = repeatLoci.moveTo(chr, pos1);
+    notice("i=%d, chr=%s, gc = %d, pos1 = %d, nbins = %d, mflag = %d, rflag = %d", i,chr, gc, pos1, nbins, mflag, rflag);        
 
     if ( ( !maskBed.empty() ) && ( !mflag ) )   continue;
-    if ( ( !repeatBed.empty() ) && ( !rflag ) ) continue;    
+    if ( ( !repeatBed.empty() ) && ( !rflag ) ) continue;
+
+    chr2ichr[chr] = i;
 
     int32_t frac = 0;
     if ( !repeatLoci.isend() ) {
@@ -167,50 +179,27 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
 
     bool inMask = maskLoci.overlaps(chr, pos1, pos1);
     locusCovariate lcov(gc, frac, inMask);
-    
+    lcvec[lcov].push_back(cum_nbins[i]);
     for(int32_t j=1; j < nbins; ++j) {
       pos1 += fGC.sliding_unit;
 
       //notice("j=%d, pos1=d",j,pos1);      
-      if ( j % 100000 == 0 )
-	notice("Processing %d loci and %ld bases at %s:%d",nLoci, nBases, chr, pos1);      
+      if ( j % 10000000 == 0 )
+	notice("Processing %s:%d", chr, pos1);      
       
       inMask = maskLoci.overlaps(chr, pos1, pos1);
       gc = m[j]/gcBin;
       frac = repeatLoci.it->overlapBases(chr, pos1-fGC.window_size,pos1+fGC.window_size) / (double)repeatFracBin / (fGC.window_size*2.0+1.0);
 
-      if ( ( prevpos > 0 ) && ( lcov.gcBin == gc ) && ( lcov.fracBin == frac ) && ( lcov.inMask == inMask ) ) {
-	// foo bar
-      }
-      else {
-	if (prevpos > 0) {
-	  glm.add(chr, prevpos, pos1, lcov);
-	  ++nLoci;
-	  nBases += (pos1-prevpos+1);	    
-	}
-	prevpos = pos1;
-	lcov.gcBin = gc;
-	lcov.fracBin = frac;
-	lcov.inMask = inMask;	  
-      }
-    }
-    if ( prevpos > 0 ) {
-      glm.add(chr, prevpos, pos1, lcov);
-      ++nLoci;
-      nBases += (pos1-prevpos+1);      
+      lcov.gcBin = gc;
+      lcov.fracBin = frac;
+      lcov.inMask = inMask;
+
+      lcvec[lcov].push_back(cum_nbins[i]+j);
     }
   }
 
-  notice("Finished processing %d loci and %ld bases in total");
-  notice("Creating a reverse map...");
-
-  // create a reverse map
-  std::map<locusCovariate, baseSampler > cov2loc;
-  for(glm.rewind(); !glm.isend(); glm.next()) {
-    cov2loc[glm.it->second].add(glm.it->first);
-  }
-
-  notice("Finished creating a reverse map");  
+  //notice("Finished processing %d loci and %ld bases in total");
 
   genomeLoci outLoci;
   htsFile* hp = hts_open(inBed.c_str(),"r");
@@ -237,42 +226,40 @@ int32_t cmdBedMatchedShuffle(int32_t argc, char** argv) {
     //int32_t szchr = ref.fetch_seq_len(chr);
     int32_t beg1 = atoi(&str.s[fields[1]])+1;
     int32_t end0 = atoi(&str.s[fields[2]]);
-    bool notyet = true;
-    int32_t tries = 0;
+    //bool notyet = true;
+    //int32_t tries = 0;
     std::string s_chr;
-    int64_t s_pos1 = 0;
+    //int64_t s_pos1 = 0;
     int32_t med1 = (beg1+end0)/2;
 
-    if ( !glm.moveTo(chr, med1) )
-      error("Cannot move to %s:%d", chr, med1);
+    if ( chr2ichr.find(chr) == chr2ichr.end() )
+      error("Chromosome %s cannot be used due to lack of mask data",chr);
+      
+    int32_t ichr = chr2ichr[chr];
+    uint32_t ubin = cum_nbins[ichr] + med1/fGC.sliding_unit;
+    int32_t gc = fGC.mem_gcs[ichr][ubin/gcBin];
+    int32_t frac = repeatLoci.it->overlapBases(chr, med1-fGC.window_size,med1+fGC.window_size) / (double)repeatFracBin / (fGC.window_size*2.0+1.0);
+    bool inMask = maskLoci.overlaps(chr, med1, med1);
     
-    if ( ( glm.it != glm.loci.end() ) && ( glm.it->first.overlaps(chr, beg1, end0) ) ){
-      locusCovariate lcov = glm.it->second;
-      lcov.inMask = true;
-      std::map<locusCovariate, baseSampler>::iterator it = cov2loc.find(lcov);
-      if ( it == cov2loc.end() ) {
-	error("Cannot find any base to sample for %s:%d-%d", chr, beg1, end0);
-      }
-      it->second.sample(s_chr,s_pos1);
-      while( notyet ) {
-	if ( outLoci.overlaps(s_chr.c_str(), s_pos1+(beg1-med1), s_pos1+(end0-med1)) ) {
-	  ++tries;
-	}
-	else {
-	  hprintf(wp, "%s\t%d\t%d\t%s:%d-%d\n", s_chr.c_str(), s_pos1+(beg1-med1), s_pos1+(end0-med1));
-	  outLoci.add(s_chr.c_str(), s_pos1+(beg1-med1), s_pos1+(end0-med1));
-	  sumTries += (tries+1);
-	  break;	  
-	}
-	if ( tries > maxTries )
-	  error("More than %d sampling for %s:%d-%d attemped. i=%d", maxTries, chr, beg1, end0, i);
-	
-      }
-    }
-    else {
-      error("Cannot find covariates at %s:%d-%d", chr, beg1, end0);
-    }
+    locusCovariate lcov(gc, frac, inMask);
 
+    //std::set<uint32_t>::iterator it = lcset[lcov].begin();
+    //std::advance(it, (int)((rand() + 0.5) / (RAND_MAX+1.0) * lcset[lcov].size()));
+    int32_t ridx = (int)((rand() + 0.5) / (RAND_MAX+1.0) * lcvec[lcov].size());
+    uint32_t rbin = lcvec[lcov][ridx];
+    lcvec[lcov][ridx] = lcvec[lcov].back();
+    lcvec[lcov].pop_back();
+
+    // convert bin to region again
+    //uint32_t rbin = *it;
+    for(int32_t j=0; j < (int32_t)fGC.seqnames.size(); ++j) {
+      if ( ( cum_nbins[j] <= rbin ) && ( rbin < cum_nbins[j+1] ) ) {
+	int32_t med2 = (rbin-cum_nbins[j])*fGC.sliding_unit;
+	hprintf(wp, "%s\t%d\t%d\t%s:%d-%d\n", fGC.seqnames[j].c_str(), med2-(end0-beg1)/2, med2-(end0-beg1)/2+(end0-beg1),chr,beg1,end0);
+	//lcset[lcov].erase(it);
+	break;
+      }
+    }    
     if ( i % verbose == 0 )
       notice("Processing %d lines to shffule at %s:%d-%d in %s..", i, chr, beg1, end0, inBed.c_str());
   }

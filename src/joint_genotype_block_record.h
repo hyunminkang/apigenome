@@ -85,40 +85,41 @@ class JointGenotypeBlockRecord
     //Estimator* est;
 
     // sufficient statistics for computing INFO field
-    float bqr_num, bqr_den;
-    float mqr_num, mqr_den;
-    float cyr_num, cyr_den;
-    float str_num, str_den;
-    float nmr_num, nmr_den;
-    float ior_num, ior_den;
-    float nm0_num, nm0_den;
-    float nm1_num, nm1_den;
-    float abe_num, abe_den;
-    float abz_num, abz_den;
+    float bqr_num, bqr_den; // TMP_0, TMP_1
+    float mqr_num, mqr_den; // TMP_2, TMP_3
+    float cyr_num, cyr_den; // TMP_4, TMP_5
+    float str_num, str_den; // TMP_6, TMP_7
+    float nmr_num, nmr_den; // TMP_8, TMP_9
+    float ior_num, ior_den; // TMP_10, TMP_11
+    float nm0_num, nm0_den; // TMP_12, TMP_13
+    float nm1_num, nm1_den; // TMP_14, TMP_15
+    float abe_num, abe_den; // TMP_16, TMP_17
+    float abz_num, abz_den; // TMP_18, TMP_19
+    float tmp_cy_s1, tmp_cy_s2; // TMP_20, TMP_21
+    float tmp_cy_al;       // TMP_22
+    float tmp_oth_exp_q20, tmp_oth_obs_q20; // TMP_23, TMP_24    
     //float ns_nref, dp_sum, max_gq;
 
-    int32_t tmp_dp_q20;
-    int32_t tmp_dp_ra;
-    int32_t tmp_bq_s1, tmp_bq_s2;
-    int32_t tmp_mq_s1, tmp_mq_s2;
-    float tmp_cy_s1, tmp_cy_s2;
-    int32_t tmp_st_s1, tmp_st_s2;
-    int32_t tmp_al_s1, tmp_bq_al, tmp_mq_al;
-    float  tmp_cy_al;
-    int32_t tmp_st_al, tmp_nm_al;
-    int32_t tmp_nm_s1, tmp_nm_s2;
-    double tmp_oth_exp_q20, tmp_oth_obs_q20;
+    int32_t tmp_dp_q20;           // TMP_1
+    int32_t tmp_dp_ra;            // TMP_2
+    int32_t tmp_bq_s1, tmp_bq_s2; // TMP_3, TMP_4
+    int32_t tmp_mq_s1, tmp_mq_s2; // TMP_5, TMP_6
+    int32_t tmp_st_s1, tmp_st_s2; // TMP_7, TMP_8
+    int32_t tmp_al_s1, tmp_bq_al, tmp_mq_al; // TMP_9, TMP_10
+    int32_t tmp_st_al, tmp_nm_al; // TMP_11, TMP_12
+    int32_t tmp_nm_s1, tmp_nm_s2; // TMP_13, TMP_14
+    
     double tmp_pls[3];
     double tmp_ads[3];
 
     // temporary information to be cleared out per-sample basis
-    
+    bool printTmpInfo;
 
     /**
      * Constructor.
      * @v - VCF record.
      */
-    JointGenotypeBlockRecord(bcf_hdr_t*h, bcf1_t *v, int32_t vtype, int32_t nsamples);
+    JointGenotypeBlockRecord(bcf_hdr_t*h, bcf1_t *v, int32_t vtype, int32_t nsamples, bool _printTmpInfo);
 
     /**
      * Clears this record.
