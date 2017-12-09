@@ -5,13 +5,6 @@
 #include "joint_genotype_block_record.h"
 #include "bam_ordered_reader.h"
 
-typedef struct
-{
-  int32_t start1, end1;
-} interval_t;
-
-KHASH_MAP_INIT_STR(rdict, interval_t)
-
 void bam_print_key_values(bam_hdr_t *h, bam1_t *s)
 {
   const char* chrom = bam_get_chrom(h, s);
@@ -52,52 +45,14 @@ void bam_print_key_values(bam_hdr_t *h, bam1_t *s)
 }
 
 typedef struct {
-  bool ignore_overlapping_read;
   int32_t read_exclude_flag;
   int32_t read_mapq_cutoff;
-  khash_t(rdict)* reads;
   int32_t tid;
 } filter_read_params_t;
 
 static bool filter_read(bam_hdr_t* h, bam1_t *s, filter_read_params_t* param) {
   khiter_t k;
   int32_t ret;
-  
-  if (param->ignore_overlapping_read) {
-    //this read is part of a mate pair on the same contig
-    if (bam_get_mpos1(s) && (bam_get_tid(s)==bam_get_mtid(s))) {
-      //first mate
-      if (bam_get_mpos1(s)>bam_get_pos1(s)) {
-	//overlapping
-	if (bam_get_mpos1(s)<=(bam_get_pos1(s) + bam_get_l_qseq(s) - 1)) {
-	  //add read that has overlapping
-	  //duplicate the record and perform the stitching later
-	  char* qname = strdup(bam_get_qname(s));
-	  k = kh_put(rdict, param->reads, qname, &ret);
-	  if (!ret) {
-	    //already present
-	    free(qname);
-	  }
-	  //kh_val(reads, k) = {bam_get_pos1(s), bam_get_pos1(s)+bam_get_l_qseq(s)-1};
-	  interval_t& itv = kh_val(param->reads,k);
-	  itv.start1 = bam_get_pos1(s);
-	  itv.end1 = bam_get_pos1(s)+bam_get_l_qseq(s)-1;
-	}
-      }
-      else {
-	//check overlap
-	if((k = kh_get(rdict, param->reads, bam_get_qname(s))) != kh_end(param->reads)) {
-	  if (kh_exist(param->reads, k)) {
-	    free((char*)kh_key(param->reads, k));
-	    kh_del(rdict, param->reads, k);
-	    //++(param->no_overlapping_reads);
-	  }
-	  //set this on to remove overlapping reads.
-	    return false;
-	}
-      }
-    }
-  }
   
   if(bam_get_flag(s) & param->read_exclude_flag) {
     //1. unmapped
@@ -182,20 +137,6 @@ static bool filter_read(bam_hdr_t* h, bam1_t *s, filter_read_params_t* param) {
     }
   }
   
-  //check to see that hash should be cleared when encountering new contig.
-  //some bams may not be properly formed and contain orphaned sequences that
-  //can be retained in the hash
-  if (bam_get_tid(s)!=param->tid) {
-    for (k = kh_begin(param->reads); k != kh_end(param->reads); ++k) {
-      if (kh_exist(param->reads, k)) {
-	free((char*)kh_key(param->reads, k));
-	kh_del(rdict, param->reads, k);
-      }
-    }
-    
-    param->tid = bam_get_tid(s);
-  }
-  
   return true;
 }
 
@@ -220,11 +161,9 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   double minContam = 0.01;
   bool printTmpInfo = false;
   filter_read_params_t param;
-  param.ignore_overlapping_read = false;
   param.read_mapq_cutoff = 0;
   param.read_exclude_flag = 0x0704;
   param.tid = -1;
-  param.reads = NULL;
 
   paramList pl;
 
@@ -245,7 +184,6 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
     LONG_STRING_PARAM("sex-map",&sexMap, "Sex map file, containing ID and sex (1 for male and 2 for female) for each individual")
     LONG_DOUBLE_PARAM("min-contam",&minContam, "Minimum genotype likelihood adjustment factor at homozygous sites as Pr(1|0/0) or Pr(0|1/1)")    
     LONG_INT_PARAM("exclude-flag",&param.read_exclude_flag, "Flag to exclude reads")
-    LONG_PARAM("ignore-overlap",&param.ignore_overlapping_read, "Ignore overlapping reads")
     LONG_PARAM("print-tmp-info",&printTmpInfo,"Print temporary values INFO fields to allow merging")
 
     LONG_PARAM_GROUP("Sex Chromosomes",NULL)
@@ -367,23 +305,21 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   //int32_t x_rid = bcf_hdr_name2id(jgbr.odr->hdr, xLabel.c_str());
   bam1_t* s = bam_init1();
 
-  param.reads = kh_init(rdict);
-
   for(int32_t i=0; i < nsamples; ++i) {
     BAMOrderedReader odr(cram_paths[i], intervals);
     bam_hdr_t* h = odr.hdr;
     int64_t no_reads = 0;
     int64_t no_filt_reads = 0;
 
-    if ( sample_names[i].compare(bam_hdr_get_sample_name(odr.hdr)) != 0 )
-      warning("The same name %s is different from the same name %s from %s. Continuing with the former one", sample_names[i].c_str(), bam_hdr_get_sample_name(odr.hdr).c_str(), cram_paths[i].c_str());
+    if ( sample_names[i].compare(bam_hdr_get_sample_name(h)) != 0 )
+      warning("The same name %s is different from the same name %s from %s. Continuing with the former one", sample_names[i].c_str(), bam_hdr_get_sample_name(h).c_str(), cram_paths[i].c_str());
 
     jgbr.set_sample(i, sample_names[i].c_str(), contams[i], evecs[i]);
 
     if ( jgbr.numVariants() > 0 ) {
       while( odr.read(s) ) {
 	++no_reads;
-	if ( !filter_read(odr.hdr, s, &param) ) continue;
+	if ( !filter_read(h, s, &param) ) continue;
 
 	++no_filt_reads;
 	jgbr.process_read(h, s, i);
@@ -397,6 +333,7 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   
     jgbr.flush_sample(i);
     odr.close();
+    //delete odr;
   }
   jgbr.close_blocks();
 
@@ -422,8 +359,6 @@ int32_t cmdCramDenseGenotype(int32_t argc, char** argv) {
   }
   odw->close();
   delete odw;
-
-  kh_destroy(rdict, param.reads);
 
   notice("Finished writing %d variants to BCF/VCF file %s", nvariants, out.c_str());
   return 0;
