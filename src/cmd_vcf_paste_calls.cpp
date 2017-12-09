@@ -195,7 +195,7 @@ int32_t cmdVcfPasteCalls(int32_t argc, char** argv) {
     bcf1_t* nv = bcf_init();
     bcf_set_n_sample(nv, nsamples);
     bcf_set_rid(nv, rvs[0]->rid);
-    bcf_set_pos1(nv, rvs[0]->pos);
+    bcf_set_pos1(nv, rvs[0]->pos+1);
 
     for(int32_t i=0; i < (int32_t)inVcfs.size(); ++i) 
       bcf_unpack(rvs[i],BCF_UN_ALL);

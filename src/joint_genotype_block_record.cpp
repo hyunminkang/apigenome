@@ -294,7 +294,7 @@ bcf1_t* JointGenotypeBlockRecord::flush_variant(bcf_hdr_t* hdr, sex_ploidy_map& 
 
   //if ( acs[1] > 0 ) notice("AC=%d, max-gq=%d, QUAL=%f",acs[1], max_gq, nv->qual);
   
-  float flt20[20];
+  float flt20[21];
   if ( printTmpInfo ) {
     flt20[0] = bqr_num;
     flt20[1] = bqr_den;
