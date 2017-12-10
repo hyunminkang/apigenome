@@ -231,7 +231,7 @@ int32_t cmdVcfExtract(int32_t argc, char** argv) {
   odw.close();
   bfr.cdr.close();
 
-  notice("Finishing writing %d variants, missing %d", nVariants, nVariants-nWritten);
+  notice("Finishing writing %d variants, missing %d", nWritten, nVariants-nWritten);
 
   return 0;
 }
