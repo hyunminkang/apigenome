@@ -152,7 +152,7 @@ class var_dict {
       var_it_t it = d_it->second.begin();
       while( it != d_it->second.end() ) {
 	int32_t d = it->second.depth();
-	if ( d <= (int32_t)v.size() )
+	if ( d >= (int32_t)v.size() )
 	  v.resize(d+1,0);
 	++v[d];
       }
