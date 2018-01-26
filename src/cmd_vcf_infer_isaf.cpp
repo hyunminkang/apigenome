@@ -22,6 +22,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
   bool siteOnly = false;
   std::string field;
   double gtError = 0.005;
+  double maxLambda = 1.0;
 
   bfr.vfilt.maxAlleles = 2;
   bfr.verbose = 100;
@@ -37,6 +38,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
     LONG_INT_PARAM("num-pc",&numPC, "Number of principal componentds to be used from the file specified by --evec ")
     LONG_STRING_PARAM("field",&field, "FORMAT field in VCF to extract the genotype likelihood or genotypes from. Only PL, GL, GT are allowed currently")
     LONG_DOUBLE_PARAM("gt-error",&gtError, "Error rates for GT field when --field GT option is used. Ignored for other fields")
+    LONG_DOUBLE_PARAM("lambda",&maxLambda,"Max lambda parameter")
 
     LONG_PARAM_GROUP("Output Options", NULL)
     LONG_STRING_PARAM("out",&outVcf, "(REQUIRED) Output VCF file to write with ISHWEZ and ISIBC statistics and IF format field")
@@ -140,7 +142,7 @@ int32_t cmdVcfInferISAF(int32_t argc, char** argv) {
     odw.set_hdr(bfr.cdr.hdr);
   }
 
-  frequency_estimator freqest(&eV);
+  frequency_estimator freqest(&eV, 1e-10, maxLambda);
   // assign command arguments
   freqest.field = field;
   freqest.gtError = gtError;

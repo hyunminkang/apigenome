@@ -269,6 +269,9 @@ bcf1_t* JointGenotypeBlockReader::flush_variant(int32_t variantIndex, bcf_hdr_t*
     if ( variantIndex == 0 ) {
       blockPLs = (uint8_t*) malloc( sizeof(uint8_t) * unit * nsamples * 3 );
       blockADs = (uint8_t*) malloc( sizeof(uint8_t) * unit * nsamples * 3 );
+
+      if ( ( blockPLs == NULL ) || ( blockADs == NULL ) )
+	error("Cannot create a consecutive memory for storing %d x %d genotypes", unit, nsamples);
     }
     int32_t bid = blockIDs[variantIndex];
     int32_t bsize = blockEnds[bid] - blockStarts[bid] + 1;

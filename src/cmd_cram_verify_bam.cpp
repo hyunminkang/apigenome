@@ -283,6 +283,10 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
 
   if ( n_warning_no_gtag > 10 ) 
     notice("WARNING: Suppressed a total of %d RG warnings...", n_warning_no_gtag);
+
+  // create a depth distribution
+  std::vector<int32_t> dpCnts(capDP+1,0);
+  var2u.get_depth_distribution(dpCnts);
   
   //notice("Finished reading %d reads across %d markers", nreads, var2u.nvar);
 
@@ -348,6 +352,20 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
 
   double llk0 = est.llk0;
   double llk1 = est.llk1;
+
+  int64_t sumCnts = 0, sumDepths = 0;
+  for(int32_t i=0; i < (int32_t)dpCnts.size(); ++i) {
+    sumCnts += dpCnts[i];
+    sumDepths += (dpCnts[i] * i);
+  }
+
+  for(int32_t i=0; i < (int32_t)dpCnts.size(); ++i)  
+    hprintf(wf, "DEPTH_COUNT\t%d\t%d\n", i, dpCnts[i]);
+  
+  for(int32_t i=0; i < (int32_t)dpCnts.size(); ++i)  
+    hprintf(wf, "DEPTH_FRAC\t%d\t%d\n", i, (double)dpCnts[i]/(double)(sumCnts+1e-10));
+
+  hprintf(wf, "NOT_APPLICABLE\tMEAN_DEPTH\t%.6lf\n", (double)sumDepths/(double)(sumCnts+1e-10));
 
   hprintf(wf, "NOT_APPLICABLE\tREADS_KEPT\t%d\n",    r_kep);
   hprintf(wf, "NOT_APPLICABLE\tVARIANTS_KEPT\t%d\n", v_kep);

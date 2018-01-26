@@ -144,6 +144,22 @@ class var_dict {
     return ( dict[tmp_chr = chr].upper_bound(tmp_key) );
   }
 
+  int32_t get_depth_distribution(std::vector<int32_t>& v) {
+    var_dict_it_t d_it = dict.begin();
+    var_dict_it_t d_it_tmp;
+    while( d_it != dict.end() ) {
+      notice("Calculating depth distribution for %s", d_it->first.c_str());
+      var_it_t it = d_it->second.begin();
+      while( it != d_it->second.end() ) {
+	int32_t d = it->second.depth();
+	if ( d <= (int32_t)v.size() )
+	  v.resize(d+1,0);
+	++v[d];
+      }
+    }
+    return (int32_t)v.size();    
+  }
+
   int32_t vectorize(std::vector< var_elem<T> >& v, bool remove = true) {
     var_dict_it_t d_it = dict.begin();
     var_dict_it_t d_it_tmp;
