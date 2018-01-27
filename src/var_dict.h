@@ -155,7 +155,9 @@ class var_dict {
 	if ( d >= (int32_t)v.size() )
 	  v.resize(d+1,0);
 	++v[d];
+	++it;
       }
+      ++d_it;
     }
     return (int32_t)v.size();    
   }
