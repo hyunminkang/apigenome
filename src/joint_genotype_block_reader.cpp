@@ -289,9 +289,9 @@ bcf1_t* JointGenotypeBlockReader::flush_variant(int32_t variantIndex, bcf_hdr_t*
 
     int32_t sum_n_reads = 0;
     //notice("Flushing variant %d");
-    int32_t nread = 0;
-    for(int32_t s=0; s < nsamples; ++s) {
-      for(int32_t i=0; i < bsize; ++i) {
+    int64_t nread = 0;
+    for(int64_t s=0; s < nsamples; ++s) {
+      for(int64_t i=0; i < bsize; ++i) {
 	//notice("Flushing variant %d, s=%d, i=%d", variantIndex, s, i);
 	//if ( bgzf_read(fp->fp.bgzf, blockPLs + (s + i * nsamples) * 3, sizeof(uint8_t)*3) < 0 )
 	if ( (nread = gzread(fp, blockPLs + (s + i * nsamples) * 3, sizeof(uint8_t)*3)) != 3 )
