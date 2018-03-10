@@ -363,7 +363,7 @@ int32_t cmdCramVerifyBam(int32_t argc, char** argv) {
     hprintf(wf, "DEPTH_COUNT\t%d\t%d\n", i, dpCnts[i]);
   
   for(int32_t i=0; i < (int32_t)dpCnts.size(); ++i)  
-    hprintf(wf, "DEPTH_FRAC\t%d\t%d\n", i, (double)dpCnts[i]/(double)(sumCnts+1e-10));
+    hprintf(wf, "DEPTH_FRAC\t%d\t%.6lf\n", i, (double)dpCnts[i]/(double)(sumCnts+1e-10));
 
   hprintf(wf, "NOT_APPLICABLE\tMEAN_DEPTH\t%.6lf\n", (double)sumDepths/(double)(sumCnts+1e-10));
 
