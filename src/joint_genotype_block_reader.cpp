@@ -317,7 +317,7 @@ bcf1_t* JointGenotypeBlockReader::flush_variant(int32_t variantIndex, bcf_hdr_t*
       error("Cannot close the temporary file %s after reading", blockFNs[bid].c_str());
   }
   //notice("Flushing variant %d", variantIndex);
-  int64_t offset = (variantIndex - blockStarts[blockIDs[variantIndex]]) * nsamples * 3;
+  int64_t offset = (int64_t) (variantIndex - blockStarts[blockIDs[variantIndex]]) * (int64_t) nsamples * 3;
   if ( pFreqEst == NULL ) {
     // TODO: normalize the eigenvectors
     //pSVD = new Eigen::BDCSVD<Eigen::MatrixXd>(eV, Eigen::ComputeThinU | Eigen::ComputeThinV);
