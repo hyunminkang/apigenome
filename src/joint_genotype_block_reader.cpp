@@ -274,7 +274,7 @@ bcf1_t* JointGenotypeBlockReader::flush_variant(int32_t variantIndex, bcf_hdr_t*
 	error("Cannot create a consecutive memory for storing %d x %d genotypes", unit, nsamples);
     }
     int32_t bid = blockIDs[variantIndex];
-    int32_t bsize = blockEnds[bid] - blockStarts[bid] + 1;
+    int64_t bsize = blockEnds[bid] - blockStarts[bid] + 1;
 
     //htsFormat fmt;
     //fmt.category = unknown_category;
@@ -317,7 +317,7 @@ bcf1_t* JointGenotypeBlockReader::flush_variant(int32_t variantIndex, bcf_hdr_t*
       error("Cannot close the temporary file %s after reading", blockFNs[bid].c_str());
   }
   //notice("Flushing variant %d", variantIndex);
-  int32_t offset = (variantIndex - blockStarts[blockIDs[variantIndex]]) * nsamples * 3;
+  int64_t offset = (variantIndex - blockStarts[blockIDs[variantIndex]]) * nsamples * 3;
   if ( pFreqEst == NULL ) {
     // TODO: normalize the eigenvectors
     //pSVD = new Eigen::BDCSVD<Eigen::MatrixXd>(eV, Eigen::ComputeThinU | Eigen::ComputeThinV);
