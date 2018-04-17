@@ -31,6 +31,7 @@ dist_bin_SCRIPTS = \
 	vcf-add-rsid \
 	vcf-milk-filter \
 	vcf-f2-sharing \
+	vcf-infer-ped \
 	vcf-issac-summary \
 	vcf-liftover \
 	vcf-lookup-rsid \

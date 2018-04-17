@@ -191,6 +191,10 @@ int32_t cmdVcfPasteCalls(int32_t argc, char** argv) {
       }
     }
 
+    // check if the variant POS is located within the intervals
+    if ( ( rvs[0]->pos+1 < intervals[0].start1 ) || ( rvs[0]->pos+1 > intervals[0].end1 ) )
+      continue;
+
     // get the variant site info
     bcf1_t* nv = bcf_init();
     bcf_set_n_sample(nv, nsamples);
