@@ -102,7 +102,7 @@ if ( $vcf =~ /\.vcf.gz$/ ) {
     }
 }
 elsif ( $vcf =~ /\.bcf$/ ) {
-    print STDERR "Reading BCF file using BCFtools\n";
+    print STDERR "Reading BCF file $vcf using BCFtools\n";
     die "Cannot open $vcf\n" unless ( -s $vcf );
     if ( $region ) {
 	open(IN,"$bcftools view $vcf $region |");
@@ -147,6 +147,8 @@ while(<IN>) {
 	my @F = split(/[\t\r\n ]+/);
 	die "Cannot use multi-chromosome VCFs yet\n" if ( $F[0] ne $exG[$#exG]->[0] );
 
+	$F[6] = "PASS" if ( $F[6] eq "." );
+
 	## make sure that exG does not contain anything before the current position
 	while( $exG[0]->[1] < $F[1] ) {
 	    my ($chr,$pos,$id,$ref,$alt,$qual,$filt) = split(/[\t\r\n ]+/,<EX>);
@@ -181,7 +183,7 @@ while(<IN>) {
 		if ( $exG[$i]->[4] ne "PASS" ) {
 		    if ( ( $F[3] eq $exG[$i]->[2] ) && ( $F[4] eq $exG[$i]->[3] ) ) {
 			my @oldFilts = split(/;/,$F[6]);
-			@oldFilts = () if ( $F[6] eq "PASS" );
+			@oldFilts = () if ( ( $F[6] eq "PASS" ) || ( $F[6] eq "." ) );
 			my @newFilts = split(/;/,$exG[$i]->[4]);
 			for(my $i=0; $i < @newFilts; ++$i) {
 			    my $j=0;

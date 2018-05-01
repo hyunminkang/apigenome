@@ -8,10 +8,12 @@ dist_bin_SCRIPTS = \
 	cel-extract-intensity \
 	count-dropseq \
 	count-dropseq-unit \
+	cram-vt-discover \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
 	dropseq-kallisto \
 	demux-fastq \
+	fasta-lr-dist \
 	fbin-lookup \
 	gene-conv-names \
 	gtf2GenePred \
@@ -25,6 +27,7 @@ dist_bin_SCRIPTS = \
 	rev-trim \
 	run-make \
 	tsv-join \
+	vcf-apply-external-filter \
 	vcf-delta-svm \
 	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \
@@ -39,6 +42,7 @@ dist_bin_SCRIPTS = \
 	vcf-summary \
 	vcf-summary-merge \
 	vcf-summary-v2 \
+	vt-merge-variants \
 	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 
