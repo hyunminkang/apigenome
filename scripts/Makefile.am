@@ -8,31 +8,42 @@ dist_bin_SCRIPTS = \
 	cel-extract-intensity \
 	count-dropseq \
 	count-dropseq-unit \
+	cram-vt-discover \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
-	dropseq-kalisto \
+	dropseq-kallisto \
 	demux-fastq \
+	fasta-lr-dist \
+	fbin-lookup \
+	gene-conv-names \
 	gtf2GenePred \
 	inspect-sv \
         merge-fastq \
+	merge-tsv-generic \
 	now-seq-each \
 	now-seq-batch \
 	paste-pileup-pro \
 	pileup-pro \
 	rev-trim \
 	run-make \
+	tsv-join \
+	vcf-apply-external-filter \
 	vcf-delta-svm \
 	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \
 	vcf-add-rsid \
 	vcf-milk-filter \
 	vcf-f2-sharing \
+	vcf-infer-ped \
 	vcf-issac-summary \
 	vcf-liftover \
 	vcf-lookup-rsid \
+	vcf-view-gt \
+	vcf-pass-variants \
 	vcf-summary \
 	vcf-summary-merge \
 	vcf-summary-v2 \
+	vt-merge-variants \
 	yipe \
 	epstopdf \
 	hyunlib.pm wGetOptions.pm 

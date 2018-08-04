@@ -20,7 +20,7 @@ wGetOptions(
     "--Additional Options",    
     "tabix=s" => [\$tabix, "Binary to the tabix file"],
     "bgzip=s" => [\$bgzip, "Binary to the bgzip file"],    
-    "ucsc-dir=s" => [\$tabix, "Directory containing the binary of UCSC tools"],
+    "ucsc-dir=s" => [\$ucscdir, "Directory containing the binary of UCSC tools"],
     ) || wpod2usage(2);
 
 if ( !$gtf || !$out ) {

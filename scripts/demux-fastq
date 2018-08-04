@@ -18,9 +18,9 @@ my $barcodeLength = 6;
 my $umiLength = 8;
 
 wGetOptions(
-    "-Demultiplex FASTQ files based on barcode information",
+    "-Demultiplex FASTQ files based on barcode information\n\nThis software performs demultiplexing of FASTQ files for DropSeq-like paired-ended data, where the first read containing barcode (as a concatenation of cell barcode, UMI, and parity nucleotides) and the second read containing the actual reads",
     "--Key Options",
-    "fq1=s" => [\$fq1, "FASTQ files for the first end"],
+    "fq1=s" => [\$fq1, "FASTQ files for the first end, containing the barcode information"],
     "fq2=s" => [\$fq2, "FASTQ files for the second end"],
     "mapf=s" => [\$mapf, "Mapping file containing (1) BARCODE (2) ID"],
     "out=s" => [\$out, "Output prefix"],

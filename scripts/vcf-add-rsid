@@ -15,6 +15,7 @@ my $sepchr = "";
 my $keep = "";
 my $binbgzip = "$FindBin::Bin/bgzip";
 my $bintabix = "$FindBin::Bin/tabix";
+my $binbcftools = "bcftools";
 
 wGetOptions(
     "-Add rsID into VCF",
@@ -37,7 +38,8 @@ else { open(VCF,$vcf) || die "Cannot open file\n"; }
 die "Cannot open $dbSNPf\n" unless ( -s $dbSNPf );
 die "$dbSNPf is not indexed and tabixed\n" unless ( $dbSNPf =~ /\.vcf.gz$/ );
 
-if ( $out =~ /\.gz$/ ) { open(OUT,"| $binbgzip -c > $out") || die "Cannot open file\n"; }
+if ( $out =~ /\.vcf.gz$/ ) { open(OUT,"| $binbgzip -c > $out") || die "Cannot open file\n"; }
+elsif ( $out =~ /\.bcf$/ ) { open(OUT,"| $binbcftools view -Ob -o $out /dev/stdin") || die "Cannot open file $out using $binbcftools\n"; }
 elsif ( $out ) { open(OUT,">$out") || die "Cannot open file\n"; }
 else { *OUT = *STDOUT; }
 
@@ -71,7 +73,12 @@ while(<VCF>) {
 		$cdb =~ s/chr1/chr$chr/g;
 	    }
 
-	    open(DBF,"$bintabix $cdb $chr:0|") || die "Cannot open file\n";
+	    if ( $cdb =~ /\.vcf.gz$/ ) {
+		open(DBF,"$bintabix $cdb $chr:0|") || die "Cannot open file\n";
+	    }
+	    elsif ( $cdb =~ /\.bcf$/ ) {
+		open(DBF,"$binbcftools view $cdb $chr:0-|") || die "Cannot open file\n";		
+	    }
 
 	    $bufLine = <DBF>;   ## read a line
 	    if ( $bufLine ) {  ## if a line was read

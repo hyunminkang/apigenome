@@ -186,7 +186,7 @@ for(my $i=0; $line = $fh->getline(); ++$i) {
     print {$wh} $line;
     print {$wh} $endBC;
     for(my $i=$bcL; $i < $orgLenBC; ++$i) {
-	print {$wh} "N"; ## Put 'N' for trimmed barcode
+	print {$wh} "A"; ## Put 'N' for trimmed barcode
     }
     print {$wh} substr($seq,$bcL,$seqL-$orgLenBC);
     print {$wh} "\n";

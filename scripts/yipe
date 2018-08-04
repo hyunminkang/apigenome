@@ -28,26 +28,28 @@ for(my $i=0; $i < @yamls; ++$i) {
     $conf->merge(file => $yamls[$i]);
 }
 
+$conf->dump();
+
 ## parse all iterable variables first
-my $iterables = $conf->get("ITERTABLES");
-if ( defined($iterables) ) {
-    foreach my $k (keys %{$iterables}) {
-	my $rlist = $iterables->{$k}
-	if ( define($rlist->{file}) ) {
-	    open(IN,$rlist->{file}) || die "Cannot open ".$rlist->{$file}."\n";
-	    while(<IN>) {
-		my @F = split;
-	    }
-	    close IN;
-	}
-    }
-}
+#my $iterables = $conf->get("ITERTABLES");
+#if ( defined($iterables) ) {
+#    foreach my $k (keys %{$iterables}) {
+#	my $rlist = $iterables->{$k}
+#	if ( define($rlist->{file}) ) {
+#	    open(IN,$rlist->{file}) || die "Cannot open ".$rlist->{$file}."\n";
+#	    while(<IN>) {
+#		my @F = split;
+#	    }
+#	    close IN;
+#	}
+#   }
+#}
 
 
 ### Go to the steps we need to run
-foreach my $run (@runs) {
-    my $confRun = $conf->get($run);
-}
+#foreach my $run (@runs) {
+#    my $confRun = $conf->get($run);
+#}
 
 # $conf->set("var_dir","\$etc_dir/var");
 	   

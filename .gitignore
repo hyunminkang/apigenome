@@ -32,10 +32,6 @@ autom4te.cache
 autom4te.cache/*
 src/.deps/
 
-# Binaries
-src/vcfast
-src/bcfast
-src/tinyfast
-src/bgzip
-src/tabix
-
+# Extra files
+resources
+resources/*

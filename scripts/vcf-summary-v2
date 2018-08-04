@@ -189,7 +189,7 @@ while(<IN>) {
     next if ( $alt =~ /,/ );
     #next if ( ( length($ref) > 1 ) || ( length($alt) > 1 ) );
     next if ( ($auto) && ( ! ( $chrom =~ /^(chr)?\d+$/ ) ) );
-    next if ( $prev eq $pos );
+    #next if ( $prev eq $pos );
     $prev = $pos;
 
     if ( $infoField ) {
