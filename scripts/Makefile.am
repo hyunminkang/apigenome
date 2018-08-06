@@ -24,6 +24,7 @@ dist_bin_SCRIPTS = \
 	now-seq-batch \
 	paste-pileup-pro \
 	pileup-pro \
+	rs2vcf \
 	rev-trim \
 	run-make \
 	tsv-join \

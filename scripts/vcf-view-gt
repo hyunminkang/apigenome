@@ -9,8 +9,8 @@ use wGetOptions qw(wGetOptions wpod2usage);
 my $vcf = "";
 my $region = "";
 my $out = "";
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
 
 wGetOptions(
     "-Quickly view the genotypes of the VCF file in a specified region",

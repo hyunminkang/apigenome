@@ -13,8 +13,8 @@ my $out = "";
 my $key = "";
 my $sepchr = "";
 my $keep = "";
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
 my $binbcftools = "bcftools";
 
 wGetOptions(

@@ -16,8 +16,8 @@ my $bin = 1;
 my $thresMult = 1;
 my $thresAdd = 1;
 my $thresMin = 1;
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
 
 wGetOptions(
     "-Match TSS sites from PRO-cap data written in BED format",

@@ -10,8 +10,8 @@ use wGetOptions qw(wGetOptions wpod2usage);
 my $invcf = "";
 my $outvcf = "";
 my $sitevcf = "";
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
 my $binbcftools = "bcftools";
 
 wGetOptions(

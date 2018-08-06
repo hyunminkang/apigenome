@@ -11,10 +11,10 @@ my $out = "";
 my $key = "";
 my $sepchr = "";
 my $keep = "";
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
-my $bcftools = "/usr/cluster/bin/bcftools";
-my $binliftOver = "/net/fantasia/home/hmkang/tools/ucsc_tools/executables/liftOver";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
+my $bcftools = "bcftools";
+my $binliftOver = "liftOver";
 my $chain = "";
 my $newref = "";
 
@@ -30,7 +30,7 @@ wGetOptions(
     ) || wpod2usage(2);
 
 
-wpod2usage(2) unless ( ( $vcf ) && ( $out ) && ( $chain ) && ( $binliftOver) && ( $newref ) ) ;
+wpod2usage(2) unless ( ( $vcf ) && ( $out ) && ( $chain ) && ( -s $binliftOver) && ( $newref ) ) ;
 
 &initRef($newref);
 

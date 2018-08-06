@@ -20,8 +20,8 @@ my $infoField = "AC";
 my $infoBreaks = "1,2,3,0.001,0.01,0.1";
 my $infoBin = 0;
 
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
 
 wGetOptions(
     "-Summarize SNPs and indels in VCF Files",
