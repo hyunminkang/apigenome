@@ -48,6 +48,9 @@ my $chrPrefix = ( $achrs[0] =~ /^chr/ ) ? 1 : 0;
 while(<VCF>) {
     if ( /^#/ ) {
 	next if ( /^##contig=/ );
+	if ( /^#CHROM/ ) {
+	    print OUT "##INFO=<ID=OLD_VARIANT,Number=1,Type=String,Description=\"The variant identifier reflecting the genomic coordinate and alleles before liftOver\">\n";
+	}
 	print OUT $_;
 	if ( $. == 1 ) {
 	    for(my $i=0; $i < @achrs; ++$i) {

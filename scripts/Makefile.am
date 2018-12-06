@@ -6,6 +6,7 @@ dist_bin_SCRIPTS = \
 	bed-diff \
 	bed-tss-match \
 	cel-extract-intensity \
+	cloudify \
 	count-dropseq \
 	count-dropseq-unit \
 	cram-vt-discover \

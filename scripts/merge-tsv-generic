@@ -57,8 +57,14 @@ my %h = ();
 my @hdrs = ();
 for(my $i=0; $i < @infiles; ++$i) {
     print STDERR "Processing $infiles[$i]..\n";
-    
-    open(IN,$infiles[$i]) || die "Cannot open $list for reading\n";
+
+    if ( $infiles[$i] =~ /\.gz$/ ) {
+	die "Cannot open $infiles[$i] for reading\n" unless ( -s $infiles[$i] );
+	open(IN,"zcat $infiles[$i]|") || die "Cannot open $infiles[$i] for reading\n";	
+    }
+    else {
+	open(IN,$infiles[$i]) || die "Cannot open $infiles[$i] for reading\n";
+    }
     for(my $j=0; $j < $nheaders; ++$j) {
 	my $line = <IN>;
 	if ( $i == 0 ) {

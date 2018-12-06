@@ -85,7 +85,7 @@ while(<IN>) {
     elsif ( ( $kin >$relThres )&& ( $ibs0 < $poThres ) ) { $rel = "PO"; ++$npo; }
     elsif ( $kin > $relThres ) { $rel = "FS"; ++$nfs; }
     else { ++$netc; }
-
+    
     $hrel{$id1}{$id2} = $rel;
     $hrel{$id2}{$id1} = $rel;        
 }
@@ -116,13 +116,15 @@ foreach my $id (@ids) {
     }
 }
 
-## Second, seach for parents
-foreach my $id (@ids) {
-    my $r = $hrel{$id};
+## Second, seach for parents-offsprint relationship
+my %hskip = ();
+my $nParentsSameSexError = 0;
+foreach my $id (@ids) {  ## for each ID...
+    my $r = $hrel{$id};  ## look for all relatedness
     my @others = sort keys %{$r};
-    next unless ( $hdup{$id}->[0] eq $id );  ## skip redundancies in duplicates
+    next unless ( $hdup{$id}->[0] eq $id );  ## skip redundancies in duplicates, only consider dup-representitive IDs
     
-    my @POs = ();
+    my @POs = (); 
     foreach my $other (@others) {
 	my $rel = $hrel{$id}{$other};
 	if ( $rel eq "PO" ) {
@@ -131,50 +133,51 @@ foreach my $id (@ids) {
 	}
     }
 
-    my $dad;
-    my $mom;
-    
-    for(my $i=0; $i < @POs; ++$i) {
-	for(my $j=0; $j < $i; ++$j) {
-	    unless ( defined($hrel{$POs[$i]}{$POs[$j]}) ) {
-		if ( defined($dad) || defined($mom) ) {
-		    die "ERROR: for kid $id, parents are already found [$dad,$mom], but another pairs [".join(",",$POs[$i],$POs[$j])."] were found too \n";
-		    next;
-		}
-		
-		if ( $hsex{$POs[$i]} < $hsex{$POs[$j]} ) {
-		    $dad = $POs[$i];
-		    $mom = $POs[$j];
-		}
-		elsif ( $hsex{$POs[$i]} > $hsex{$POs[$j]} ) {
-		    $dad = $POs[$j];
-		    $mom = $POs[$i];		    
-		}
-		else {
-		    die "ERROR: for kid $id, parents are inferred to be [$POs[$i],$POs[$j]], but their sexes are [".join(",",$hsex{$POs[$i]},$hsex{$POs[$j]})."]\n";
-		}
-	    }
-	}
+    ## If an individual have more than 3 POs, automatically skip the individual -- no support for multi-generational families.
+    if ( $#POs > 1 ) {
+	$hskip{$id} = 1;
+	next;
+    }
+    elsif ( $#POs < 1 ) { ## one parent is missing
+	next;
     }
 
-    if ( defined($dad) && defined($mom) ) { ## check if the dad or mom is already involved in other families
-	#print STDERR "$dad $mom $id\n";
-	
-	next if ( defined($hpar{$dad}) && ( $hpar{$dad} ne $mom ) );
-	$hfam{"$dad:$mom"} = [] unless ( defined($hfam{"$dad:$mom"}) );
-	push(@{$hfam{"$dad:$mom"}},$id);
-	#print "$id\t$dad\t$mom\n";
+    ## see if the individual have both mother and father
+    my $dad = $POs[0]; ## arbitrarily assign dad
+    my $mom = $POs[1]; ## arbitrarily assign mom
+
+    if ( defined($hrel{$dad}{$mom}) ) { ## if they are related, forget about it, they might be grandparents - grandchildren
+	next;
+    }
+    elsif ( $hsex{$dad} == $hsex{$mom} ) { ## if they have the same sex, forget about it
+	++$nParentsSameSexError;
+	next;
+    }
+
+    if ( $hsex{$dad} > $hsex{$mom} ) { ## if they have sex switched, fix it
+	$dad = $POs[1];
+	$mom = $POs[0];
+    }
+
+    next if ( defined($hpar{$dad}) && ( $hpar{$dad} ne $mom ) ); ## if a parent have children with another spouse, skip to avoid confusion
+    next if ( defined($hpar{$mom}) && ( $hpar{$mom} ne $dad ) ); ## if a parent have children with another spouse, skip to avoid confusion    
+
+    unless ( defined($hfam{"$dad:$mom"}) ) {  ## define a family if does not exist    
+	$hfam{"$dad:$mom"} = [];
 	$hpar{$dad} = $mom;
 	$hpar{$mom} = $dad;
-	$hkid{$id} = 1;
     }
+    push(@{$hfam{"$dad:$mom"}},$id);  ## add a child
+    $hkid{$id} = 1;                   ## register ID as a child
 }
 
-## Remove any possible overlaps in families
+print STDERR "Observed $nParentsSameSexError possible sex match errors between spouses\n";
+
+## Remove any possible overlaps in families. Dad and Mom should belong to only a single family
 if ( $rmOverlap ) {
     my %hobs = ();
     my @toremove = ();
-    foreach my $dadmom (sort keys %hfam) {
+    foreach my $dadmom (sort keys %hfam) {  ## Iterate each families
 	my @mids = split(/:/,$dadmom);
 	push(@mids,@{$hfam{$dadmom}});
 	my $remove = 0;
@@ -216,7 +219,7 @@ foreach my $dadmom (sort keys %hfam) {
     }
     my $centSuffix = join("_",sort(uniq(@cents)));
     if ( $centSuffix ne "." ) {
-	$fid .= "-$centSuffix";
+	$fid .= "\@$centSuffix";
     }
 
     print PED join("\t",$fid,join(",",@{$hdup{$dad}}),0,0,1,-9)."\n";
@@ -239,7 +242,7 @@ foreach my $id (sort keys %hdup) {
     my $fid = $id;
     my $centSuffix = join("_",sort(uniq(@cents)));
     if ( $centSuffix ne "." ) {
-	$fid .= "-$centSuffix";
+	$fid .= "\@$centSuffix";
     }    
     #my $fid = "$id-".join("_",uniq(@cents));
     

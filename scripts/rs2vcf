@@ -27,14 +27,14 @@ wGetOptions(
     ) || wpod2usage(2);
 
 
-wpod2usage(2) unless ( ( $dbsnp ) && ( $region ) && ( $rslist ) && ( $out ) );
+wpod2usage(2) unless ( ( $dbsnp ) && ( $rslist ) && ( $out ) );
 
 if ( $out =~ /\.gz$/ ) { open(OUT,"| $binbgzip -c > $out") || die "Cannot open file\n"; }
 elsif ( $out =~ /.bcf$/ ) { open(OUT,"| $binbcftools view -Ob -o $out -") || die "Cannot open file\n"; }
 elsif ( $out ne "-" ) { open(OUT,">$out") || die "Cannot open file\n"; }
 else { *OUT = *STDOUT; }
 
-my $hrs = ();
+my %hrs = ();
 my $nrs = 0;
 open(IN,$rslist) || die "Cannot open file\n";
 while(<IN>) {
@@ -66,7 +66,10 @@ while(<IN>) {
     }
     else {
 	my ($chrom,$pos,$id) = split;
-	if ( ( $F[2] ne "." ) && ( defined($hrs{$F[2]}) ) ) {
+
+	if ( $. % 1000000 == 0 ) { print STDERR "Processing $. lines and writing $mrs records at $chrom:$pos...\n"; }
+    
+	if ( ( $id ne "." ) && ( defined($hrs{$id}) ) ) {
 	    ++$mrs;
 	    print OUT $_;
 	}
@@ -75,4 +78,4 @@ while(<IN>) {
 close IN;
 close OUT;
 
-print STDERR "Successfully loaded $mrs/$nrs matching rsIDs\n";
+print STDERR "Successfully wrote $mrs/$nrs matching rsIDs into the output VCF $out\n";

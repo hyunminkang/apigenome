@@ -17,8 +17,8 @@ our @EXPORT = qw(%hszchrs @achrs);
 our @EXPORT_OK = qw(loadGTF writeGTF readFasta getCpGs initRef getDegeneracies readCDS loadIlluBpm loadIlluIdat forkExecWait autoPod zopen wopen tofpos fromfpos reverseComplement reverseComplementIUPAC iupacCompatible batchCmd sortedBedInsert sortedBedPush sortedBedMerge sortedBedInvert sortedBedSize sortedBedPrint xargsCmd mosixCmd joinps makeMake emAF testHWE readBin);
 
 my $binzcat = "zcat";
-my $binbgzip = "$FindBin::Bin/bgzip";
-my $bintabix = "$FindBin::Bin/tabix";
+my $binbgzip = "bgzip"; #"$FindBin::Bin/bgzip";
+my $bintabix = "tabix"; #"$FindBin::Bin/tabix";
 my $binruncluster = "$module_dir/runcluster.pl";
 
 my %codon1 = (TTT=>"F", TTC=>"F", TCT=>"S", TCC=>"S", TAT=>"Y", TAC=>"Y", TGT=>"C", TGC=>"C", TTA=>"L", TCA=>"S", TAA=>"*", TGA=>"*", TTG=>"L", TCG=>"S", TAG=>"*", TGG=>"W", CTT=>"L", CTC=>"L", CCT=>"P", CCC=>"P", CAT=>"H", CAC=>"H", CGT=>"R", CGC=>"R", CTA=>"L", CTG=>"L", CCA=>"P", CCG=>"P", CAA=>"Q", CAG=>"Q", CGA=>"R", CGG=>"R", ATT=>"I", ATC=>"I", ACT=>"T", ACC=>"T", AAT=>"N", AAC=>"N", AGT=>"S", AGC=>"S", ATA=>"I", ACA=>"T", AAA=>"K", AGA=>"R", ATG=>"M", ACG=>"T", AAG=>"K", AGG=>"R", GTT=>"V", GTC=>"V", GCT=>"A", GCC=>"A", GAT=>"D", GAC=>"D", GGT=>"G", GGC=>"G", GTA=>"V", GTG=>"V", GCA=>"A", GCG=>"A", GAA=>"E", GAG=>"E", GGA=>"G", GGG=>"G");
