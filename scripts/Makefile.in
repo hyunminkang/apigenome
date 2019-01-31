@@ -273,9 +273,11 @@ dist_bin_SCRIPTS = \
 	tsv-join \
 	vcf-apply-external-filter \
 	vcf-delta-svm \
+	vcf-eval-trio-phasing \
 	vcf-extract-gt-only \
 	vcf-resolve-chrX-hets \
 	vcf-add-rsid \
+	vcf-match-sample-ids \
 	vcf-milk-filter \
 	vcf-f2-sharing \
 	vcf-infer-ped \

@@ -1,0 +1,202 @@
+#!/usr/bin/perl -w
+
+use strict;
+use POSIX qw(pow log10 sqrt);
+use FindBin;
+use lib $FindBin::Bin;
+use wGetOptions qw(wpod2usage wGetOptions);
+use Time::HiRes;
+
+my $vcf = "";
+my $out = "";
+my $kid = "";
+my $dad = "";
+my $mom = "";
+my $region = "";
+my $bcftools = "bcftools"; #"/usr/cluster/bin/bcftools";
+
+wGetOptions(
+    "-Evaluate the phasing quality of BCF/VCF for trios",
+    "--Required Options",
+    "vcf=s" => [\$vcf, "Input VCF file", "Input VCF file with GL and PL information available"],
+    "out=s" => [\$out, "Output file", "Output VCF file annotating each site and family with Bayes Factors"],
+    "kid=s" => [\$kid, "Offspring ID"],
+    "dad=s" => [\$dad, "Father ID"],
+    "mom=s" => [\$mom, "Mother ID"],    
+    "--Additional Options",
+    "region=s" => [\$region,"Genomic region to focus on"],
+    "bcftools=s" => [\$bcftools,"Path to the bcftools software binary"],
+    ) || wpod2usage(2);
+
+unless ( ( $vcf ) && ( $out ) ) { # && ( $dad ) && ( $mom) && ($kid) ) {
+    print STDERR "ERROR: Missing required option\n";
+    wpod2usage(2);
+}
+
+unless ( ( $dad ) && ( $mom ) && ( $kid ) ) {
+    print STDERR "WARNING: --kid, --dad, --mom IDs are not specified. Assuming that BCF has only 3 individuals, in order of (Offspring),(Father),(Mother)\n";
+}
+
+print STDERR "Analysis started at ".scalar(localtime)."\n";
+
+if ( ( $vcf =~ /\.bcf$/ ) || ( $vcf =~ /\.vcf.gz$/) ) {
+    print STDERR "Reading BCF file using BCFtools\n";
+    die "Cannot open $vcf\n" unless ( -s $vcf );
+    if ( $region ) {
+	if ( ( $dad ) && ( $mom ) && ( $kid ) ) {
+	    open(IN,"$bcftools view -s $kid,$dad,$mom $vcf $region | grep -v 'AC=0;' | grep -v 'AC=6;' | grep -v ^## |");
+	}
+	else {
+	    open(IN,"$bcftools view $vcf $region | grep -v 'AC=0;' | grep -v 'AC=6;' | grep -v ^## |");	    
+	}
+    }
+    else {
+	if ( ( $dad ) && ( $mom ) && ( $kid ) ) {	
+	    open(IN,"$bcftools view -s $kid,$dad,$mom $vcf | grep -v 'AC=0;' | grep -v 'AC=6;' | grep -v ^## | ");
+	}
+	else {
+	    open(IN,"$bcftools view $vcf | grep -v 'AC=0;' | grep -v 'AC=6;' | grep -v ^## |");     
+	}
+    }    
+}
+else {
+    open(IN,"cat $vcf | grep -v 'AC=0;' | grep -v 'AC=6;' | grep -v ^## |") || die "Cannot open $vcf\n";
+}
+
+my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info,$format,$kidid,$dadid,$momid) = split(/[\t\r\n ]+/,<IN>);
+my ($gK,$gD,$gM);
+die "#CHROM expected but observed $chrom\n" if ( $chrom ne "#CHROM");
+my @cnts = ([[]],[[]],[[]],[[]],[[]],[[]],[[]],[[]],0); # (d1,m1) (d1,m2) (d2,m1) (d2,m2) (m1,d1) (m1,d2) (m2,d1) (m2,d2)
+my @mcon = (1, 0, 0,   0.5, 0.5, 0,   0, 1, 0,   0.5, 0.5, 0,   0.25, 0.5, 0.25,   0, 0.5, 0.5,    0, 1, 0,    0, 0.5, 0.5,    0, 0, 1);
+my @vids = ();
+my @poss = ();
+while(<IN>) {
+    print STDERR "Processing $chrom:$pos...\n" if ( $. % 10000 == 0 );
+    ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info,$format,$gK,$gD,$gM) = split;
+    push(@vids,"$chrom:$pos:$ref:$alt");
+    push(@poss,$pos);
+    my $iv = $#vids;
+    my ($hK1,$sepK,$hK2) = split(//,$gK);
+    my ($hD1,$sepD,$hD2) = split(//,$gD);
+    my ($hM1,$sepM,$hM2) = split(//,$gM);
+    my @haps = ($hK1,$hK2,$hD1,$hD2,$hM1,$hM2);
+    my @gens = ($hK1+$hK2,$hD1+$hD2,$hM1+$hM2);
+    my $af = $1 if ( $info =~ /;AF=([^;]+);/ );
+    &countHaps(\@haps,\@gens,\@cnts,\@mcon,$iv);
+    #print "Processing $chrom:$pos, $af, counts: @cnts\n";
+}
+close IN;
+
+print STDERR "Processed ".($#vids+1)." variants observed and ignored $cnts[8] Mendelian errors\n";
+
+my @outs = ();
+## Keep the longest track among the 8 possibilities
+my @idxs = (0,0,0,0,0,0,0,0);
+my @lens = (0,0,0,0,0,0,0,0);
+for(my $i=0; $i < @vids; ++$i) {
+    for(my $j=0; $j < 8; ++$j) {
+	my $r = $cnts[$j];
+	$lens[$j] = 0;
+	while ( $#{$r} >= $idxs[$j] ) {
+	    my ($a,$b) = @{$r->[$idxs[$j]]};
+	    if ( defined($a) && defined($b) && ($i <= $b ) ) {
+		$lens[$j] = ($b-$a+1);
+		last;
+	    }
+	    ++($idxs[$j]);
+	}
+    }
+    my $iBest = 0;
+    my $maxLen = $lens[0];
+    for(my $j=1; $j < 8; ++$j) {
+	if ( $maxLen < $lens[$j] ) {
+	    $iBest = $j;
+	    $maxLen = $lens[$j];
+	}
+    }
+    my $r = $cnts[$iBest]->[$idxs[$iBest]];
+    my ($a,$b) = @{$r} if ( defined($r) );
+    #if ( defined($a) && ( $i == $a ) ) { print OUT join("\t",$iBest,$maxLen,$a,$b,$poss[$a],$poss[$b],$poss[$b]-$poss[$a]+1)."\n"; }
+    if ( defined($a) && ( $i == $a ) ) { push(@outs,[$iBest,$maxLen,$a,$b,$poss[$a],$poss[$b]]); }
+}
+
+for(my $i=1; $i < @outs; ++$i) {
+    if ( $outs[$i]->[0] == $outs[$i-1]->[0] ) {
+	$outs[$i]->[2] = $outs[$i-1]->[2];
+	$outs[$i]->[1] = $outs[$i]->[3]-$outs[$i]->[2]+1;
+	$outs[$i]->[4] = $outs[$i-1]->[4];
+	splice(@outs,$i,$i+1);
+	--$i;
+    }
+}
+
+open(OUT,">$out") || die "Cannot open file\n";
+for(my $i=1; $i < @outs; ++$i) {
+    print OUT join("\t",@{$outs[$i]},($outs[$i]->[-1]-$outs[$i]->[-2]+1),$cnts[8])."\n";
+}
+close OUT;
+
+#print STDERR "Finished\n";
+
+## input : haplotypes of trio (K/D/M)
+## For each of 8 possible configurations of inheritance
+## 1. Determine whether the genotype is Mendelian consistent
+##
+## 1. Determine whether the current genotype is compatible to each possible states
+## 2. Determine whether the genotype 
+sub countHaps {
+    my ($rhaps,$rgens,$rcnts,$rmcon,$iv) = @_;
+    my @h = @{$rhaps};
+    my @g = @{$rgens};
+    my $g3 = $g[1]*9+$g[2]*3+$g[0]; 
+
+    ## check Mendelian consistency
+    if ( $rmcon->[$g3] == 0 ) {
+	++($rcnts->[8]);
+	#print "Observed ".($rcnts->[8])." Mendelian inconsistencies. (@g)..Skipping..\n";
+    }
+    else {   ## For Mendelian consistent variants, find out the strech of each hypothesis
+	for(my $d=0; $d < 2; ++$d) {
+	    for(my $m=0; $m < 2; ++$m) {
+		my $idx = $d+$d+$m;
+		if ( $h[0] eq $h[2+$d] ) {
+		    if ( $h[1] eq $h[4+$m] ) { &extendList($rcnts->[$d+$d+$m],$iv); }
+		    else { &closeList($rcnts->[$d+$d+$m]); }
+		}
+		elsif ( $h[1] eq $h[4+$m] ) { &closeList($rcnts->[$d+$d+$m]); }
+		else  { &closeList($rcnts->[$d+$d+$m]); }
+		
+		if ( $h[0] eq $h[4+$m] ) {
+		    if ( $h[1] eq $h[2+$d] ) { &extendList($rcnts->[4+$d+$d+$m],$iv); }
+		    else { &closeList($rcnts->[4+$d+$d+$m]); }
+		}
+		elsif ( $h[1] eq $h[2+$d] ) { &closeList($rcnts->[4+$d+$d+$m]); }
+		else { &closeList($rcnts->[4+$d+$d+$m]); }
+	    }
+	}
+    }
+}
+
+sub extendList {
+    my ($r,$iv) = @_;
+    my $l = $r->[$#{$r}];
+    if ( $#{$l} < 0 ) {
+	push(@{$l},$iv);
+	push(@{$l},$iv);
+	#print STDERR join("\t",$iv,$#{$l},$l->[0],$l->[1],$#{$r})."\n";
+	#print STDERR join("\t",$iv,$#{$l},$#{$r->[$#{$r}]})."\n";
+    }
+    else {
+	$l->[1] = $iv;
+	#print STDERR "Extending..\n";	
+    }
+}
+
+sub closeList {
+    my ($r) = @_;
+    my $l = $r->[-1];
+    if ( $#{$l} >= 0 ) {
+	push(@{$r},[]);
+	#print STDERR "Closing....\n";		
+    }
+}
