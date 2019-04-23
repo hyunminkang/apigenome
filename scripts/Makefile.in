@@ -252,6 +252,7 @@ dist_bin_SCRIPTS = \
 	count-dropseq \
 	count-dropseq-unit \
 	cram-vt-discover \
+	cram-vb-xy-index \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
 	dropseq-kallisto \
@@ -272,6 +273,7 @@ dist_bin_SCRIPTS = \
 	run-make \
 	tsv-join \
 	vcf-apply-external-filter \
+	vcf-combine-gls \
 	vcf-delta-svm \
 	vcf-eval-trio-phasing \
 	vcf-extract-gt-only \
@@ -289,6 +291,7 @@ dist_bin_SCRIPTS = \
 	vcf-summary \
 	vcf-summary-merge \
 	vcf-summary-v2 \
+	vcf-svm-milk-filter \
 	vt-merge-variants \
 	yipe \
 	epstopdf \

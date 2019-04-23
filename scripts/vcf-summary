@@ -49,6 +49,7 @@ wGetOptions(
     "dbsnp=s" => [\$dbSNPf, "dbSNP file location"],
     "FNRvcf=s" => [\$FNRvcf, "location of gold standard VCF file (such as dbSNP)"],
     "FNRbfile=s" => [\$FNRbfile, "location of gold standard sites in PLINK binary format"],
+    "bgzip=s" => [\$binbgzip, "Location of bgzip binary"],        
     "tabix=s" => [\$bintabix, "Location of tabix binary"],
     "ref=s" => [\$ref, "Location to the reference genome"],    
     "--Options for focused regions",                

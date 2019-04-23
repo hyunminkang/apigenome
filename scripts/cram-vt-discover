@@ -8,9 +8,6 @@ use hyunlib qw(forkExecWait);
 use wGetOptions qw(wpod2usage wGetOptions);
 use Time::HiRes;
 
-## vcf-apply-external-filter
-## Apply external filter to existing VCF
-
 my $vt = "vt";
 my $vtcmd = "discover2 -z -q 20";
 my $ref = "/data/local/ref/gotcloud.ref/hg38/hs38DH.fa";

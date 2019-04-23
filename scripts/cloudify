@@ -63,7 +63,7 @@ open(CMD,$cmdFile) || die "Cannot open $cmdFile\n";
 while(<CMD>) {
     if ( /^#/ ) {
 	## this part would not override value if exists
-	if ( /^#+\s*(\S+)\s*[:=]\s*(\S.*\S|\S)\s*$/ ) {
+	if ( /^#\s*([^\#]\S*)\s*[:=]\s*(\S.*\S|\S)\s*$/ ) {
 	    my ($key,$value) = ($1,$2);
 	    chomp $value;
 	    if ( $key eq "list" ) {
@@ -94,7 +94,7 @@ while(<CMD>) {
 		    unless ( defined($full) && $full ) {
 			die "Cannot recognize list value $full\n";
 		    }
-		    $lists{$alias} = $full;
+		    $vars{$alias} = $full;
 		}
 	    }	    
 	    elsif ( $key eq "target" ) {
@@ -177,11 +177,17 @@ while(<CMD>) {
 		$keepInstance = $value;		    		    		    		    		    
 	    }
 	    else {	
-		print STDERR "Cannot recognize --$key argument to replace into the value $value. Skipping...\n";
+		#print STDERR "Cannot recognize --$key argument to replace into the value $value. Skipping...\n";
+		die "FATAL ERROR: Cannot recognize --$key argument to replace into the value $value\n";		
 	    }
 	}
 	else {
-	    print STDERR "Cannot parse the header line $_, skipping..\n";
+	    if ( /^##/ ) {
+		print STDERR "***WARNING***: Skipping the following commented header line:\n$_\n";
+	    }
+	    else {
+		die "FATAL ERROR: Cannot parse the header line $_\n"; 	
+	    }
 	}
     }
     elsif ( /^\s*$/ ) { next; }
@@ -195,7 +201,7 @@ while(<CMD>) {
 }
 close CMD;
 
-print STDERR "Successfully read ".($#cmds+1)." commands from $ARGV[0]\n";
+print STDERR "Successfully read ".($#cmds+1)." commands from $cmdFile\n";
 
 my ($runlocal,$rungoogle) = (0,0);
 if ( $imageName ) { ## image name exists -- should be GCS
@@ -208,7 +214,7 @@ if ( $imageName ) { ## image name exists -- should be GCS
 else {
     $runlocal = 1;
     unless ( ( $jobName ) && ( $#cmds >= 0 ) ) {
-	print STDERR "Missing required options\n";
+	print STDERR "Missing required options. Check whether you specified jobName and 1 or more commands\n";
 	wpod2usage(2);
     }    
 }
@@ -261,21 +267,42 @@ foreach my $key (@listkeys) {
 }
 my @listprods = &array_prod(@listvals);
 
-print STDERR "-------------------------------------------------\n";
-print STDERR "List items to iterate:\n";
-print STDERR "-------------------------------------------------\n";
-foreach my $listkey (@listkeys) {
-    my $r = $lists{$listkey};
-    my $nitems = $#{$r}+1;
-    if ( $nitems == 0 ) {
-	die "Error: No item observed for list key $listkey\n";
-    }
-    my $ncol = $#{$r->[0]}+1;
-    print STDERR "$listkey:\t$nitems items, $ncol columns\n";
+my @varkeys  = sort keys %vars;
+my @varvals  = ();
+foreach my $key (@varkeys) {
+    push(@varvals,$vars{$key});
 }
-print STDERR "-------------------------------------------------\n";
-print STDERR "Total: :".($#listprods+1)." items\n";
-print STDERR "-------------------------------------------------\n";
+
+if ( $#listkeys >= 0 ) {
+    print STDERR "-------------------------------------------------\n";
+    print STDERR "List items to iterate:\n";
+    print STDERR "-------------------------------------------------\n";
+    foreach my $listkey (@listkeys) {
+	my $r = $lists{$listkey};
+	my $nitems = $#{$r}+1;
+	if ( $nitems == 0 ) {
+	    die "Error: No item observed for list key $listkey\n";
+	}
+	my $ncol = $#{$r->[0]}+1;
+	print STDERR "$listkey:\t$nitems items, $ncol columns\n";
+    }
+    print STDERR "-------------------------------------------------\n";
+    print STDERR "Total: :".($#listprods+1)." items\n";
+    print STDERR "-------------------------------------------------\n";
+}
+
+if ( $#varkeys >= 0 ) {
+    print STDERR "-------------------------------------------------\n";
+    print STDERR "Variables to substitute:\n";
+    print STDERR "-------------------------------------------------\n";
+    foreach my $varkey (@varkeys) {
+	my $v = $vars{$varkey};
+	print STDERR "$varkey:\t$v\n";
+    }
+    print STDERR "-------------------------------------------------\n";
+    print STDERR "Total: : ".($#varkeys+1)." items\n";
+    print STDERR "-------------------------------------------------\n";
+}
 
 my $cmdstr = "(\"".join("\",\"",@cmds)."\")";
 my $mountstr = ($#mounts < 0) ? "()" : "(\"".join("\",\"",@mounts)."\")";
@@ -298,6 +325,58 @@ my \$checkpointSecs = $checkpointSecs;
 my \$maxHours = $maxHours;
 END_MESSAGE1
 
+if ( $runlocal ) {
+$msg .=<<'END_MESSAGE3';
+my $pid = $$;
+my $ts = time();
+
+if ( $cwd ) { 
+    if ( chdir($cwd) ) {
+        print STDERR "Successfully changed the working directory to $cwd\n";
+    }
+    else {
+        die "ERROR: Could not change the working directory to $cwd\n";
+    }
+}
+
+for(my $i=0; $i < @cmds; ++$i) {
+    print STDERR "Running command '$cmds[$i]' on target...\n";
+    my $cmd = $cmds[$i];
+    my $ret = &forkExecWait($cmd);
+    if ( $ret ) { 
+      print STDERR "ERROR: Could not successfully finish the command '$cmd', returning exit code $ret\n";
+    }
+    print STDERR "Successfully finished the step$i command '$cmd'\n";
+}
+
+$ts = time(); 
+
+sub forkExecWait {
+    my $cmd = shift;
+    my $msg = shift;
+    if ( defined($msg) ) {
+	print "$msg...";
+    }
+    else {
+	print "forkExecWait(): $cmd ...\n";
+    }
+    my $kidpid;
+    if ( !defined($kidpid = fork()) ) {
+	die "Cannot fork: $!";
+    }
+    elsif ( $kidpid == 0 ) {
+	exec($cmd);
+	die "Cannot exec $cmd: $!";
+    }
+    else {
+	waitpid($kidpid,0);
+    }
+
+    print "\nFinished forkExecWait(): $cmd\n";
+    return ($?>>8);
+}
+END_MESSAGE3
+} elsif ( $rungoogle ) {
 $msg .=<<'END_MESSAGE2';
 ## We assume that the machine was already created.
 my $vmName = `curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google"`;
@@ -476,10 +555,13 @@ sub forkExecCheckpoint {
     return ($?>>8);
 }
 END_MESSAGE2
+}
+
+$msg = subst_vars(\@varkeys,\@varvals,$msg);
 
 for(my $i=0; $i < @listprods; ++$i) {
     ## substitute variables
-    my $myMsg = subst_keywords(\@listkeys,$listprods[$i],$msg);
+    my $myMsg = subst_lists(\@listkeys,$listprods[$i],$msg);
     open(OUT,">$outDir/$jobName.$i.pl") || die "Cannot open $outDir/$jobName.$i.pl for writing\n";
     print OUT $myMsg;
     close OUT;
@@ -501,30 +583,41 @@ for(my $i=0; $i < @listprods; ++$i) {
     print MAK " $outDir/$jobName.$order[$i].OK";
 }
 print MAK "\n\n";
+
+## Make substition on the variables in order
+for(my $i=0; $i < @targetFiles; ++$i) {
+    $targetFiles[$i] = subst_vars(\@varkeys,\@varvals,$targetFiles[$i]);
+}
+
 for(my $i=0; $i < @listprods; ++$i) {
     print MAK "$outDir/$jobName.$i.OK:\n";
     ## check if targetFile exists
     my @myTargets = ();
     for(my $j=0; $j < @targetFiles; ++$j) {
-	push(@myTargets, subst_keywords(\@listkeys,$listprods[$i],$targetFiles[$j]));
+	push(@myTargets, subst_lists(\@listkeys,$listprods[$i],$targetFiles[$j]));
     }
     my $machineName = lc("$jobName-$i");
     my $ts = time();
-    my $zone = $zones[$i % ($#zones+1)];
     if ( $runlocal ) {  ## if local, check target files and run it if it does not exsits
-	print MAK "\t(ls @myTargets > /dev/null 2> /dev/null && perl $outDir/$jobName.$i.pl)\n";
+	print MAK "\t(ls @myTargets > /dev/null 2> /dev/null && touch $outDir/$jobName.$i.OK && echo 'target @myTargets already exists') || (perl $outDir/$jobName.$i.pl)\n";    
+	#print MAK "\t(ls @myTargets > /dev/null 2> /dev/null && perl $outDir/$jobName.$i.pl)\n";
     }
     else {           ## if google cloud, submit the job and create a compute instance
+	my $zone = $zones[$i % ($#zones+1)];
 	print MAK "\t(gsutil ls @myTargets > /dev/null 2> /dev/null && touch $outDir/$jobName.$i.OK && echo 'target @myTargets already exists') || (gcloud compute instances describe --zone $zone $machineName > /dev/null 2> /dev/null && echo '$machineName is already running') || (gsutil cp $outDir/$jobName.$i.pl $gsdir/$jobName.$i.pl && gcloud compute instances create --zone $zone --scopes cloud-platform --image $imageName $opts --boot-disk-size $disk ".($preemptible ? "--preemptible " : "")." --metadata startup-script-url=$gsdir/$jobName.$i.pl $machineName && sleep $sleepSecs)\n";
 	print MAK "\n";
     }
 }
 close MAK;
 
-print "------------------------------------------------------------------\n";
-print "To test, run 'make -f $outDir/$jobName.mk' to test a few cases\n";
-print "To run all the jobs, run 'make -f $outDir/$jobName.mk -k -j 10'\n";
-print "------------------------------------------------------------------\n";
+print "-----------------------------------------------------------------------------------------------------------\n";
+print "To test a random case, run \n";
+print "make -f $outDir/$jobName.mk $outDir/$jobName.$order[0].OK\n";
+print "Upon a successful run, even if you run the command multiple times, it should run only once\n";
+print "(and change $order[0] to a different number to test more)\n";
+print "To run all the jobs, run '\n";
+print "make -f $outDir/$jobName.mk -k -j [njobs]\n";
+print "-----------------------------------------------------------------------------------------------------------\n";
 
 sub array_prod {
     my ($curlist,@rest) = @_;
@@ -545,8 +638,22 @@ sub array_prod {
     return @newprod;
 }
 
-## substitute keywords from string
-sub subst_keywords {
+sub subst_vars {
+    my ($rKey,$rVal,$msg) = @_;
+    my @keys = @{$rKey};
+    my @vals = @{$rVal};
+    if ( $#keys != $#vals ) {
+	die "Keys and Values does not have the same length : $#keys +1 != $#vals +1\n";
+    }
+    for(my $i=0; $i < @keys; ++$i) {
+	$msg =~ s/\$$keys[$i]\$/$vals[$i]/g;
+	$msg =~ s/\$\{$keys[$i]\}\$/$vals[$i]/g;	    
+    }
+    return $msg;    
+}
+
+## substitute lists from string
+sub subst_lists {
     my ($rKey,$rProd,$msg) = @_;
     my @keys = @{$rKey};
     my @prod = @{$rProd};
