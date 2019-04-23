@@ -1,0 +1,478 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(forkExecWait);
+use wGetOptions qw(wpod2usage wGetOptions);
+use warnings;
+
+my @vcfs = ();
+my $vcflistf = "";
+my $id2mapf = "";
+my $outf = "";
+my $binbcftools = "bcftools";
+my $bintabix    = "tabix";
+my $binbgzip    = "bgzip";
+my $maxPL = 60;
+my $infoAF = "";
+
+wGetOptions(
+    "-Combine genotype likelihoods (PL) across multiple VCFs",
+    "--Required Options",
+    "out=s" =>  [\$outf, "Output VCF file"],
+    "--Possible Options",
+    "vcf=s" =>  [\@vcfs, "VCF file to combine together. Cannot be used with --list"],
+    "list=s" => [\$vcflistf, "File containg the list of VCF files to combine. The second column could be alias of the file. Cannot be used with --vcf together"],
+    "id-map=s" => [\$id2mapf, "File containg the [VCF_FILE or ALIAS] [ORIGINAL_ID_IN_VCF] [NEW_ID]"],
+    "max-pl=i" => [\$maxPL, "Maximum phred-scale likelihood (PL) values to limit the error probability"],
+    "bcftools=s" => [\$binbcftools, "Path of bcftools binary"],
+    "tabix=s"    => [\$bintabix, "Path of tabix binary"],
+    "bgzip=s"    => [\$binbgzip, "Path of bgzip binary"],
+    "info-af"    => [\$infoAF, "Use AF field from INFO field"], 
+    ) || wpod2usage(2);
+
+unless ( ( $outf ) && ( ( $#vcfs >= 0 ) || ( $vcflistf ) ) ) {
+    print STDERR "ERROR: Missing required option\n";
+    wpod2usage(2);
+}
+
+if ( ( $#vcfs >= 0 ) && ( $vcflistf ) ) {
+    print STDERR "ERROR: --vcf and --list options cannot be used together\n";
+    wpod2usage(2);    
+}
+
+## Read VCF file names and nickname
+my %fn2nick = ();
+my %nick2idx = ();
+my @nicks = ();
+if ( $#vcfs >= 0 ) {
+    for(my $i=0; $i < @vcfs; ++$i) {
+	$fn2nick{$vcfs[$i]} = [$vcfs[$i],$i];
+	$nick2idx{$vcfs[$i]} = $i;
+	push(@nicks,$vcfs[$i]);
+    }
+}
+else {
+    open(IN,$vcflistf) || die "Cannot open file\n";
+    for(my $i=0;<IN>;++$i) {
+	chomp;
+	my ($fn,$nick) = split;
+	$nick = $fn unless ( defined($nick) && $nick );
+	$fn2nick{$fn} = [$nick, $i];
+	$nick2idx{$nick} = $i;
+	push(@vcfs,$fn);
+	push(@nicks,$nick);
+    }
+    close IN;
+}
+
+## Read ID map
+my %idmap = ();
+my @outIDs = ();
+if ( $id2mapf ) {
+    my %hidnews = ();
+    open(IN,$id2mapf) || die "Cannot open file\n";
+    for(my $i=0;<IN>;++$i) {
+	my ($nick,$idold,$idnew) = split;
+	$idmap{$nick} = {} unless ( defined($idmap{$nick}) );
+	$idmap{$nick}->{$idold} = $idnew;
+	$hidnews{$idnew} = 1;
+    }
+    close IN;
+    @outIDs = sort keys %hidnews;
+}
+
+## read all BCFs together simultaneously, process headers and match sample IDs
+my @fhs = ();
+my @ids = ();
+my @lines = ();
+
+if ( $outf =~ /\.vcf.gz/ ) {
+    open(OUT,"| $binbgzip -c > $outf") || die "Cannot open file $outf for writing\n";
+}
+elsif ( $outf =~ /\.bcf/ ) {
+    open(OUT,"| $binbcftools view -Ob -o $outf /dev/stdin") || die "Cannot open file $outf for writing\n";    
+}
+else {
+    open(OUT,">$outf") || die "Cannot open file for writng\n";
+}
+
+
+for(my $i=0; $i < @vcfs; ++$i) {
+    my $fh = &vcfopen($vcfs[$i]);
+    push(@fhs,$fh);
+    my $line = readline($fhs[$i]);
+    while( $line =~ /^##/ ) {
+	print OUT $line if ( $i == 0 ); ## copy the header of the first file
+	$line = readline($fhs[$i]);
+    }
+    if ( $line =~ /^#/ ) {
+	chomp $line;
+	my @H = split(/[\t\r\n ]+/,$line);
+	my @smIDs = @H[9..$#H];
+	push(@ids,\@smIDs);
+	if ( eof($fhs[$i]) ) {
+	    push(@lines,[]);
+	}
+	else {
+	    $line = readline($fhs[$i]);
+	    chomp $line;
+	    my @H = split(/[\t\r\n ]+/,$line);
+	    push(@lines,\@H);
+	}
+    }
+    else {
+	die "Cannot find the header line. Observed $line\n";
+    }
+}
+
+## Find matching between IDs
+my $nvcfs = $#vcfs+1;
+my @outCols = ();
+
+if ( $id2mapf ) {  ## If ID map was given, map the ID of each individual VCF to target ID
+    print STDERR "Output VCF will contain ".($#outIDs+1)." samples from $id2mapf\n";
+    my %outidxs = ();
+    for(my $i=0; $i < @outIDs; ++$i) {
+	$outidxs{$outIDs[$i]} = $i;
+    }
+    
+    for(my $i=0; $i < $nvcfs; ++$i) {
+	my @idxs = (-1) x ($#outIDs+1);
+	my $ns = $#{$ids[$i]}+1;
+	for(my $j=0; $j < $ns; ++$j) {
+	    my $outid = $idmap{$nicks[$i]}->{$ids[$i]->[$j]};
+	    if ( defined($outid) ) {
+		my $outidx = $outidxs{$outid};
+		if ( defined($outidx) ) {
+		    if ( $idxs[$outidx] < 0 ) {
+			$idxs[$outidx] = $j;
+		    }
+		    else {
+			die "ERROR: Duplicate ID for $outid\n";
+		    }
+		}
+		else {
+		    die "ERROR: Something went wrong. $outid cannot be found from $id2mapf\n";
+		}
+	    }
+	    else {
+		print STDERR "WARNING: Input ID ".($ids[$i]->[$j])." in $vcfs[$i] is not mappable by $id2mapf. Skipping..\n";
+	    }
+	}
+	for(my $j=0; $j < @idxs; ++$j) {
+	    if ( $idxs[$j] < 0 ) {
+		print STDERR "WARNING: Output ID $outIDs[$j] is not found in $vcfs[$i]. Skupping..\n";
+	    }
+	}
+	print STDERR "i = $i, outCols = @idxs\n";
+	push(@outCols,\@idxs);
+    }
+}
+else {  ## If ID map was not given, take the union of all possible sample IDs
+    my %hids = ();
+    for(my $i=0; $i < $nvcfs; ++$i) {
+	my $ns = $#{$ids[$i]}+1;	
+	for(my $j=0; $j < $ns; ++$j) {
+	    $hids{$ids[$i]->[$j]} = 1;
+	}
+    }
+    @outIDs = sort keys %hids;
+    print STDERR "Output VCF will contain ".($#outIDs+1)." merged samples - @outIDs\n";
+    my %outidxs = ();
+    for(my $i=0; $i < @outIDs; ++$i) {
+	$outidxs{$outIDs[$i]} = $i;
+    }
+
+    for(my $i=0; $i < $nvcfs; ++$i) {
+	my @idxs = (-1) x ($#outIDs+1);
+	my $ns = $#{$ids[$i]}+1;
+	for(my $j=0; $j < $ns; ++$j) {
+	    my $outid = $ids[$i]->[$j];
+	    if ( defined($outid) ) {
+		my $outidx = $outidxs{$outid};
+		if ( defined($outidx) ) {
+		    if ( $idxs[$outidx] < 0 ) {
+			$idxs[$outidx] = $j;
+		    }
+		    else {
+			die "ERROR: Duplicate ID $outid in $vcfs[$i]\n";
+		    }
+		}
+		else {
+		    die "ERROR: Something went wrong. $outid cannot be found from merged IDs\n";
+		}
+	    }
+	    else {
+		die "ERROR: Input ID ".($ids[$i]->[$j])." in $vcfs[$i] is undefined\n";
+	    }
+	}
+	for(my $j=0; $j < @idxs; ++$j) {
+	    if ( $idxs[$j] < 0 ) {
+		print STDERR "WARNING: Output ID $outIDs[$j] is not found in $vcfs[$i]. Skipping..\n";
+	    }
+	}
+	print STDERR "i = $i, outCols = @idxs\n";
+	push(@outCols,\@idxs);
+    }    
+}
+
+## read VCF entries
+## assume that each VCF has at least one variant in all valid contigs
+## assume that each variant can be distinguished by its position (REF/ALT always matches)
+my @contigs = ($lines[0]->[0]);
+my $curPos = $lines[0]->[1];
+for(my $i=1; $i < $nvcfs; ++$i) {
+    if ( $contigs[$#contigs] eq $lines[$i]->[0] ) {
+	if ( $curPos > $lines[$i]->[1] ) {
+	    $curPos = $lines[$i]->[1];
+	}
+    }
+    else {
+	die "The first chromosome names are not consistent. Expected ".($contigs[$#contigs]).", but observed ".($lines[$i]->[0])."\n";
+    }
+}
+my $nEOF = 0;
+my @isEOFs = (0) x ($nvcfs);
+my $nOut = ($#outIDs+1);
+my @pl2prob = ();
+my $log10 = log(10);
+for(my $i=0; $i <= $maxPL; ++$i) {
+    push(@pl2prob, POSIX::pow(0.1,0.1*$i));
+}
+
+print OUT join("\t","#CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT",@outIDs)."\n";
+
+my @sGTs = ("0/0","0/1","1/1");
+
+while( $nEOF < $nvcfs ) {
+    ## Process the current position
+    my @dps = (0) x $nOut;
+    my @ads = (0) x (2 * $nOut);
+    my @pls = (0) x (3 * $nOut);
+    my @matched = (0) x $nvcfs;
+    my ($vid,$ref,$alt,$qual,$filter,$info);
+    my @infoAFs = ();
+
+    for(my $i=0; $i < $nvcfs; ++$i) {
+	if ( ( $isEOFs[$i] == 0 ) && ( $contigs[$#contigs] eq $lines[$i]->[0] ) && ( $curPos == $lines[$i]->[1] ) ) {
+	    if ( defined($vid) ) {
+		die "ERROR: Inconsistent variants at $contigs[$#contigs]:$curPos. $ref/alt vs ".($lines[$i]->[3])."/".($lines[$i]->[4])."\n" unless ( ( $ref eq $lines[$i]->[3] ) && ( $alt eq $lines[$i]->[4] ) );
+	    }
+	    else {
+		($vid,$ref,$alt,$qual,$filter,$info) = ($lines[$i]->[2],$lines[$i]->[3],$lines[$i]->[4],$lines[$i]->[5],$lines[$i]->[6],$lines[$i]->[7]);
+	    }
+	    $matched[$i] = 1;
+
+	    if ( ( $infoAF ) && ( $lines[$i]->[7] =~ /AF=([^;,]+)/ ) ) {
+		push(@infoAFs,$1);
+	    }
+	    
+	    my @fmts = split(/:/,$lines[$i]->[8]);
+	    my ($iDP,$iAD,$iPL) = (-1,-1,-1);
+	    for(my $j=0; $j < @fmts; ++$j) {
+		if ( $fmts[$j] eq "DP" ) { $iDP = $j; }
+		elsif ( $fmts[$j] eq "AD" ) { $iAD = $j; }
+		elsif ( $fmts[$j] eq "PL" ) { $iPL = $j; }
+	    }
+	    for(my $j=0; $j < $nOut; ++$j) {
+		my $icol = $outCols[$i]->[$j];
+		if ( $icol >= 0 ) {
+		    my @fields = split(/:/,$lines[$i]->[$icol+9]);
+		    if ( $iDP >= 0 ) { $dps[$j] += $fields[$iDP]; }
+		    if ( $iAD >= 0 ) {
+			my @tmp = split(/,/,$fields[$iAD]);
+			$ads[$j*2] += $tmp[0];
+			$ads[$j*2+1] += $tmp[1];			
+		    }
+		    if ( $iPL >= 0 ) {
+			my @tmp = split(/,/,$fields[$iPL]);
+			$pls[$j*3] += $tmp[0];
+			$pls[$j*3+1] += $tmp[1];
+			$pls[$j*3+2] += $tmp[2];	
+		    }
+		    else {
+			die "PL does not exist for @{$lines[$i]}\n";
+		    }
+		}
+	    }
+	}
+    }
+
+    my @tmpGCs = (0,0,0);
+    for(my $i=0; $i < $nOut; ++$i) {
+	my $minPL = $pls[3*$i];
+	$minPL = $pls[3*$i+1] if ( $minPL > $pls[3*$i+1] );
+	$minPL = $pls[3*$i+2] if ( $minPL > $pls[3*$i+2] );
+	$pls[3*$i+0] -= $minPL;
+	$pls[3*$i+1] -= $minPL;
+	$pls[3*$i+2] -= $minPL;
+	$pls[3*$i+0] = $maxPL if ( $pls[3*$i+0] > $maxPL );
+	$pls[3*$i+1] = $maxPL if ( $pls[3*$i+1] > $maxPL );
+	$pls[3*$i+2] = $maxPL if ( $pls[3*$i+2] > $maxPL );	
+	++$tmpGCs[0] if ( $pls[3*$i+0] == 0 );
+	++$tmpGCs[1] if ( $pls[3*$i+1] == 0 );
+	++$tmpGCs[2] if ( $pls[3*$i+2] == 0 );	
+    }
+    
+    ## Estimate pooled AF using EM
+    my $af = ( $tmpGCs[1] + $tmpGCs[2] + $tmpGCs[2] ) / ( $tmpGCs[0] + $tmpGCs[1] + $tmpGCs[2] ) / 2;
+    my @gps = (0) x (3 * $nOut);
+    if ( $infoAF ) {
+	die "Cannot find AF in INFO field at $contigs[$#contigs]:$curPos:$ref:$alt\n" if ( $#infoAFs < 0 );
+	$af = 0;
+	foreach my $f (@infoAFs) {
+	    $af += $f;
+	}
+	$af /= ($#infoAFs+1);  ## take average of INFO field
+	my @gp0s = ((1-$af)*(1-$af), 2*$af*(1-$af), $af*$af);
+	my $sumGP = 0;
+	for(my $i=0; $i < $nOut; ++$i) {
+	    $gps[3*$i+0] = $pl2prob[$pls[3*$i+0]] * $gp0s[0];
+	    $gps[3*$i+1] = $pl2prob[$pls[3*$i+1]] * $gp0s[1];
+	    $gps[3*$i+2] = $pl2prob[$pls[3*$i+2]] * $gp0s[2];
+	    my $sum = $gps[3*$i+0]+$gps[3*$i+1]+$gps[3*$i+2];
+	    $gps[3*$i+0] /= $sum;
+	    $gps[3*$i+1] /= $sum;
+	    $gps[3*$i+2] /= $sum;
+	    $sumGP += $gps[3*$i+1];
+	    $sumGP += (2*$gps[3*$i+1]);
+	}	
+    }
+    else {
+	for(my $iter=0; $iter < 10; ++$iter) {
+	    my @gp0s = ((1-$af)*(1-$af), 2*$af*(1-$af), $af*$af);
+	    my $sumGP = 0;
+	    for(my $i=0; $i < $nOut; ++$i) {
+		$gps[3*$i+0] = $pl2prob[$pls[3*$i+0]] * $gp0s[0];
+		$gps[3*$i+1] = $pl2prob[$pls[3*$i+1]] * $gp0s[1];
+		$gps[3*$i+2] = $pl2prob[$pls[3*$i+2]] * $gp0s[2];
+		my $sum = $gps[3*$i+0]+$gps[3*$i+1]+$gps[3*$i+2];
+		$gps[3*$i+0] /= $sum;
+		$gps[3*$i+1] /= $sum;
+		$gps[3*$i+2] /= $sum;
+		$sumGP += $gps[3*$i+1];
+		$sumGP += (2*$gps[3*$i+1]);
+	    }
+	    $af = $sumGP/2/$nOut;
+	    if ( $af < 0 ) { $af = 0.5/$nOut; }
+	    if ( $af > 1 ) { $af = 1.0-0.5/$nOut; }	
+	}
+    }
+    my @gts = (0) x $nOut;
+    my @gqs = (0) x $nOut;
+    my @gcs = (0,0,0);
+    for(my $i=0; $i < $nOut; ++$i) {
+	$gts[$i] = 0;
+	if ( $gps[3*$i+$gts[$i]] < $gps[3*$i+1] ) { $gts[$i] = 1; }
+	if ( $gps[3*$i+$gts[$i]] < $gps[3*$i+2] ) { $gts[$i] = 2; }
+
+	#print STDERR "$i $gts[$i] $gps[3*$i+0] $gps[3*$i+1] $gps[3*$i+2] $pls[3*$i+0] $pls[3*$i+1] $pls[3*$i+2] $af\n";
+
+	$gqs[$i] = sprintf("%d",-10*log(1.0-$gps[3*$i+$gts[$i]]+1e-100)/$log10);
+	$gqs[$i] = 255 if ( $gqs[$i] > 255 );
+	++$gcs[$gts[$i]];
+    }
+
+    unless ( $infoAF ) {
+	$info =~ s/^EMAF=[^;]+;//;
+	$info =~ s/;EMAF=[^;]+//;
+	$info =~ s/^EMAF=[^;]+//;
+	$info .= ";EMAF=".sprintf("%.6lf",$af);
+    }
+
+    print OUT join("\t",$contigs[$#contigs],$curPos,$vid,$ref,$alt,$qual,$filter,$info,"GT:GQ:DP:AD:PL:GP");
+    for(my $i=0; $i < $nOut; ++$i) {
+	print OUT "\t";
+	print OUT join(":",$sGTs[$gts[$i]],$gqs[$i],$dps[$i],$ads[$i*2].",".$ads[$i*2+1],$pls[$i*3].",".$pls[$i*3+1].",".$pls[$i*3+2],sprintf("%.3lg",$gps[$i*3]).",".sprintf("%.3lg",$gps[$i*3+1]).",".sprintf("%.3lg",$gps[$i*3+2]));
+    }
+    print OUT "\n";
+    
+    ## Read variants overlapping with the current position
+    for(my $i=0; $i < $nvcfs; ++$i) {
+	if ( $matched[$i] == 1 ) {
+	    if ( eof($fhs[$i]) ) {
+		$lines[$i] = [];
+		$isEOFs[$i] = 1;
+		++$nEOF;
+	    }
+	    else {
+		my $line = readline($fhs[$i]);
+		chomp $line;
+		my @F = split(/[\t\r\n ]+/,$line);
+		$lines[$i] = \@F;
+	    }
+	}
+    }
+
+    ## Update contigs, curPos, isEOFs, and nEOF
+    if ( $nEOF < $nvcfs ) {
+	$curPos = 1e9;
+	for(my $i=0; $i < $nvcfs; ++$i) {
+	    if ( ( $isEOFs[$i] == 0 ) && ( $contigs[$#contigs] eq $lines[$i]->[0] ) && ( $curPos > $lines[$i]->[1] ) ) {
+		$curPos = $lines[$i]->[1];
+	    }
+	}
+	if ( $curPos == 1e9 ) { ##
+	    for(my $i=0; $i < $nvcfs; ++$i) {
+		if ( $isEOFs[$i] == 0 ) {
+		    push(@contigs,$lines[$i]->[0]);
+		    print STDERR "Processing chromosome ".$contigs[$#contigs]."...\n";
+		    $curPos = $lines[$i]->[1];
+		    last;
+		}
+	    }
+
+	    for(my $i=0; $i < $nvcfs; ++$i) {
+		if ( ( $isEOFs[$i] == 0 ) && ( $contigs[$#contigs] eq $lines[$i]->[0] ) && ( $curPos > $lines[$i]->[1] ) ) {
+		    $curPos = $lines[$i]->[1];
+		}
+	    }   
+	}
+    }
+}
+
+for(my $i=0; $i < $nvcfs; ++$i) {
+    $fhs[$i]->close;
+}
+close OUT;
+
+sub vcfopen {
+    my $fn = shift;
+    my $reg = shift;
+    my $fh = FileHandle->new;
+    if ( $fn =~ /\.vcf.gz$/ ) {
+	die "Cannot open file $fn\n" unless ( -s $fn );
+	if ( defined($reg) && ( $reg ) ) {
+	    die "Cannot parse $reg\n" unless ( $reg =~ /^\S+:\d+(-\d+)?/ );
+	    die "Cannot open file $fn.tbi\n" unless ( -s "$fn.tbi" );
+	    open($fh,"$bintabix -h $fn $reg |");
+	}
+	else {
+	    open($fh,"zcat $fn|");
+	}
+    }
+    elsif ( $fn =~ /\.bcf$/ ) {
+	die "Cannot open file $fn\n" unless ( -s $fn );
+	if ( defined($reg) && ( $reg ) ) {
+	    die "Cannot parse $reg\n" unless ( $reg =~ /^\S+:\d+(-\d+)?/ );
+	    die "Cannot open file $fn.csi\n" unless ( -s "$fn.csi" );
+	    open($fh,"$binbcftools view $fn $reg |");
+	}
+	else {
+	    open($fh,"$binbcftools view $fn|");
+	}	
+    }
+    else {
+	die "Cannot parse region $reg in a plain text\n" if ( defined($reg) && ( $reg ) );
+	if ( $fn eq "-" ) {
+	    $fh = *STDIN;
+	    #open($fh,"|") || die "Cannot open $fn\n";
+	}
+	else {
+	    open($fh,$fn) || die "Cannot open $fn\n";
+	}
+    }
+    return $fh;    
+}

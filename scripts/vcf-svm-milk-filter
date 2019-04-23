@@ -1,0 +1,817 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Time::HiRes qw(usleep nanosleep);
+use File::Path;
+use File::Basename;
+use FindBin;
+use lib $FindBin::Bin;
+use wGetOptions qw(wpod2usage wGetOptions);
+use hyunlib qw(%hszchrs initRef forkExecWait);
+
+my $invcf = "";
+my $outprefix = "";
+my $ref = "";
+my $dbsnp = "";
+my $modelf = "";
+my $train = "";
+my @posVcfs = ();
+
+my @ignores = qw(AC AN AF GC GN HWEAF_P MAX_IF MIN_IF MILK_LRE MILK_LUD MILK_BF MILK_HWEAF MILK_HWDGF DUP_CONC_ALL DUP_CONC_THRES TRIO_CONC_ALL TRIO_CONC_THRES MILK_CHRX);
+my @includes = ();
+my $cutoff = 0;
+
+my $bintabix = "tabix";
+my $binbgzip = "bgzip";
+my $invNorm = "";
+my $svmlearn = "svm-train";
+my $svmclassify = "svm-predict";
+my $vcfsummary = "$FindBin::Bin/vcf-summary";
+my $vcfsummary2 = "$FindBin::Bin/vcf-summary-v2";
+my $xLabel = "chrX";
+my ($xStart,$xStop) = (2781479,155701383);
+my $centromereBed = "";
+my $minDiscCount = 3;
+my $minDiscFrac = 0.05;
+
+wGetOptions(
+    "-SVM Filter based on vt MILK",
+    "--Required Options",
+    "in-vcf=s" => [\$invcf, "Input VCF file"],
+    "out=s"    => [\$outprefix, "Output prefix"],    
+    "ref=s"   => [\$ref,   "Reference FASTA file"],
+    "dbsnp=s" => [\$dbsnp, "Path to dbSNP file"],
+    "posvcf=s" => [\@posVcfs, "VCF containing positive labels"],
+    
+    "--Additional Options",
+    "model=s" => [\$modelf, "Model file already trained"],    
+    "train"   => [\$train,  "Perform model training (create a model file [outprefix].model)"],
+    "ignore=s" => [\@ignores, "INFO field to ignore in the training steps"],
+    "include=s" => [\@includes, "INFO field to always include in the training steps ',defaultValue' are appended when default value is non-zero"],
+    "cutoff=f"  => [\$cutoff, "SVM cutoff value to PASS a variant"],
+    "centromere=s" => [\$centromereBed, "A BED file containing the centromere information"],
+    "min-disc-count=i" => [\$minDiscCount, "Minimum duplicate or mendelian discordance to be considered as negative label"],
+    "min-disc-frac=f" => [\$minDiscFrac, "Minimum fraction of duplicate discordance or Mendelian errors to be considered as negative labels"],
+    
+    "--Required Software Tools",    
+    "invNorm=s" => [\$invNorm, "Path to binary of invNorm software tool"],
+    "svm-train=s" => [\$svmlearn, "Path to binary of libsvm's svm-learn tool"],
+    "svm-predict=s" => [\$svmclassify, "Path to binary of libsvm's svm-predict tool"],
+    "bgzip=s" => [\$binbgzip, "Path to binary of bgzip tool"],
+    "tabix=s" => [\$bintabix, "Path to binary of tabix tool"],
+    "vcf-summary=s" => [\$vcfsummary, "Path to vcf-summary tool"],
+    "vcf-summary2=s" => [\$vcfsummary2, "Path to vcf-summary-v2 tool"],
+
+    "--Sex Chromosomes",
+    "xLabel=s" => [\$xLabel, "Label of X chromosome"],
+    "xStart=i" => [\$xStart, "Base position of the beginning of non-PAR X region"],  
+    "xStop=i" => [\$xStop,   "Base position of the end of non-PAR X region"],
+    ) || wpod2usage(2);
+
+unless ( ( $invcf ) && ( $outprefix ) && ( $ref ) && ( $dbsnp ) && ( $#posVcfs >= 0 ) && ($invNorm) && ( $svmlearn) && ( $svmclassify ) && ( $binbgzip ) && ( $bintabix ) && ( $vcfsummary ) && ( $vcfsummary2 ) ) {
+    print STDERR "ERROR: Missing required option\n";
+    wpod2usage(2);
+}
+
+&initRef($ref);
+
+my %hcent = ();
+if ( $centromereBed ) {
+    if ( $centromereBed =~ /\.gz/ ) {
+	open(IN,"zcat $centromereBed |") || die "Cannot open file\n";
+    }
+    else {
+	open(IN,$centromereBed) || die "Cannot open file $centromereBed\n";	
+    }
+    while(<IN>) {
+	my ($chr,$beg,$end) = split;
+	$hcent{$chr} = [$beg,$end];
+    }
+    close IN;
+}
+else {
+    print STDERR "WARNING: Centromere BED file was not specified. No CEN filter will be provided\n";
+}
+
+my @names = ();
+my $ncols = 0;
+my %hIgnores = map { $_ => 1 } @ignores;
+my %hIncludes = ();
+my @includeKeys = ();
+my @includeDefaultValues = ();
+for(my $i=0; $i < @includes; ++$i) {
+    my ( $key, $defaultVal ) = split(/,/,$includes[$i]);
+    $hIncludes{$key} = $i;
+    push(@names,$key);
+    push(@includeKeys,$key);
+    push(@includeDefaultValues,defined($defaultVal) ? $defaultVal : 0);
+}
+my $nIncludes = $#includes + 1;
+
+my @discordsA = (0,1,1, 0,0,1, 1,0,1, 0,0,1, 0,0,0, 1,0,0, 1,0,1, 1,0,0, 1,1,0);
+my @discordsX = (0,1,1, 0,0,0, 1,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,1, 0,0,0, 1,1,0);
+my @dupdisc   = (0,1,1, 1,0,1, 1,1,0);
+
+## Check if model need to be created
+
+unless ( $modelf ) {
+    $modelf = "$outprefix.svm.model";
+}
+
+die "ERROR: Input VCF $invcf must be tabixed\n" unless ( -s "$invcf.tbi" );
+
+my $chr = `$bintabix -l $invcf`;
+chomp $chr;
+my @achrom = split(/\s+/,$chr);
+die "ERROR: Cannot handle VCF that contains multiple chromosomes. Pleasem separate by indvidual chromosome\n" if ( $#achrom > 0 );
+
+if ( $train ) {
+    print STDERR "WARNING: The existing model $modelf will be overwritten\n" if ( -s $modelf );
+    print STDERR "Creating SVM model for $modelf first..\n";
+
+    my %hpos = ();
+    print STDERR "Loading positive labels..\n";
+    ## LABEL positive samples
+    foreach my $posVcf (@posVcfs) {
+        open(IN,"$bintabix $posVcf $chr:0 | grep -w PASS |") || die "Cannot open file\n";
+        while(<IN>) {
+            next if ( /^#/ );
+            my ($chrom,$pos,$id,$ref,$alt) = split;
+            $hpos{"$chrom:$pos"} = "$ref:$alt";
+        }
+    }
+    my ($cbeg,$cend) = @{$hcent{$chr}};
+
+    my %hneg = ();
+    print STDERR "Identifying negative labels from $invcf\n"; # using intercept $bfIntercept, log10-scale slope $bfSlope..\n";        
+
+    open(IN,"zcat $invcf | cut -f 1-8| grep -v ^#|") || die "Cannot open file\n";
+    while(<IN>) {
+        my @F = split;
+        next if ( $F[4] =~ /,/ );
+        #next if ( ( ( length($F[3]) > 1 ) || ( length($F[4]) > 1 ) ) && ( $F[6] ne "." ) );
+        next if ( ( length($F[3]) > 1 ) || ( length($F[4]) > 1 ) );
+        next if ( ( $F[1] > $cbeg ) && ( $F[1] < $cend ) );
+
+        my $ac = $1 if ( $F[7] =~ /AC=(\d+);/ );
+	
+	my @tcnts = split(/,/,$1) if ( $F[7] =~ /TRIO_CONC_THRES=([^;]+)/ );
+        my @dcnts = split(/,/,$1) if ( $F[7] =~ /DUP_CONC_THRES=([^;]+)/ );     
+        my ($ndisc,$nconc,$ddisc,$dconc) = (0,0,0,0);
+        for(my $i=1; $i < 27; ++$i) {
+            if ( $tcnts[$i] > 0 ) {
+                next if ( ( $i == 26 ) || ( $i == 12 ) || ( $i == 13 ) || ( $i == 14 ) );
+                if ( $discordsA[$i] == 0 ) { $nconc += $tcnts[$i] }
+                else { $ndisc += $tcnts[$i]; }
+            }
+        }
+
+        for(my $i=1; $i < 9; ++$i) {
+            if ( $dcnts[$i] > 0 ) {
+                next if ( $i == 8 );
+                if ( $dupdisc[$i] == 0 ) { $dconc += $dcnts[$i] }
+                else { $ddisc += $dcnts[$i]; }          
+            }
+        }               
+
+        next if ( $ac < 2 );  ## do not include singletons
+        if ( ( ( $ndisc >= $minDiscCount ) && ( $ndisc > $nconc * $minDiscFrac ) ) || ( ( $ddisc >= $minDiscCount ) && ( $ddisc > $dconc * $minDiscFrac ) ) ) {  
+            $hneg{"$F[0]:$F[1]:$F[3]:$F[4]"} = 1;
+        }                       
+    }
+    close IN;    
+
+    ## write features
+    print STDERR "Writing the feature information for libsvm..\n";
+    open(RAW,">$outprefix.raw") || die "Cannot open $outprefix.raw for writing\n";
+    open(SITE,">$outprefix.site") || die "Cannot open $outprefix.raw for writing\n";
+    open(IN,"zcat $invcf |") || die "Cannot open file\n";    
+    my @hdrs = ();
+    while(<IN>) {
+        if ( /^#/ ) {
+            push(@hdrs,$_);
+            next;
+        }
+        my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info) = split(/[ \t\r\n]+/);
+        $info .= ";QUAL=$qual" unless ( $qual eq "." );
+        my @infos = split(/;/,$info);
+        my @values = ();
+        my $k = 0;
+        for(my $j=0; $j < @includeKeys; ++$j) {
+            push(@values,$includeDefaultValues[$j]);
+            ++$k;
+        }           
+        
+        for(my $j=0; $j < @infos; ++$j) {
+            my ($key,$val) = split(/=/,$infos[$j]);
+            next if ( defined($hIgnores{$key}) );
+            next unless defined($val); ## skip keys without any values
+            if ( defined($hIncludes{$key}) ) {
+                if ($val =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
+                    $values[$hIncludes{$key}] = $val;
+		}
+            }
+            else {
+                if ( $val =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+                    push(@values,$val);
+                }
+                else {
+                    push(@values,0);
+                }
+                
+                if ( $ncols == 0 ) {
+                    push(@names,$key);
+                }
+                else {
+                    die "Cannot recognize $key in $infos[$j], supposed to be $names[$j] at $j, $chrom:$pos:$ref:$alt $info\n" unless ($names[$k] eq $key );
+                }
+                ++$k;
+            }
+        }
+        if ( $ncols == 0 ) {
+            $ncols = $#names+1;
+            print STDERR "Recording following $ncols features : @names\nThe info field was $info\n@infos\n";
+            die if ( $ncols == 0 );
+        }
+        elsif ( $ncols != $#values+1 ) {
+            die "Number of columns are not identical at $chrom:$pos:$ref:$alt\n";
+        }
+        print SITE join("\t",$chrom,$pos,$id,$ref,$alt,$qual,$filt,$info)."\n";     
+        print RAW join("\t",@values)."\n";
+    }
+    close IN;
+    close RAW;
+    close SITE;
+
+    print STDERR "Performing quantile normalization of features..\n";    
+    my $cmd = "$invNorm --in $outprefix.raw --out $outprefix.norm";
+    &forkExecWait($cmd);
+
+    open(SITE,"$outprefix.site") || die "Cannot open $outprefix.sites\n";
+    open(NORM,"$outprefix.norm") || die "Cannot open $outprefix.norm\n";
+    open(LBL,">$outprefix.label") || die "Cannot open $outprefix.label\n";
+
+    my ($npos,$nneg,$noth) = (0,0,0);
+    while(<SITE>) {
+        my ($chrom,$pos,$id,$ref,$alt) = split;
+        my @z = split(/[ \t\r\n]+/,<NORM>);
+        my $ln = "";
+        for(my $i=0; $i < @names; ++$i) {
+            $ln .= " ".($i+1).":$z[$i]";
+        }
+        if ( defined($hpos{"$chrom:$pos"}) ) {      
+            if ( ( $hpos{"$chrom:$pos"} ne "$ref:$alt" ) || defined($hneg{"$chrom:$pos:$ref:$alt"}) ) {
+                ++$noth;
+            }
+            else {
+                print LBL "1 $ln\n";
+                ++$npos;
+            }
+        }
+        elsif ( defined($hneg{"$chrom:$pos:$ref:$alt"}) ) {
+            print LBL "-1 $ln\n";
+            ++$nneg;
+        }
+        else {
+            ++$noth;
+        }
+    }
+    #close FTR;
+    close LBL;
+    close SITE;
+
+    print STDERR "Training SVM classification model using $npos positive samples, $nneg negative samples with $noth additional samples\n";
+
+    $cmd = "$svmlearn -s 0 -t 2 $outprefix.label $modelf";
+    &forkExecWait($cmd);
+}
+
+## make a new training model for X chromosomes
+if ( $chr eq $xLabel ) {
+    ## develop a new training model, focused only on non-PAR
+    my %hpos = ();
+    
+    print STDERR "Loading positive labels..\n";
+    ## LABEL positive samples
+    foreach my $posVcf (@posVcfs) {
+	open(IN,"$bintabix $posVcf $xLabel:$xStart-$xStop| grep -w PASS|") || die "Cannot open file\n";
+	while(<IN>) {
+	    next if ( /^#/ );
+	    my ($chrom,$pos,$id,$ref,$alt) = split;
+	    next if ( $pos < $xStart );
+	    next if ( $pos > $xStop );              
+	    $hpos{"$chrom:$pos"} = "$ref:$alt";
+	}
+    }
+    my ($cbeg,$cend) = @{$hcent{$xLabel}};
+    
+    my %hneg = ();
+    print STDERR "Identifying negative labels from $invcf\n"; # using intercept $bfIntercept, log10-scale slope $bfSlope..\n";        
+    
+    open(IN,"$bintabix $invcf $xLabel:$xStart-$xStop | cut -f 1-8 | grep -v ^#|") || die "Cannot open file\n";
+    while(<IN>) {
+	my @F = split;
+	next if ( $F[4] =~ /,/ );
+	next if ( ( length($F[3]) > 1 ) || ( length($F[4]) > 1 ) );
+	
+	next if ( ( $F[1] > $cbeg ) && ( $F[1] < $cend ) );
+	
+	my $ac = $1 if ( $F[7] =~ /AC=(\d+);/ );
+	
+	my @tcnts = split(/,/,$1) if ( $F[7] =~ /TRIO_CONC_THRES=([^;]+)/ );
+	my @dcnts = split(/,/,$1) if ( $F[7] =~ /DUP_CONC_THRES=([^;]+)/ ); 
+	my ($ndisc,$nconc,$ddisc,$dconc) = (0,0,0,0);
+	for(my $i=1; $i < 27; ++$i) {
+	    if ( $tcnts[$i] > 0 ) {
+		next if ( ( $i == 26 ) || ( $i == 12 ) || ( $i == 13 ) || ( $i == 14 ) );
+		if ( $discordsX[$i] == 0 ) { $nconc += $tcnts[$i] }
+		else { $ndisc += $tcnts[$i]; }
+	    }
+	}
+	
+	for(my $i=1; $i < 9; ++$i) {
+	    if ( $dcnts[$i] > 0 ) {
+		next if ( $i == 8 );
+		if ( $dupdisc[$i] == 0 ) { $dconc += $dcnts[$i] }
+		else { $ddisc += $dcnts[$i]; }              
+	    }
+	}           
+	
+	next if ( $ac < 2 );  ## do not include singletons
+        if ( ( ( $ndisc >= $minDiscCount ) && ( $ndisc > $nconc * $minDiscFrac ) ) || ( ( $ddisc >= $minDiscCount ) && ( $ddisc > $dconc * $minDiscFrac ) ) ) {  	
+	    $hneg{"$F[0]:$F[1]:$F[3]:$F[4]"} = 1;
+	}               
+    }
+    close IN;    
+    
+    print STDERR "Writing the feature information for libsvm..\n";
+    open(RAWPAR,">$outprefix.rawPAR") || die "Cannot open $outprefix.raw for writing\n";
+    open(RAWX,">$outprefix.rawX") || die "Cannot open $outprefix.raw for writing\n";
+    open(SITE,">$outprefix.site") || die "Cannot open $outprefix.sitePAR for writing\n";
+    open(IN,"zcat $invcf |") || die "Cannot open file\n";          
+    my @hdrs = ();
+    while(<IN>) {
+	if ( /^#/ ) {
+	    next if ( /^##PEDIGREE/ );      
+	    next if ( /^##INFO=<ID=(FLT20|IBC|MILK|DUP|TRIO)/ );
+	    next if ( /^##FORMAT=<ID=(LRE|LUD|BF|FAMGT)/ );
+	    next if ( /^##FILTER=<ID=overlap/ );        
+	    push(@hdrs,$_);
+	    next;
+	}
+	my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info) = split(/[ \t\r\n]+/);
+	
+	$info .= ";QUAL=$qual" unless ( $qual eq "." );
+	my @infos = split(/;/,$info);
+	my @values = ();
+	my $k = 0;
+	for(my $j=0; $j < @includeKeys; ++$j) {
+	    push(@values,$includeDefaultValues[$j]);
+	    ++$k;
+	}       
+	
+	for(my $j=0; $j < @infos; ++$j) {
+	    my ($key,$val) = split(/=/,$infos[$j]);
+	    next if ( defined($hIgnores{$key}) );
+	    next unless defined($val); ## skip keys without any values
+	    if ( defined($hIncludes{$key}) ) {
+		if ($val =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+		    $values[$hIncludes{$key}] = $val; # set value if given
+		}
+	    }
+	    else {
+		if ( $val =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+		    push(@values,$val);
+		}
+		else {
+		    push(@values,0);
+		}
+		
+		if ( $ncols == 0 ) {
+		    push(@names,$key);
+		}
+		else {
+		    die "Cannot recognize $key in $infos[$j], supposed to be $names[$j] at $j, $chrom:$pos:$ref:$alt $info\n" unless ($names[$k] eq $key );
+		}
+		++$k;
+	    }
+	}
+	if ( $ncols == 0 ) {
+	    $ncols = $#names+1;
+	    print STDERR "Recording following $ncols features : @names\nThe info field was $info\n@infos\n";
+	    die if ( $ncols == 0 );
+	}
+	elsif ( $ncols != $#values+1 ) {
+	    die "Number of columns are not identical at $chrom:$pos:$ref:$alt\n";
+	}
+	
+	print SITE join("\t",$chrom,$pos,$id,$ref,$alt,$qual,$filt,$info)."\n";                 
+	if ( ( $pos < $xStart ) || ( $pos > $xStop ) ) {
+	    print RAWPAR join("\t",@values)."\n";
+	}
+	else {
+	    print RAWX join("\t",@values)."\n";             
+	}
+    }
+    close IN;
+    close RAWX;
+    close RAWPAR;   
+    close SITE;
+    
+    print STDERR "Performing quantile normalization of features..\n";    
+    my $cmd = "$invNorm --in $outprefix.rawX --out $outprefix.normX";
+    &forkExecWait($cmd);
+    $cmd = "$invNorm --in $outprefix.rawPAR --out $outprefix.normPAR";
+    &forkExecWait($cmd);    
+    
+    open(SITE,"$outprefix.site") || die "Cannot open $outprefix.sites\n";
+    open(NORMX,"$outprefix.normX") || die "Cannot open $outprefix.normX\n";
+    open(LBLX,">$outprefix.labelX") || die "Cannot open $outprefix.labelX\n";
+    
+    my ($npos,$nneg,$noth) = (0,0,0);
+    while(<SITE>) {
+	my ($chrom,$pos,$id,$ref,$alt) = split;
+	next if ( $pos < $xStart );
+	next if ( $pos > $xStop );      
+	my @z = split(/[ \t\r\n]+/,<NORMX>);
+	my $ln = "";
+	for(my $i=0; $i < @names; ++$i) {
+	    $ln .= " ".($i+1).":$z[$i]";
+	}
+	if ( defined($hpos{"$chrom:$pos"}) ) {          
+	    if ( ( $hpos{"$chrom:$pos"} ne "$ref:$alt" ) || defined($hneg{"$chrom:$pos:$ref:$alt"}) ) {
+		++$noth;
+	    }
+	    else {
+		print LBLX "1 $ln\n";
+		++$npos;
+	    }
+	}
+	elsif ( defined($hneg{"$chrom:$pos:$ref:$alt"}) ) {
+	    print LBLX "-1 $ln\n";
+	    ++$nneg;
+	}
+	else {
+	    ++$noth;
+	}
+    }
+    close LBLX;
+    close SITE;
+    close NORMX;
+    
+    print STDERR "Training SVM classification model using $npos positive samples, $nneg negative samples with $noth additional samples\n";
+    
+    $cmd = "$svmlearn -s 0 -t 2 $outprefix.labelX $modelf.X";
+    &forkExecWait($cmd);
+
+
+    ### After training, create predictions for PAR and nonPAR seperately,
+    
+    open(SITE,"$outprefix.site") || die "Cannot open $outprefix.sites\n";
+    open(NORMX,"$outprefix.normX") || die "Cannot open $outprefix.norm\n";
+    open(NORMPAR,"$outprefix.normPAR") || die "Cannot open $outprefix.norm\n";  
+    open(FTRX,">$outprefix.featureX") || die "Cannot open $outprefix.feature\n";
+    open(FTRPAR,">$outprefix.featurePAR") || die "Cannot open $outprefix.feature\n";    
+    
+    #my ($npos,$nneg,$noth) = (0,0,0);
+    while(<SITE>) {
+	my ($chrom,$pos,$id,$ref,$alt) = split;
+	if ( ( $pos < $xStart ) || ( $pos > $xStop ) ) {
+	    my @z = split(/[ \t\r\n]+/,<NORMPAR>);
+	    my $ln = "";
+	    for(my $i=0; $i < @names; ++$i) {
+		$ln .= " ".($i+1).":$z[$i]";
+	    }
+	    print FTRPAR "0 $ln\n";
+	    ++$noth;
+	}
+	else {
+	    my @z = split(/[ \t\r\n]+/,<NORMX>);
+	    my $ln = "";
+	    for(my $i=0; $i < @names; ++$i) {
+		$ln .= " ".($i+1).":$z[$i]";
+	    }
+	    print FTRX "0 $ln\n";
+	    ++$noth;                
+	}
+    }
+    close FTRX;
+    close FTRPAR;
+    close NORMX;
+    close NORMPAR;          
+    close SITE;
+    
+    print STDERR "Applying trained SVM model on $noth variants\n";
+    
+    $cmd = "$svmclassify $outprefix.featurePAR $modelf $outprefix.svm.predPAR";
+    &forkExecWait($cmd);
+    $cmd = "$svmclassify $outprefix.featureX $modelf.X $outprefix.svm.predX";
+    &forkExecWait($cmd);    
+        
+    print STDERR "Writing filtered site VCF files with SVM scores..\n";
+    open(SITE,"$outprefix.site") || die "Cannot open $outprefix.sites\n";    
+    open(PREDX,"$outprefix.svm.predX") || die "Cannot open $outprefix.svm.pred file\n";
+    open(PREDPAR,"$outprefix.svm.predPAR") || die "Cannot open $outprefix.svm.pred file\n";     
+    open(OUT,"| $binbgzip -c > $outprefix.sites.vcf.gz") || die "Cannot open $outprefix.sites.vcf.gz\n";
+        
+    splice(@hdrs,$#hdrs,0,"##INFO=<ID=SVM,Number=1,Type=Float,Description=\"Milk-SVM score for variant quality, passing $cutoff or greater\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
+    splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\"\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\"\n");  
+    print OUT join("",@hdrs);
+    
+    my $maxan = 0; 
+    
+    while(<SITE>) {
+	my @F = split;
+	my $isX = ( ( $F[1] < $xStart ) || ( $F[1] > $xStop ) ) ? 0 : 1;    
+            my $pred;
+	if ( $isX == 0 ) {
+	    $pred = <PREDPAR>;
+	}
+	else {
+	    $pred = <PREDX>;                
+	}
+	chomp($pred);
+	
+	my $info = $F[7];
+	$info =~ s/;MILK_LRE.*$//;
+	$info =~ s/^MILK_CHRX=[^;]+;//;         
+	
+	my $an = $1 if ( $F[7] =~ /;AN=(\d+)/ );
+	$maxan = $an if ( $maxan < $an );
+	my @tcnts = split(/,/,$1) if ( $F[7] =~ /TRIO_CONC_THRES=([^;]+)/ );
+	my @dcnts = split(/,/,$1) if ( $F[7] =~ /DUP_CONC_THRES=([^;]+)/ ); 
+	my ($ndisc,$nconc,$ddisc,$dconc) = (0,0,0,0);
+	
+	my @discords = ($isX == 1) ? @discordsX : @discordsA;
+	
+	my $chrx = $1 if ( $F[7] =~ /MILK_CHRX=([^;]+);/ );     
+	
+	for(my $i=1; $i < 27; ++$i) {
+	    if ( $tcnts[$i] > 0 ) {
+		next if ( ( $i == 26 ) || ( $i == 12 ) || ( $i == 13 ) || ( $i == 14 ) );           
+		if ( $discords[$i] == 0 ) { $nconc += $tcnts[$i] }
+		else { $ndisc += $tcnts[$i]; }
+	    }
+	}
+	for(my $i=1; $i < 9; ++$i) {
+	    if ( $dcnts[$i] > 0 ) {
+		next if ( $i == 8 );                
+		if ( $dupdisc[$i] == 0 ) { $dconc += $dcnts[$i] }
+		else { $ddisc += $dcnts[$i]; }              
+	    }
+	}
+	
+	my $maf = $1 if ( $F[7] =~ /AF=([^;]+);/ );
+	$maf = 1-$maf if ( $maf > 0.5 );
+	
+	my $hweslp = $1 if ( $F[7] =~ /HWE_SLP_I=([^;]+);/ );
+	
+	my ($cbeg,$cend) = @{$hcent{$chr}};    
+	
+	my @filts = ();
+	if ( ( $pred < $cutoff ) || ( $F[7] =~ /AC=0;/ ) ) {
+	    push(@filts,"SVM");
+	}
+	if ( ( $F[1] > $cbeg ) && ( $F[1] < $cend ) ) {
+	    push(@filts,"CEN");
+	}   
+
+        if ( ( ( $ndisc >= $minDiscCount ) && ( $ndisc > $nconc * $minDiscFrac ) ) || ( ( $ddisc >= $minDiscCount ) && ( $ddisc > $dconc * $minDiscFrac ) ) ) {  
+	    push(@filts,"DISC");        
+	}
+	if ( $hweslp < -13.81551 ) {
+	    push(@filts,"EXHET");       
+	}
+	if ( ( defined($chrx) && ( $chrx < -3 ) ) ) {
+	    push(@filts,"CHRXHET");     
+	}               
+	
+	$F[6] = ($#filts < 0) ? "PASS" : join(';',@filts);
+	$info .= ";SVM=$pred";
+	print OUT join("\t",@F[0..6],$info)."\n";
+    }
+    close OUT;
+    close PREDPAR;
+    close PREDX;    
+    close SITE;
+    
+    my @acbrs = (1,2,3);
+    push(@acbrs, int($maxan*1e-6)) if ( $maxan >= 4e6 );
+    push(@acbrs, int($maxan*1e-5)) if ( $maxan >= 4e5 );
+    push(@acbrs, int($maxan*1e-4)) if ( $maxan >= 4e4 );
+    push(@acbrs, int($maxan*1e-3)) if ( $maxan >= 4e3 );
+    push(@acbrs, int($maxan*1e-2)) if ( $maxan >= 4e2 );
+    push(@acbrs, int($maxan*1e-1)) if ( $maxan >= 4e1 );    
+    my $acbreaks = join(",",@acbrs);
+    print STDERR "Producing VCF summary for SNPs..\n";
+    print STDERR "Producing VCF summary for SNPs..\n";
+    open(IN,"zcat $outprefix.sites.vcf.gz|") || die "Cannot open file\n";
+    open(OUT2, "| $vcfsummary --ref $ref --db $dbsnp --FNRvcf $posVcfs[0] --bgzip $binbgzip --tabix $bintabix --chr $chr > $outprefix.sites.summary") || die "Cannot open file\n";
+    open(OUT3, "| $vcfsummary2 --ref $ref --db $dbsnp --FNRvcf $posVcfs[0] --bgzip $binbgzip --tabix $bintabix --chr $chr > $outprefix.sites.summary_v2") || die "Cannot open file\n";    
+    while(<IN>) {
+	next if ( /^#/ );
+	my @F = split;
+	print OUT3 $_;
+	print OUT2 $_;
+    }
+    close IN;
+    close OUT2;
+    close OUT3;     
+}
+else {
+    print STDERR "Writing the feature information for libsvm..\n";
+    open(RAW,">$outprefix.raw") || die "Cannot open $outprefix.raw for writing\n";
+    open(SITE,">$outprefix.site") || die "Cannot open $outprefix.raw for writing\n";
+    open(IN,"zcat $invcf |") || die "Cannot open file\n";
+    
+    my @hdrs = ();
+    while(<IN>) {
+	if ( /^#/ ) {
+	    next if ( /^##PEDIGREE/ );      
+	    next if ( /^##INFO=<ID=(FLT20|IBC|MILK|DUP|TRIO)/ );
+	    next if ( /^##FORMAT=<ID=(LRE|LUD|BF|FAMGT)/ );
+	    next if ( /^##FILTER=<ID=overlap/ );        
+	    push(@hdrs,$_);
+	    next;
+	}
+	my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info) = split(/[ \t\r\n]+/);
+	$info .= ";QUAL=$qual" unless ( $qual eq "." );
+	my @infos = split(/;/,$info);
+	my @values = ();
+	my $k = 0;
+	for(my $j=0; $j < @includeKeys; ++$j) {
+	    push(@values,$includeDefaultValues[$j]);
+	    ++$k;
+	}       
+	
+	for(my $j=0; $j < @infos; ++$j) {
+	    my ($key,$val) = split(/=/,$infos[$j]);
+	    next if ( defined($hIgnores{$key}) );
+	    next unless defined($val); ## skip keys without any values
+	    if ( defined($hIncludes{$key}) ) {
+		if ($val =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+		    $values[$hIncludes{$key}] = $val; # set value if given
+		}
+	    }
+	    else {
+		if ( $val =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+		    push(@values,$val);
+		}
+		else {
+		    push(@values,0);
+		}
+		
+		if ( $ncols == 0 ) {
+		    push(@names,$key);
+		}
+		else {
+		    die "Cannot recognize $key in $infos[$j], supposed to be $names[$j] at $j, $chrom:$pos:$ref:$alt $info\n" unless ($names[$k] eq $key );
+		}
+		++$k;
+	    }
+	}
+	if ( $ncols == 0 ) {
+	    $ncols = $#names+1;
+	    print STDERR "Recording following $ncols features : @names\nThe info field was $info\n@infos\n";
+	    die if ( $ncols == 0 );
+	}
+	elsif ( $ncols != $#values+1 ) {
+	    die "Number of columns are not identical at $chrom:$pos:$ref:$alt\n";
+	}
+	print SITE join("\t",$chrom,$pos,$id,$ref,$alt,$qual,$filt,$info)."\n";         
+	print RAW join("\t",@values)."\n";
+    }
+    close IN;
+    close RAW;
+    close SITE;
+    
+    print STDERR "Performing quantile normalization of features..\n";    
+    my $cmd = "$invNorm --in $outprefix.raw --out $outprefix.norm";
+    &forkExecWait($cmd);
+    
+    open(SITE,"$outprefix.site") || die "Cannot open $outprefix.sites\n";
+    open(NORM,"$outprefix.norm") || die "Cannot open $outprefix.norm\n";
+    open(FTR,">$outprefix.feature") || die "Cannot open $outprefix.feature\n";
+    
+    my ($npos,$nneg,$noth) = (0,0,0);
+    while(<SITE>) {
+	my ($chrom,$pos,$id,$ref,$alt) = split;
+	my @z = split(/[ \t\r\n]+/,<NORM>);
+	my $ln = "";
+	for(my $i=0; $i < @names; ++$i) {
+	    $ln .= " ".($i+1).":$z[$i]";
+	}
+	print FTR "0 $ln\n";
+	++$noth;
+    }
+    close FTR;
+    close SITE;
+    
+    print STDERR "Applying trained SVM model on $noth variants\n";
+    
+    $cmd = "$svmclassify $outprefix.feature $modelf $outprefix.svm.pred";
+    &forkExecWait($cmd);
+    
+    print STDERR "Writing filtered site VCF files with SVM scores..\n";
+    open(SITE,"$outprefix.site") || die "Cannot open $outprefix.sites\n";
+    open(PRED,"$outprefix.svm.pred") || die "Cannot open $outprefix.svm.pred file\n";
+    open(OUT,"| $binbgzip -c > $outprefix.sites.vcf.gz") || die "Cannot open $outprefix.sites.vcf.gz\n";
+        
+    splice(@hdrs,$#hdrs,0,"##INFO=<ID=SVM,Number=1,Type=Float,Description=\"Milk-SVM score for variant quality, passing $cutoff or greater\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
+    splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\"\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
+
+    print OUT join("",@hdrs);
+        
+    my $maxan = 0; 
+    
+    while(<SITE>) {
+	my @F = split;
+	my $pred = <PRED>;
+	chomp($pred);
+	
+	my $info = $F[7];
+	$info =~ s/;MILK_LRE.*$//;
+	
+	my $an = $1 if ( $F[7] =~ /;AN=(\d+)/ );
+	$maxan = $an if ( $maxan < $an );
+	my @tcnts = split(/,/,$1) if ( $F[7] =~ /TRIO_CONC_THRES=([^;]+)/ );
+	my @dcnts = split(/,/,$1) if ( $F[7] =~ /DUP_CONC_THRES=([^;]+)/ ); 
+	my ($ndisc,$nconc,$ddisc,$dconc) = (0,0,0,0);
+	for(my $i=1; $i < 27; ++$i) {
+	    if ( $tcnts[$i] > 0 ) {
+		next if ( ( $i == 26 ) || ( $i == 12 ) || ( $i == 13 ) || ( $i == 14 ) );           
+		if ( $discordsA[$i] == 0 ) { $nconc += $tcnts[$i] }
+		else { $ndisc += $tcnts[$i]; }
+	    }
+	}
+	for(my $i=1; $i < 9; ++$i) {
+	    if ( $dcnts[$i] > 0 ) {
+		next if ( $i == 8 );                
+		if ( $dupdisc[$i] == 0 ) { $dconc += $dcnts[$i] }
+		else { $ddisc += $dcnts[$i]; }              
+	    }
+	}
+	
+	my $maf = $1 if ( $F[7] =~ /AF=([^;]+);/ );
+	$maf = 1-$maf if ( $maf > 0.5 );
+	
+	my $hweslp = $1 if ( $F[7] =~ /HWE_SLP_I=([^;]+);/ );
+	
+	my ($cbeg,$cend) = @{$hcent{$chr}};    
+	
+	my @filts = ();
+	if ( ( $pred < $cutoff ) || ( $F[7] =~ /AC=0;/ ) ) {
+	    push(@filts,"SVM");
+	}
+	if ( ( $F[1] > $cbeg ) && ( $F[1] < $cend ) ) {
+	    push(@filts,"CEN");
+	}   
+
+        if ( ( ( $ndisc >= $minDiscCount ) && ( $ndisc > $nconc * $minDiscFrac ) ) || ( ( $ddisc >= $minDiscCount ) && ( $ddisc > $dconc * $minDiscFrac ) ) ) {  	
+	    push(@filts,"DISC");        
+	}
+	if ( $hweslp < -13.81551 ) {
+	    push(@filts,"EXHET");       
+	}
+	
+	$F[6] = ($#filts < 0) ? "PASS" : join(';',@filts);
+	$info .= ";SVM=$pred";
+	print OUT join("\t",@F[0..6],$info)."\n";
+    }
+    close OUT;
+    close PRED;
+    close SITE;
+    
+    my @acbrs = (1,2,3);
+    push(@acbrs, int($maxan*1e-6)) if ( $maxan >= 4e6 );
+    push(@acbrs, int($maxan*1e-5)) if ( $maxan >= 4e5 );
+    push(@acbrs, int($maxan*1e-4)) if ( $maxan >= 4e4 );
+    push(@acbrs, int($maxan*1e-3)) if ( $maxan >= 4e3 );
+    push(@acbrs, int($maxan*1e-2)) if ( $maxan >= 4e2 );
+    push(@acbrs, int($maxan*1e-1)) if ( $maxan >= 4e1 );    
+    my $acbreaks = join(",",@acbrs);
+    
+    print STDERR "Producing VCF summary for SNPs..\n";
+    print STDERR "Producing VCF summary for SNPs..\n";
+    open(IN,"zcat $outprefix.sites.vcf.gz|") || die "Cannot open file\n";
+    open(OUT2, "| $vcfsummary --ref $ref --db $dbsnp --FNRvcf $posVcfs[0] --bgzip $binbgzip --tabix $bintabix --chr $chr > $outprefix.sites.summary") || die "Cannot open file\n";
+    open(OUT3, "| $vcfsummary2 --ref $ref --db $dbsnp --FNRvcf $posVcfs[0] --bgzip $binbgzip --tabix $bintabix --chr $chr > $outprefix.sites.summary_v2") || die "Cannot open file\n";    
+    while(<IN>) {
+	next if ( /^#/ );
+	my @F = split;
+	print OUT3 $_;
+	print OUT2 $_;
+    }
+    close IN;
+    close OUT2;
+    close OUT3;
+}

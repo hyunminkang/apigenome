@@ -1,0 +1,119 @@
+#!/usr/bin/perl -w
+
+use strict;
+use POSIX qw(pow log10 sqrt);
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(forkExecWait);
+use wGetOptions qw(wpod2usage wGetOptions);
+use Time::HiRes;
+
+my $indexf = "";
+my $vbxydir = "";
+my $outf = "";
+#my $maxpc = 4;
+
+wGetOptions(
+    "-Create the index file from vt-discover results",
+    "--Required Options",
+    "index=s" => [\$indexf, "Original index file that contains sample IDs and the CRAM file path"],
+    "dir=s" =>   [\$vbxydir,"Directory in which contains /[ID]/[ID].vb2 and /[ID]/[ID].norm.xy /[ID]/[ID].bcf files"],
+    "out=s" =>   [\$outf,   "Output file that contains contamination, PC, and inferred sex"],
+    ) || wpod2usage(2);
+
+unless ( ( $indexf ) && ( $vbxydir ) && ( $outf ) ) {
+    print STDERR "ERROR: Missing required option\n";
+    wpod2usage(2);
+}
+
+open(IN,$indexf)   || die "Cannot open file\n";
+open(OUT,">$outf") || die "Cannot open file\n";
+print OUT join("\t","SAMPLE_ID","CRAM_PATH","BCF_PATH","VB_DEPTH","FREEMIX","PC1","PC2","PC3","PC4","CONTAM_PC1","CONTAM_PC2","CONTAM_PC3","CONTAM_PC4","FRAC_DP1","FRAC_DP5","FRAC_DP10","FRAC_DP15","FRAC_DP20","FRAC_DP30","INFERRED_SEX","RDP_X","RDP_Y","AUTO_DP")."\n";
+while(<IN>) {
+    chomp;
+    my $lineno = $.;
+    my ($id,$crampath,$bcfpath) = split;
+    print STDERR "Processing $. files, currently iterating $id, $crampath\n" if ( $. % 1000 == 0 );
+    my $rvb2 = &read_vb2("$vbxydir/$id/$id.vb2");
+    my $rxy = &read_xy("$vbxydir/$id/$id.norm.xy");
+    die "Second column is empty\n" unless ( defined( $crampath ) && ( $crampath ) );
+    unless ( defined($bcfpath) && ( $bcfpath) ) {
+	$bcfpath = "$vbxydir/$id/$id.bcf";	
+	if ( $lineno == 1 ) {
+	    print STDERR "WARNING: Third column is not given from $indexf. Assuming $bcfpath is BCF_PATH for line $lineno. Further warnings will be suppressed\n"
+	}
+    }
+    
+    print OUT join("\t",$id,$crampath,$bcfpath,@{$rvb2},@{$rxy})."\n";
+}
+close IN;
+close OUT;
+print "Finished writing $outf as the index file containing QC metrics\n";
+
+sub read_xy {
+    my $fn = shift;
+    open(XY,$fn) || die "Cannot open file $fn\n";
+    my ($dummy1,$xrdp) = split(/[\t\r\n ]+/,<XY>);
+    my ($dummy2,$yrdp) = split(/[\t\r\n ]+/,<XY>);
+    my ($dummy3,$autodp) = split(/[\t\r\n ]+/,<XY>);
+    return [$xrdp < 0.7 ? 1 : 2,$xrdp,$yrdp,$autodp];
+}
+
+sub read_vb2 {
+    my $fn = shift;
+    open(VB,$fn) || die "Cannot open file $fn\n";
+    my ($dp, $alpha, $ipc1, $ipc2, $ipc3, $ipc4, $cpc1, $cpc2, $cpc3, $cpc4);
+    my ($dp1,$dp5,$dp10,$dp15,$dp20,$dp30) = (1,1,1,1,1,1);
+    while(<VB>) {
+	my ($key1,$key2,$val) = split;
+	if ( $key2 eq "MEAN_DEPTH") {
+	    $dp = $val;
+	}
+	elsif ( $key1 eq "DEPTH_FRAC") {
+	    if ( $key2 < 1 )  { $dp1  -= $val; }
+	    if ( $key2 < 5 )  { $dp5  -= $val; }
+	    if ( $key2 < 10 ) { $dp10 -= $val; }
+	    if ( $key2 < 15 ) { $dp15 -= $val; }
+	    if ( $key2 < 20 ) { $dp20 -= $val; }
+	    if ( $key2 < 30 ) { $dp30 -= $val; }	    
+	}
+	elsif ( $key1 eq "FINAL_MODEL" ) {
+	    if ( $key2 eq "ESTIMATED_CONTAM" ) {
+		$alpha = $val;
+	    }
+	    elsif ( $key2 eq "INTENDED_PC1" ) {
+		$ipc1 = $val/0.032651;		
+	    }
+	    elsif ( $key2 eq "INTENDED_PC2" ) {
+		$ipc2 = $val/0.032651;		
+	    }
+	    elsif ( $key2 eq "INTENDED_PC3" ) {
+		$ipc3 = $val/0.032651;		
+	    }
+	    elsif ( $key2 eq "INTENDED_PC4" ) {
+		$ipc4 = $val/0.032651;		
+	    }	    	    
+	    elsif ( $key2 eq "CONTAM_PC1" ) {
+		$cpc1 = $val/0.032651;		
+	    }
+	    elsif ( $key2 eq "CONTAM_PC2" ) {
+		$cpc2 = $val/0.032651;
+	    }
+	    elsif ( $key2 eq "CONTAM_PC3" ) {
+		$cpc3 = $val/0.032651;
+	    }
+	    elsif ( $key2 eq "CONTAM_PC4" ) {
+		$cpc4 = $val/0.032651;
+	    }	    
+	}
+    }
+    close VB;
+    die "Missing key values in reading $fn\n" unless ( defined($dp) && defined($alpha) && defined($ipc1) && defined($ipc2) && defined($ipc3) && defined($ipc4) && defined($cpc1) && defined($cpc2) && defined($cpc3) && defined($cpc4) );
+    $dp1  = sprintf("%.6lf",$dp1);
+    $dp5  = sprintf("%.6lf",$dp5);
+    $dp10 = sprintf("%.6lf",$dp10);
+    $dp15 = sprintf("%.6lf",$dp15);
+    $dp20 = sprintf("%.6lf",$dp20);
+    $dp30 = sprintf("%.6lf",$dp30);    
+    return [$dp, $alpha, $ipc1, $ipc2, $ipc3, $ipc4, $cpc1, $cpc2, $cpc3, $cpc4, $dp1,$dp5,$dp10,$dp15,$dp20,$dp30];
+}
