@@ -616,7 +616,7 @@ print "make -f $outDir/$jobName.mk $outDir/$jobName.$order[0].OK\n";
 print "Upon a successful run, even if you run the command multiple times, it should run only once\n";
 print "(and change $order[0] to a different number to test more)\n";
 print "To run all the jobs, run '\n";
-print "make -f $outDir/$jobName.mk -k -j [njobs]\n";
+print "make -f $outDir/$jobName.mk -k -j [number_of_parallel_jobs]\n";
 print "-----------------------------------------------------------------------------------------------------------\n";
 
 sub array_prod {

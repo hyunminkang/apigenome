@@ -10,14 +10,14 @@ use wGetOptions qw(wpod2usage wGetOptions);
 use warnings;
 
 my $vcf = "";
-my $dbSNPf = "/net/1000g/hmkang/data/dbSNP/b146/b37/All_20151104.vcf.gz";
-my $FNRvcf = "/net/fantasia/home/hmkang/data/GATK-resources/hapmap_3.3.b37.sites.vcf.gz";
+my $dbSNPf = ""; #"/net/1000g/hmkang/data/dbSNP/b146/b37/All_20151104.vcf.gz";
+my $FNRvcf = ""; #"/net/fantasia/home/hmkang/data/GATK-resources/hapmap_3.3.b37.sites.vcf.gz";
 my $chr = "";
-my $ref = "/data/local/ref/karma.ref/human.g1k.v37.fa";
+my $ref = ""; #"/data/local/ref/karma.ref/human.g1k.v37.fa";
 my $target = "";
 my $auto = "";
 my $infoField = "AC";
-my $infoBreaks = "1,2,3,0.001,0.01,0.1";
+my $infoBreaks = "1,2,3,0.0001,0.001,0.005,0.05";
 my $infoBin = 0;
 
 my $binbgzip = "bgzip";
