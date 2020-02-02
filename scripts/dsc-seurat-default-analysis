@@ -1,0 +1,149 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(forkExecWait);
+use wGetOptions qw(wGetOptions wpod2usage);
+
+my @indirs = ();
+my $indexf = "";
+my $outprefix = "";
+my @pcs = ();
+my $binRscript = "Rscript";
+my $minGene = 100;
+my $minUMI   = 500;
+my $res = "0.1";
+my $ptsize = "0.5";
+my $ptalpha = "0.3";
+
+wGetOptions(
+    "-Run default analysis using Seurat",
+    "--Required Options",
+    "in-dir=s",[\@indirs,"Input directories in 10x genomics format (followed by comma and nickname)"],
+    "index=s", [\$indexf,"Index file containing [DIR] [NICKNAME]"],
+    "out=s",[\$outprefix,"Output file. STDOUT if unspecified"],    
+    "--Additional Options",
+    "min-gene=i", [\$minGene, "Minimum number of expressed genes for valid droplet barcode"],
+    "min-umi=i",  [\$minUMI,   "Minumum number of UMIs for valid droplet barcode"],
+    "pc=i", [\@pcs, "Number of PCs to use"],
+    "res=f", [\$res, "Resolution for FindCluster"],
+    "size=f", [\$ptsize, "Point size for TSNE/UMAP plots"],
+    "alpha=f", [\$ptalpha, "Transparency for TSNE/UMAP plots"], 
+    "rscript=s", [\$binRscript, "Path to Rscript binary"],
+    ) || wpod2usage(2);
+
+wpod2usage(2) unless ( $outprefix );
+
+my @nicknames = ();
+
+for(my $i=0; $i < @indirs; ++$i) {
+    my ($file,$nickname) = split(/,/,$indirs[$i]);
+    unless ( defined($nickname) && $nickname ) {
+	die "FATAL ERROR: Expected argument format is --in-dir [FILENAME],[NICKNAME]\n";
+    }
+    $indirs[$i] = $file;
+    push(@nicknames,$nickname);
+    die "FATAL ERROR: [FILENAME] or [NICKNAME] must not have comma. Use --index instead if that has to be the case\n" if ( $nickname =~ /,/ );
+}
+
+if ( $indexf ) {
+    open(IN,$indexf) || die "Cannot open $indexf\n";
+    while(<IN>) {
+	next if ( /^#/ );
+	my ($indir,$nickname) = split;
+
+	unless ( defined($nickname) && $nickname ) {
+	    die "FATAL ERROR: Expected [FILENAME] [NICKNAME] in each column\n";
+	}
+	
+	push(@indirs,$indir);
+	push(@nicknames,$nickname);
+    }
+}
+if ( $#indirs < 0 ) {
+    print STDERR "FATAL ERROR: Missing required options --in-dir or --index\n";
+    wpod2usage(2);
+}
+
+if ( $#pcs < 0 ) {
+    print STDERR "Warning: No --pc specified. Using default value 10\n";
+    push(@pcs,10);
+}
+
+my $maxpc = 100;
+foreach my $pc (@pcs) { $maxpc = $pc if ( $maxpc < $pc ); }
+
+#open(R,"| $binRscript /dev/stdin") || die "Cannot open $binRscript /dev/stdin\n";
+open(R,">$outprefix.r") || die "Cannot open $outprefix.r\n";
+print R <<'END_RCODE1';
+options(echo=TRUE)
+library(Seurat)
+library(ggplot2)
+library(Matrix)
+df.raw <- data.frame(BATCH=character(),N.CELL=integer(),BATCH=character(),N.UMI=integer())
+END_RCODE1
+for(my $i=0; $i < @indirs; ++$i) {
+    print R "genes <- read.table(file = '$indirs[$i]/genes.tsv', sep = \"\\t\")\n";
+    print R "genes\$V2 <- gsub('[_ ]', '-', genes\$V2)\n";
+    print R "write.table(genes, file = '$indirs[$i]/genes.tsv', quote = FALSE, sep = '\\t', row.names = F, col.names = F)\n";
+    print R "obj.raw <- Read10X('$indirs[$i]')\n";
+    print R "n.umis <- colSums(obj.raw)\n";
+    print R "df.raw <- rbind(df.raw,data.frame(BATCH=rep('$nicknames[$i]',length(n.umis)),N.CELL=1:length(n.umis),N.UMI=sort(n.umis,decreasing=TRUE)))\n";
+    print R "obj.$nicknames[$i] <- CreateSeuratObject(obj.raw, min.cells = 1, min.features = $minGene, project = '$nicknames[$i]')\n";
+}
+if ( $#indirs == 0 ) { ## No need to merge
+    print R "obj.srt <- obj.$nicknames[0]\n";
+}
+else {
+    print R "obj.srt <- merge(obj.$nicknames[0], y=c(";
+    for(my $i=1; $i < @indirs; ++$i) {
+	print R "," if ( $i > 1 );
+	print R "obj.$nicknames[$i]";
+    }
+    print R "),add.cell.ids = c(";
+    for(my $i=0; $i < @indirs; ++$i) {
+	print R "," if ( $i > 0 );
+	print R "'$nicknames[$i]'";
+    }
+    print R "), project = 'merged')\n";    
+}
+
+print R "png('$outprefix\_raw_knee_plot.png',width=8,height=5,units='in',res=300)\n";
+print R "ggplot(df.raw,aes(N.CELL+1,N.UMI+1,colour=BATCH)) + geom_point(size=$ptsize) + scale_x_log10() + scale_y_log10()\n";
+print R "dev.off()\n";
+print R "library(cowplot)\n";
+print R "obj.srt <- subset(obj.srt, nCount_RNA >= $minUMI)\n";
+print R "if ( length(grep('^(MT|Mt|mt|chrM|chrMT|chrMt|chrmt|chrm)-',genes\$V2)) > 1 ) {\n";
+print R "\tobj.srt[['percent.mt']] <- PercentageFeatureSet(obj.srt, pattern = '^(MT|Mt|mt|chrM|chrMT|chrMt|chrmt|chrm)-')\n";
+print R "\tpng('$outprefix\_qc_vln.png',width=10,height=5,units='in',res=300)\n";
+print R "\tVlnPlot(obj.srt, features = c('nFeature_RNA', 'nCount_RNA', 'percent.mt'), ncol = 3, pt.size=0.01)\n";
+print R "\tdev.off()\n";
+print R "}\n";
+print R "obj.srt <- NormalizeData(object = obj.srt)\n";
+print R "obj.srt <- FindVariableFeatures(object = obj.srt, selection.method = 'vst')\n";
+print R "obj.srt <- ScaleData(object = obj.srt)\n";
+print R "obj.srt <- RunPCA(object = obj.srt, npcs = $maxpc)\n";
+for(my $i=0; $i < @pcs; ++$i) {
+    print R "obj.srt <- FindNeighbors(object = obj.srt, dims = 1:$pcs[$i])\n";
+    print R "obj.srt <- FindClusters(object = obj.srt, resolution = $res)\n";
+    print R "obj.srt <- RunTSNE(object = obj.srt, dims = 1:$pcs[$i])\n";
+    print R "obj.srt <- RunUMAP(object = obj.srt, dims = 1:$pcs[$i])\n";
+    print R "df.cell <- cbind(obj.srt\@meta.data, obj.srt\@reductions\$tsne\@cell.embeddings, obj.srt\@reductions\$umap\@cell.embeddings, obj.srt\@reductions\$pca\@cell.embeddings)\n";
+    ## basic TSNE plots
+    print R "p1 <- ggplot(df.cell, aes(tSNE_1,tSNE_2,colour=orig.ident)) + geom_point(size=$ptsize,alpha=$ptalpha) + theme(legend.position='bottom')\n";
+    print R "p2 <- ggplot(df.cell, aes(tSNE_1,tSNE_2,colour=as.factor(RNA_snn_res.$res))) + geom_point(size=$ptsize,alpha=$ptalpha) + theme(legend.position='bottom')\n";
+    print R "p3 <- ggplot(df.cell, aes(tSNE_1,tSNE_2,colour=nCount_RNA)) + geom_point(size=0.5,alpha=0.3) +  theme(legend.position='bottom',legend.key.width=unit(0.9,'in')) + scale_color_gradientn(colours=rainbow(7),trans='log10')\n";
+    print R "p4 <- ggplot(df.cell, aes(UMAP_1,UMAP_2,colour=orig.ident)) + geom_point(size=$ptsize,alpha=$ptalpha) + theme(legend.position='bottom')\n";
+    print R "p5 <- ggplot(df.cell, aes(UMAP_1,UMAP_2,colour=as.factor(RNA_snn_res.$res))) + geom_point(size=$ptsize,alpha=$ptalpha) + theme(legend.position='bottom')\n";
+    print R "p6 <- ggplot(df.cell, aes(UMAP_1,UMAP_2,colour=nCount_RNA)) + geom_point(size=0.5,alpha=0.3) + theme(legend.position='bottom',legend.key.width=unit(0.9,'in')) + scale_color_gradientn(colours=rainbow(7),trans='log10')\n";
+    print R "png('$outprefix\_pc$pcs[$i]\_gg_tsne_umap.png',width=20,height=12,units='in',res=300)\n";
+    print R "plot_grid(p1,p2,p3,p4,p5,p6,nrow=2,ncol=3)\n";
+    print R "dev.off()\n";
+    if ($i == 0) {
+	print R "saveRDS(obj.srt,'$outprefix\_pc$pcs[0]\_default.rds')\n";
+    }
+}
+close R;
+
+&forkExecWait("$binRscript $outprefix.r");

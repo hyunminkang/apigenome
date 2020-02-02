@@ -150,11 +150,29 @@ while(<VCF>) {
 	my $found = 0;
 	if ( $posActive == $F[1] ) { ## if there is a matching position, scan for the variant matching alleles
 	    for(my $i=0; $i < @rG; ++$i) {
-		if ( ( $rG[$i]->[3] eq $F[3] ) && ( $rG[$i]->[4] eq $F[4] ) ) {  ## exact allele match
-		    $F[2] = $rG[$i]->[2] unless ( $key );  ## change the variant ID
-		    $found = 1;
-		    last;
+		if ( $rG[$i]->[3] eq $F[3] ) { 	   ## reference allele must match
+		    if ( $rG[$i]->[4] eq $F[4] ) { ## alt allele matches exactly
+			$found = 1;
+		    }
+		    elsif ( $rG[$i]->[4] =~ /,/ ) { ## if dbSNP entry is multi-allelic
+			my @alts = split(/,/,$rG[$i]->[4]);
+			foreach my $alt (@alts) {
+			    if ( $alt eq $F[4] ) {  ## consider as match if single allele matches
+				$found = 1;
+			    }
+			}
+		    }
+		    if ( $found == 1 ) {
+			$F[2] = $rG[$i]->[2] unless ( $key );  ## change the variant ID
+			last;
+		    }
 		}
+		
+		#if ( ( $rG[$i]->[3] eq $F[3] ) && ( $rG[$i]->[4] eq $F[4] ) ) {  ## exact allele match
+		#    $F[2] = $rG[$i]->[2] unless ( $key );  ## change the variant ID
+		#    $found = 1;
+		#    last;
+		#}
 	    }
 	}
 	$F[7] .= ";$key=$found" if ( $key );

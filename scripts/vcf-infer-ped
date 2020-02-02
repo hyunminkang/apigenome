@@ -76,18 +76,53 @@ my %hrel = ();
 
 my ($ndup,$npo,$nfs,$netc) = (0,0,0,0);
 open(IN,$kin0f) || die "Cannot open file $kin0f\n";
+my $newformat = 0;
 while(<IN>) {
-    next if ( /^FID/ );
-    my ($fid1,$id1,$fid2,$id2,$nsnp,$hethet,$ibs0,$kin) = split;    
+    if ( /^FID/ ) {
+	my @H = split;
+	if ( ( $H[0] eq "FID1" ) && ( $H[1] eq "ID1" ) && ( $H[2] eq "FID2" ) && ( $H[3] eq "ID2" ) && ( $H[4] eq "N_SNP" ) ) {
+	    if ( ( $H[5] eq "HetHet" ) && ( $H[6] eq "IBS0" ) && ( $H[7] eq "Kinship" ) ) {
+		$newformat = 0;
+	    }
+	    elsif ( ( $H[5] eq "HetHet" ) && ( $H[6] eq "IBS0" ) && ( $H[7] eq "HetConc" ) && ( $H[8] eq "HomIBS0" ) && ( $H[9] eq "Kinship" ) && ( $H[10] eq "IBD1Seg" ) && ( $H[11] eq "IBD2Seg" ) && ( $H[12] eq "PropIBD" ) && ( $H[13] eq "InfType" ) ) {
+		$newformat = 1;
+	    }
+	    else {
+		die "Cannot recognize the current header @H\n";		
+	    }
+	}
+	else {
+	    die "Cannot recognize the current header @H\n";
+	}
+    }
+    elsif ( $newformat ) {
+	my ($fid1,$id1,$fid2,$id2,$nsnp,$hethet,$ibs0,$hetconc,$homibs0,$kin,$ibd1,$ibd2,$pibd,$infType) = split;
+
+	if ( $. == 2 ) {
+	    print STDERR "New KING output format was detected. --dup-thres, --rel-thres, --po-thres parameters will not take effect...\n";
+	}
+	
+	my $rel = "ETC";
+	if ( $infType eq "Dup/MZ" ) { $rel = "DUP"; ++$ndup; }
+	elsif ( $infType eq "PO" ) { $rel = "PO"; ++$npo; }
+	elsif ( $infType eq "FS" ) { $rel = "FS"; ++$nfs; }
+	else { ++$netc; }
+
+	$hrel{$id1}{$id2} = $rel;
+	$hrel{$id2}{$id1} = $rel;	
+    }
+    else {
+	my ($fid1,$id1,$fid2,$id2,$nsnp,$hethet,$ibs0,$kin) = split;    
     
-    my $rel = "ETC";
-    if ( $kin > $dupThres ) { $rel = "DUP"; ++$ndup; }
-    elsif ( ( $kin >$relThres )&& ( $ibs0 < $poThres ) ) { $rel = "PO"; ++$npo; }
-    elsif ( $kin > $relThres ) { $rel = "FS"; ++$nfs; }
-    else { ++$netc; }
-    
-    $hrel{$id1}{$id2} = $rel;
-    $hrel{$id2}{$id1} = $rel;        
+	my $rel = "ETC";
+	if ( $kin > $dupThres ) { $rel = "DUP"; ++$ndup; }
+	elsif ( ( $kin >$relThres )&& ( $ibs0 < $poThres ) ) { $rel = "PO"; ++$npo; }
+	elsif ( $kin > $relThres ) { $rel = "FS"; ++$nfs; }
+	else { ++$netc; }
+	
+	$hrel{$id1}{$id2} = $rel;
+	$hrel{$id2}{$id1} = $rel;
+    }
 }
 close IN;
 
@@ -195,6 +230,7 @@ if ( $rmOverlap ) {
     }
 }
 
+print STDERR "Writing PED file across ".(scalar keys %hfam)." nuclear families..\n";
 
 open(PED,">$outf") || die "Cannot open file $outf for writing\n";
 

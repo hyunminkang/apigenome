@@ -14,6 +14,7 @@ dist_bin_SCRIPTS = \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
 	dropseq-kallisto \
+	dsc-seurat-default-analysis \
 	demux-fastq \
 	fasta-lr-dist \
 	fbin-lookup \
@@ -50,6 +51,8 @@ dist_bin_SCRIPTS = \
 	vcf-summary-merge \
 	vcf-summary-v2 \
 	vcf-svm-milk-filter \
+	vcf-svm-ext-filter \
+	vcf-svm-generic-filter \
 	vt-merge-variants \
 	yipe \
 	epstopdf \
