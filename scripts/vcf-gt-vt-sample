@@ -1,0 +1,71 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(initRef getCpGs);
+use wGetOptions qw(wGetOptions wpod2usage);
+
+my $bedf = "/net/1000g/hmkang/data/gencode/gtfs/gencode.v34.annotation.gtf.coding_exons.sorted_merged.bed";
+my $bcf = "";
+my $minDP = 5;
+my $minAL = 3;
+my $out = "";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
+my $binbcftools = "bcftools";
+
+wGetOptions(
+    "-Identify best-matching samples",
+    "--Required Options",
+    "bcf=s", [\$bcf,"Per-sample BCF file"],
+    "out=s", [\$out,"Output BCF/VCF file"],    
+    "--Additional Options",
+    "bed=s", [\$bedf,"BED-format file to focus on specific region"],
+    "minDP=i",[\$minDP,"Minimum depth to be considered"],
+    "minAL=i",[\$minAL,"Minimum observation of non-reference alleles"],
+    ) || wpod2usage(2);
+
+
+wpod2usage(2) unless ( ( $bcf ) && ( $out ) );
+
+if ( $out =~ /\.vcf.gz$/ ) { open(OUT,"| $binbgzip -c > $out") || die "Cannot open file\n"; }
+elsif ( $out =~ /\.bcf$/ ) { open(OUT,"| $binbcftools view -Ob -o $out /dev/stdin") || die "Cannot open file $out using $binbcftools\n"; }
+elsif ( $out ) { open(OUT,">$out") || die "Cannot open file\n"; }
+else { *OUT = *STDOUT; }
+
+my $log_0_50 = log(0.50);
+my $log_0_01 = log(0.01);
+my $log_0_10 = log(0.10);
+my $log_0_99 = log(0.99);
+my $log_0_90 = log(0.90);
+my @bcfids = ();
+my %hvar = ();
+my @nvars = ();
+open(BCF,"$binbcftools view ".($bedf ? " -T $bedf " : "")."$bcf |") || die "Cannot open file\n";
+while(<BCF>) {
+    if ( /^#/ ) { print OUT $_; }
+    else {
+	my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info,$fmt,$en) = split;
+	my ($e,$n) = split(/:/,$en);
+	next if ( $n < $minDP );
+	next if ( $e < $minAL );
+	next if ( $e > $n );
+	## assume Q20 bases, make a best guess on the genotypes with flat prior (select only hers)
+	my $l0 = ($n-$e)*$log_0_90 + $e*$log_0_10; ## allow large # errors
+	my $l1 = $n*$log_0_50;
+	my $l2 = ($n-$e)*$log_0_10 + $e*$log_0_90;
+	my $gt = "";
+	if ( ( $l1 > $l0 ) && ( $l1 > $l2 ) ) {    ## best guess is HET
+	    $gt = "0/1";
+	}
+	elsif ( ( $l2 > $l0 ) && ( $l2 > $l1 ) ) { ## best guess is HOM
+	    $gt = "1/1";
+	}
+	if ( $gt ) {
+	    print OUT join("\t",$chrom,$pos,$id,$ref,$alt,$qual,$filt,$info,"GT:E:N","$gt:$en")."\n";
+	}
+    }
+}
+close BCF;
+close OUT;

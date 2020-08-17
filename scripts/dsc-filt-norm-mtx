@@ -1,0 +1,201 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(forkExecWait);
+use wGetOptions qw(wGetOptions wpod2usage);
+
+my $indir = "";
+my $minBarcodeUMI = 0;
+my $minFeatureUMI = 0;
+my $skipNormalize = "";
+my $newFormat = "";
+my $outdir = "";
+
+wGetOptions(
+    "-Filter expression matrix",
+    "--Required Options",
+    "in=s", [\$indir, "Input directory containing barcodes.tsv, genes.tsv, matrix.mtx"],
+    "out=s", [\$outdir, "Output mtx file containing barcodes.tsv genes.tsv matrix.mtx matrix.norm.mtx"],
+    "--Additional Options",
+    "min-feature-umi=i",  [\$minFeatureUMI, "Minimum number of UMIs for valid feature (gene)"],
+    "min-bcd-umi=i",  [\$minBarcodeUMI,  "Minumum number of UMIs for valid cell barcode"],
+    "skip-normalize",  [\$skipNormalize, "Skip normalization"],
+    "new-format", [\$newFormat, "Write output in new compressed format"],
+    ) || wpod2usage(2);
+
+wpod2usage(2) unless ( $indir && $outdir );
+
+my @bcds = ();
+if ( -s "$indir/barcodes.tsv" ) {
+    open(IN,"$indir/barcodes.tsv") || die "Cannot open $indir/barcodes.tsv\n";
+}
+elsif ( -s "$indir/barcodes.tsv.gz" ) {
+    open(IN,"zcat $indir/barcodes.tsv.gz |") || die "Cannot open file\n";    
+}
+else {
+    die "Cannot open barcodes.tsv or barcodes.tsv in $indir\n";
+}
+while(<IN>) {
+    push(@bcds,$_);
+}
+
+my @genes = ();
+if ( -s "$indir/genes.tsv" ) {
+    open(IN,"$indir/genes.tsv") || die "Cannot open $indir/genes.tsv\n";
+}
+elsif ( -s "$indir/features.tsv.gz" ) {
+    open(IN,"zcat $indir/features.tsv.gz |") || die "Cannot $indir/features.tsv.gz\n";    
+}
+else {
+    die "Cannot open genes.tsv or features.tsv.gz in $indir\n";
+}
+while(<IN>) {
+    push(@genes,$_);
+}
+
+
+if ( -s "$indir/matrix.mtx" ) {
+    open(IN,"$indir/matrix.mtx") || die "Cannot open $indir/matrix.mtx\n";
+}
+elsif ( -s "$indir/matrix.mtx.gz" ) {
+    open(IN,"zcat $indir/matrix.mtx |") || die "Cannot open $indir/matrix.mtx.gz\n";    
+}
+else {
+    die "Cannot open matrix.mtx or matrix.mtx.gz in $indir\n";
+}
+
+my %h = ();
+my @hdrs = ();
+my ($ng,$nb,$nl);
+while(<IN>) {
+    if ( /^%/ ) { push(@hdrs,$_); }
+    else {
+	($ng,$nb,$nl) = split;
+	last;	
+    }
+}
+
+die "@hdrs\n $_" unless ( defined($nb) );
+
+my %hbcd = ();
+while(<IN>) {
+    print STDERR "Processing $. lines...\n" if ( $. % 10000000 == 0 );
+    my ($ig,$ib,$c) = split;
+    $h{$ib} = {} unless ( defined($h{$ib}) );
+    $h{$ib}->{$ig} += $c;
+    $hbcd{$ib} += $c;
+}
+close IN;
+
+my @vbcds = ();
+if ( $minBarcodeUMI > 0 ) {  ## Perform barcode filtering
+    print STDERR "Filtering barcodes...";
+    for(my $i=1; $i <= $nb; ++$i) {
+	#die "Cannot find barcode $i\n" unless ( defined($hbcd{$i}) );
+	push(@vbcds,$i) if ( defined($hbcd{$i}) && ( $hbcd{$i} >= $minBarcodeUMI ) );
+    }
+    print STDERR " ".($#vbcds+1)." remained\n";
+}
+else {
+    @vbcds = (1..$nb);
+}
+
+my @vgenes = ();
+if ( $minFeatureUMI > 0 ) {  ## Perform feature filtering
+    print STDERR "Filtering genes...";
+    my @sums = (0) x ($ng+1);
+    foreach my $ib (@vbcds) {
+	my $r = $h{$ib};
+	while( my ($ig,$c) = each %{$r} ) {
+	    $sums[$ig] += $c;
+	}
+    }
+
+    for(my $i=1; $i <= $ng; ++$i) {
+	if ( $sums[$i] >= $minFeatureUMI ) {
+	    push(@vgenes,$i);
+	}
+    }
+    print STDERR " ".($#vgenes+1)." remained\n";    
+}
+else {
+    @vgenes = (1..$ng);
+}
+
+my %hvgenes = ();
+foreach my $g (@vgenes) { $hvgenes{$g} = 1; }
+my %hbcd2 = ();
+
+my $nlines = $nl;
+if ( $minBarcodeUMI + $minFeatureUMI > 0 ) { ## Recalculate nlines
+    $nlines = 0;
+    foreach my $ib (@vbcds) {
+	my $r = $h{$ib};
+	while( my ($ig,$c) = each %{$r} ) {
+	    if ( defined($hvgenes{$ig}) ) {
+		++$nlines;
+		$hbcd2{$ib} += $c;
+	    }
+	}
+    }
+}
+
+## Write output
+print `mkdir -p $outdir`; ## create a directory
+
+if ( $newFormat ) { open(OUT," | gzip -c > $outdir/barcodes.tsv.gz") || die "Cannot open file\n"; }
+else { open(OUT,">$outdir/barcodes.tsv") || die "Cannot open file\n"; }
+my %bmap = ();
+my $cnt = 1;
+foreach my $ib (@vbcds) {
+    print OUT $bcds[$ib-1];
+    $bmap{$ib} = $cnt;
+    ++$cnt;
+}
+close OUT;
+
+if ( $newFormat ) { open(OUT," | gzip -c > $outdir/features.tsv.gz") || die "Cannot open file\n"; }
+else { open(OUT,">$outdir/genes.tsv") || die "Cannot open file\n"; }
+my %gmap = ();
+$cnt = 1;
+foreach my $ig (@vgenes) {
+    print OUT $genes[$ig-1];
+    $gmap{$ig} = $cnt;
+    ++$cnt;    
+}
+close OUT;
+
+if ( $newFormat ) {
+    open(OUT," | gzip -c > $outdir/matrix.mtx.gz") || die "Cannot open file\n";
+}
+else {
+    open(OUT,">$outdir/matrix.mtx") || die "Cannot open file\n";
+}
+unless ( $skipNormalize ) {
+    open(NORM,">$outdir/matrix.norm.mtx") || die "Cannot open file\n";
+    print NORM "%%MatrixMarket matrix coordinate real general\n%\n";
+    print NORM join(" ",$#vgenes+1,$#vbcds+1,$nlines)."\n";    
+}
+
+foreach my $hdr (@hdrs) {
+    print OUT $hdr;
+}
+print OUT join(" ",$#vgenes+1,$#vbcds+1,$nlines)."\n";    
+
+foreach my $ib (@vbcds) {
+    my $newib = $bmap{$ib};
+    my $r = $h{$ib};
+    my $newumi = $hbcd2{$ib};
+    while( my ($ig,$c) = each %{$r} ) {
+	my $newig = $gmap{$ig};
+	if ( defined($newig) ) {
+	    print OUT join(" ",$newig,$newib,$c)."\n";
+	    print NORM join(" ",$newig,$newib,sprintf("%.5le",$c/$newumi))."\n" unless ( $skipNormalize );	    
+	}
+    }    
+}
+
+close OUT;
+close NORM unless ( $skipNormalize );

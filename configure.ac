@@ -6,7 +6,7 @@ AC_INIT([apigenome], [0.2.0], [hmkang@umich.edu])
 AC_CONFIG_SRCDIR([config.h])
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE(apigenome, 0.2.0)
+AM_INIT_AUTOMAKE
 
 #perl 
 AC_CHECK_PROG(PERL_CHECK,perl,yes)

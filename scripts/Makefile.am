@@ -14,6 +14,7 @@ dist_bin_SCRIPTS = \
 	draw-afs \
 	dropseq-resolve-barcode-trimming \
 	dropseq-kallisto \
+	dsc-filt-norm-mtx \
 	dsc-seurat-default-analysis \
 	demux-fastq \
 	fasta-lr-dist \
@@ -21,6 +22,7 @@ dist_bin_SCRIPTS = \
 	gene-conv-names \
 	gtf2GenePred \
 	inspect-sv \
+	lftp-download \
         merge-fastq \
 	merge-tsv-generic \
 	now-seq-each \
@@ -31,7 +33,9 @@ dist_bin_SCRIPTS = \
 	rev-trim \
 	run-make \
 	tsv-join \
+	tsv-combine-list \
 	vcf-apply-external-filter \
+	vcf-gt-vt-sample \
 	vcf-combine-gls \
 	vcf-delta-svm \
 	vcf-eval-trio-phasing \
@@ -39,6 +43,7 @@ dist_bin_SCRIPTS = \
 	vcf-resolve-chrX-hets \
 	vcf-add-rsid \
 	vcf-match-sample-ids \
+	vcf-match-sparse-offsets \
 	vcf-milk-filter \
 	vcf-f2-sharing \
 	vcf-infer-ped \
@@ -46,6 +51,7 @@ dist_bin_SCRIPTS = \
 	vcf-liftover \
 	vcf-lookup-rsid \
 	vcf-view-gt \
+	vcf-filter-ped-by-mendel \
 	vcf-pass-variants \
 	vcf-summary \
 	vcf-summary-merge \

@@ -1,0 +1,43 @@
+#!/usr/bin/perl -w
+
+use strict;
+use File::Basename;
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(forkExecWait);
+use wGetOptions qw(wGetOptions wpod2usage);
+
+my $lftpbin = "lftp";
+my $url = "";
+my $dir = "";
+my $pget = 1;
+my $user = "";
+my $password = "";
+
+wGetOptions(
+    "-Download a remote file using LFTP",
+    "--Required Options",
+    "url=s",[\$url,"URL to download"],
+    "--Additional Options",
+    "lftp=s",[\$lftpbin,"Binary to lftp. Needed if lftp is not included in the current PATH"],
+    "dir=s", [\$dir,"Create a subdirectory (if doesn't exist) and download the file in that location"],
+    "pget=i", [\$pget,"Use pget for faster download using multiple threads"],
+    "user=s", [\$user,"Set username"],
+    "pass=s", [\$password,"Set password"],
+    ) || wpod2usage(2);
+
+wpod2usage(2) unless ( $url );
+
+if ( $dir ) {
+    print `mkdir -p $dir`;
+    chdir($dir);
+}
+
+my ($base,$path) = fileparse($url);
+
+
+my $cmd = "open ".($user ? " -u $user" : "").($password ? ",$password" : ""). " $path;";
+if ( $pget > 1 ) { $cmd .= "pget -n $pget $base"; }
+else { $cmd .= "get $base"; }
+
+&forkExecWait("$lftpbin -c \"$cmd\"");

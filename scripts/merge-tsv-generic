@@ -6,35 +6,39 @@ use lib $FindBin::Bin;
 use wGetOptions qw(wpod2usage wGetOptions);    
 use hyunlib qw(makeMake forkExecWait zopen wopen);
 
-my $in = "";
+my @ins = ();
 my $list = "";
 my $out = "-";
 my @keyCols = ();
 my @skipCols = ();
 my $nheaders = 1;
 my $lenient = "";
+my $sparse = "";
 
 wGetOptions(
-    "-Merge multiple TSV files by summing up each individual line",
+    "-Merge multiple TSV files by summing up each individual items",
     "--Key Options",
-    "in=s" => [\$in, "Input filesn with wildcard form"],
+    "in=s" => [\@ins, "Input filesn with wildcard form"],
     "list=s" => [\$list, "Input file containing the list of all input files"],    
     "out=s" => [\$out, "Output file"],
     "key-col=i" => [\@keyCols, "Column containing the key info"],
     "skip-cols=i" => [\@skipCols, "Skip specific columns not to add together"],
     "nheaders=i" => [\$nheaders, "Number of header lines"],
-    "lenient" => [\$lenient, "Skip riegourus format checking"],    
+    "lenient" => [\$lenient, "Skip rigourus format checking"],
+    "sparse" => [\$sparse, "Use sparse mode which is memory-efficient with there are many zeros"],
     ) || wpod2usage(2);
 
-if ( ( !$in && !$list ) || ( $in && $list ) || ( $#keyCols < 0 ) ) {
-    print STDERR "Missing required options : --key-col + EITHER --in OR --list\n";
+if ( ( ($#ins < 0) && ( !$list ) ) || ( ($#ins >= 0) && ( $list ) ) || ( $#keyCols < 0 ) ) {
+    print STDERR "Missing required options : --key-col ($#keyCols+1) + EITHER --in ($#ins+1) OR --list ($list) \n";
     wpod2usage();
 }
 
 my @infiles = ();
 
-if ( $in ) {
-    @infiles = glob($in);
+if ( $#ins >= 0 ) {
+    foreach my $in (@ins) {
+	push(@infiles,glob($in));
+    }
 }
 elsif ( $list ) {
     open(IN,$list) || die "Cannot open $list for reading\n";
@@ -52,6 +56,7 @@ my %hskip = ();
 my %hkey = ();
 foreach my $c (@skipCols) { $hskip{$c-1} = 1; }
 foreach my $c (@keyCols)  { $hkey{$c-1} = 1; }
+my $ncols = 0;
 
 my %h = ();
 my @hdrs = ();
@@ -76,6 +81,9 @@ for(my $i=0; $i < @infiles; ++$i) {
     }
     while(<IN>) {
 	my @F = split;
+	if ( $ncols == 0 ) { $ncols = $#F+1; }
+	elsif ( $ncols != $#F + 1 ) { die "Number of columns do not match"; }
+	
 	my %hlocal = ();
 	my $key;
 	for(my $j=0; $j < @keyCols; ++$j) {
@@ -86,20 +94,36 @@ for(my $i=0; $i < @infiles; ++$i) {
 	    die "Observed key [$key] more than once in the same file. Make sure that the key is unique\n";
 	}
 	$hlocal{$key} = 1;
-	
+
 	if ( defined($h{$key}) ) {
 	    my $r = $h{$key};
 	    for(my $j=0; $j < @F; ++$j) {
 		if ( $hskip{$j} ) {
 		    die "Skipped column $j are not identical at $infiles[$i]\n" unless ( ( $r->[$j] eq $F[$j] ) || ( $lenient ) );
 		}
-		elsif ( !$hkey{$j} ) {
-		    $r->[$j] += $F[$j];
+		elsif ( ( !$hkey{$j} ) && ( $F[$j] > 0 ) ) {
+		    if ( $sparse ) {
+			$r->{$j} += $F[$j];
+		    }
+		    else {
+			$r->[$j] += $F[$j];
+		    }
 		}
 	    } 
 	}
 	else {
-	    $h{$key} = \@F;
+	    if ( $sparse ) {
+		my %htmp = ();
+		for(my $j=0; $j < @F; ++$j) {
+		    if ( ( !$hkey{$j} ) && ( $F[$j] > 0 ) ) {
+			$htmp{$j} = $F[$j];
+		    }
+		}
+		$h{$key} = \%htmp;
+	    }
+	    else {
+		$h{$key} = \@F;
+	    }
 	}
     }
     close IN;
@@ -110,6 +134,20 @@ for(my $i=0; $i < @hdrs; ++$i) {
     print {$fh} $hdrs[$i];
 }
 foreach my $key (sort keys %h) {
-    print {$fh} join("\t",@{$h{$key}})."\n";
+    if ( $sparse ) {
+	my @a = (0) x $ncols;
+	my @keys = split(/\t/,$key);
+	for(my $i=0; $i < @keyCols; ++$i) {
+	    $a[$keyCols[$i]-1] = $keys[$i];
+	}
+	my $r = $h{$key};
+	foreach my $i (keys %{$r}) {
+	    $a[$i] = $r->{$i};
+	}
+	print {$fh} join("\t",@a)."\n";	
+    }
+    else {
+	print {$fh} join("\t",@{$h{$key}})."\n";
+    }
 }
 $fh->close();

@@ -1,0 +1,129 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+use hyunlib qw(initRef getCpGs);
+use wGetOptions qw(wGetOptions wpod2usage);
+
+my $listSampleBCF = "";
+my $bcfSparseOffset = "";
+my $listID = "";
+my $minDP = 5;
+my $minAL = 3;
+#my $flatWeight = "";
+my $out = "";
+my $binbgzip = "bgzip";
+my $bintabix = "tabix";
+my $binbcftools = "bcftools";
+
+wGetOptions(
+    "-Identify best-matching samples",
+    "--Required Options",
+    "list=s",[\$listSampleBCF,"File containing list of input BCF files"],    
+    "offset=s",[\$bcfSparseOffset,"File containing sparse offsets for rare variants"],
+    "id=s",[\$listID,"File containing the list of sample IDs in the sparse offsets"],    
+    "--Additional Options",
+    "minDP=i",[\$minDP,"Minimum depth to be considered"],
+    "minAL=i",[\$minAL,"Minimum observation of non-reference alleles"],
+    "out=s",[\$out,"Output file. STDOUT if unspecified"],
+#    "flat",[\$flatWeight,"Use flat weight across allele count (default = 1/AC)"],    
+    ) || wpod2usage(2);
+
+
+wpod2usage(2) unless ( ( $listSampleBCF ) && ( $bcfSparseOffset ) && ( $listID ) );
+
+if ( $out =~ /\.vcf.gz$/ ) { open(OUT,"| $binbgzip -c > $out") || die "Cannot open file\n"; }
+elsif ( $out =~ /\.bcf$/ ) { open(OUT,"| $binbcftools view -Ob -o $out /dev/stdin") || die "Cannot open file $out using $binbcftools\n"; }
+elsif ( $out ) { open(OUT,">$out") || die "Cannot open file\n"; }
+else { *OUT = *STDOUT; }
+
+my @allids = ();
+open(IN,$listID) || die "Cannot open $listID\n";
+while(<IN>) {
+    chomp;
+    push(@allids,$_);
+}
+close IN;
+
+open(IN,$listSampleBCF) || die "Cannot open file\n";
+my $log_0_50 = log(0.50);
+my $log_0_01 = log(0.01);
+my $log_0_99 = log(0.99);
+my @bcfids = ();
+my %hvar = ();
+my @nvars = ();
+for(my $i=0;<IN>;++$i) {
+    chomp;
+    open(BCF,"$binbcftools view $_ | grep -v ^##|") || die "Cannot open file\n";
+    my @H = split(/[\t\r\n ]+/,<BCF>);
+    push(@bcfids,$H[$#H]);
+    print STDERR "Processing $_ with sample ID $H[$#H]...";
+    my $nv = 0;
+    my $nall = 0;
+    while(<BCF>) {
+	my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info,$fmt,$en) = split;
+	++$nall;
+	my ($e,$n) = split(/:/,$en);
+	next if ( $n < $minDP );
+	next if ( $e < $minAL );
+	next if ( $e > $n );
+	## assume Q20 bases, make a best guess on the genotypes with flat prior (select only hers)
+	my $l0 = ($n-$e)*$log_0_99 + $e*$log_0_01;
+	my $l1 = $n*$log_0_50;
+	my $l2 = ($n-$e)*$log_0_01 + $e*$log_0_99;
+	if ( ( $l1 > $l0 ) && ( $l1 > $l2 ) ) {  ## best guess is HET
+	    my $key = "$chrom:$pos:$ref:$alt";
+	    my $r = $hvar{$key};
+	    if ( defined($r) ) {
+		push(@{$r},$i);
+	    }
+	    else {
+		$hvar{$key} = [$i];
+		++$nv;
+	    }
+	}
+    }
+    close BCF;
+    print STDERR "  $nv/$nall variants passed\n";
+    push(@nvars,$nv);
+}
+close IN;
+
+my %hmatch = ();
+open(IN,"$binbcftools view $bcfSparseOffset | grep -v ^#|") || die "Cannot open file\n";
+while(<IN>) {
+    my ($chrom,$pos,$id,$ref,$alt,$qual,$filt,$info) = split;
+    print STDERR "Processing $. variants at $chrom:$pos\n" if ( $. % 1000000 == 0 );
+    my $key = "$chrom:$pos:$ref:$alt";
+    if ( defined($hvar{$key}) ) {
+	my $offset = $1 if ( $info =~ /;SPARSE_OFFSETS_GT=([^;]+)/ );
+	my @offsets = split(/,/,$offset);
+	my $ac = $#offsets+1;		
+	my @idxs = @{$hvar{$key}};
+	#my $w = ($flatWeight) ? 1 : (1/$ac);
+	my $w = 1;
+	foreach my $idx (@idxs) {
+	    $hmatch{$idx} = {} unless ( defined($hmatch{$idx}) );
+	    my $r = $hmatch{$idx};
+	    foreach my $o (@offsets) {
+		$r->{int($o/2)} += $w;
+	    }
+	}
+    }
+}
+
+print STDERR "Writing output file $out...\n";
+print OUT join("\t","ID.BCF","N.VARS","BEST","SECOND","THIRD","FOURTH","FIFTH","SIXTH","SEVENTH","EIGHTH","NINTH","TENTH")."\n";
+for(my $i=0; $i < @bcfids; ++$i) {
+    my $r = $hmatch{$i};
+    print OUT "$bcfids[$i]\t$nvars[$i]";
+    my @idxs = sort {$r->{$b} <=> $r->{$a}} keys %{$r};
+    for(my $i=0; $i < 10; ++$i) {
+	next if ( $i > $#idxs );
+	print OUT "\t".$allids[$idxs[$i]].":",sprintf("%.2f",($r->{$idxs[$i]}));
+    }
+    print OUT "\n";
+}
+close OUT;
+print STDERR "Finished writing output file..\n";

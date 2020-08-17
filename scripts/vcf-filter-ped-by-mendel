@@ -1,0 +1,235 @@
+#!/usr/bin/perl -w
+
+use strict;
+use POSIX qw(pow log10 sqrt);
+use FindBin;
+use lib $FindBin::Bin;
+use wGetOptions qw(wpod2usage wGetOptions);
+
+my $ped = "";
+my $prefix = "";
+my $exclude = "";
+my $out = "";
+my $trioThres = 0.05;
+my $dupThres = 0.01;
+
+## Remove pedigree with
+## 0.05 het discordance with family
+## 0.01 dup discoraance between dups or
+## <95% DP10 covered
+
+#my $ped = "hgdp/merged.autosomes.gtonly.minDP0.hgdp.king.related1.inferred.ped";
+#my $ped = $ARGV[0];
+#my $prefix = "hgdp/merged.autosomes.gtonly.minDP0.hgdp.mendel";
+#my $prefix = $ARGV[1];
+
+wGetOptions(
+    "-Identify nuclear families from KING2 output and sex map",
+    "--Required Options",
+    "ped=s" => [\$ped, "Input .ped file inferred from vcf-infer-ped"],
+    "mendel=s" => [\$prefix, "Prefix of input files produced from cramore mendel-dup-conc"],    
+    "out=s" => [\$out, "Output ped file (filtered)"],
+    "--Additional Options",
+    "exclude=s" => [\$exclude, "File containing the list of samples to be excluded"],    
+    "dup-thres=f" => [\$dupThres, "Maximum het discordance allowed for filtered dup pairs"],
+    "trio-thres=f" => [\$trioThres, "Maximum het discordance allowed for filtered trios"],
+    ) || wpod2usage(2);
+
+unless ( ( $ped ) && ( $prefix ) && ( $out ) ) {
+    print STDERR "ERROR: Missing required option\n";
+    wpod2usage(2);
+}
+
+
+my %hdel = ();
+my %hexcl = ();
+
+open(IN, $exclude) || die "Cannot open file $exclude for reading\n";
+while(<IN>) {
+    my ($id) = split;
+    $hexcl{$id} = 1;
+}
+close IN;
+
+open(IN,"$prefix.ind.dup.conc") || die "Cannot open file\n";
+my $dummy = <IN>;
+while(<IN>) {
+    my ($id1,$id2,$total,@ns) = split;
+    my $tot = 0;
+    for(my $i=0; $i < 16; ++$i) { $tot += $ns[$i]; }
+    my $disc = $ns[6]+$ns[7]+$ns[9]+$ns[11]+$ns[13]+$ns[14];
+    my $miss = $ns[0]+$ns[1]+$ns[2]+$ns[3]+$ns[4]+$ns[8]+$ns[12];
+    my $het1 = $ns[8]+$ns[9]+$ns[10]+$ns[11];
+    my $het2 = $ns[2]+$ns[6]+$ns[10]+$ns[14];
+    my $hetdisc = ($disc+5e-11)/($tot-$miss-$ns[5]-$ns[15]+1e-10);
+    if ( $hetdisc > $dupThres ) {
+	$hdel{$id1} = 1; # mark dup-pair for deletion
+	$hdel{$id2} = 1;
+    }
+}
+close IN;
+
+### Read Trio concordance. Identify IDs with >0.05 het discordance
+open(IN,"$prefix.ind.fam.conc") || die "Cannot open file\n";
+$dummy = <IN>;
+while(<IN>) {
+    my ($dad,$mom,$kid,$total,@ns) = split;
+    next if ( ( $dad eq "." ) || ( $mom eq "." ) || ( $kid eq "." ) ); ## ignore non-complete trios
+    my $nmiss = 0;
+    my $nconc = 0;
+    my $ndisc = 0;
+    my @nREFs = (0,0);
+    my @nALTs = (0,0);
+    my @nHETs = (0,0,0);
+    my ($allRef,$allAlt) = 0;
+    my $tot = 0;
+    for(my $i=0; $i < 64; ++$i) {
+	$tot += $ns[$i];
+	my $d = int($i / 16);
+	my $m = int(($i % 16)/4);
+	my $k = $i % 4;
+	if ( $d * $m * $k == 0 ) { ++$nmiss; }
+	elsif ( $d == 1 ) {
+	    if ( $m == 1 ) {
+		if ( $k == 1 ) { $nconc += $ns[$i]; $allRef = $ns[$i]; }
+		else { $ndisc += $ns[$i]; }
+	    }
+	    elsif ( $m == 2 ) {
+		if ( $k == 3 ) { $ndisc += $ns[$i]; }
+		else { $nREFs[$k-1] += $ns[$i]; }
+	    }
+	    else { ## m == 3
+		if ( $k == 2 ) { $nconc += $ns[$i]; }
+		else { $ndisc += $ns[$i]; }
+	    }
+	}
+	elsif ( $d == 2 ) {
+	    if ( $m == 1 ) {
+		if ( $k == 1 ) { $nREFs[0] += $ns[$i]; }
+		elsif ( $k == 2 ) { $nREFs[1] += $ns[$i]; }
+		else { $ndisc += $ns[$i]; }		
+	    }
+	    elsif ( $m == 2 ) { ## HETHET
+		$nHETs[$k-1] += $ns[$i];
+	    }
+	    else { ## m == 3
+		if ( $k == 1 ) { $ndisc += $ns[$i]; }
+		else { $nALTs[$k-2] += $ns[$i]; }
+	    }
+	}
+	else { # d ==3
+	    if ( $m == 1 ) {
+		if ( $k == 2 ) { $nconc += $ns[$i]; }
+		else { $ndisc += $ns[$i]; }
+	    }
+	    elsif ( $m == 2 ) {
+		if ( $k == 1 ) { $ndisc += $ns[$i]; }
+		else { $nALTs[$k-2] += $ns[$i]; }		
+	    }
+	    else {
+		if ( $k == 3 ) { $nconc += $ns[$i]; $allAlt = $ns[$i]; }
+		else { $ndisc += $ns[$i]; }		
+	    }
+	}
+    }
+    my $fmiss = sprintf("%.5lf",$nmiss/$tot);
+    my $totdisc = sprintf("%.5lf",($ndisc+5e-11)/($nconc+$ndisc+1e-10));
+    my $nrfdisc = sprintf("%.5lf",($ndisc+5e-11)/($nconc+$ndisc-$allRef+1e-10));
+    my $hetdisc = sprintf("%.5lf",($ndisc+5e-11)/($nconc+$ndisc-$allRef-$allAlt+1e-10));
+    my $refra = sprintf("%.5lf",($nREFs[0]+1e-10)/($nREFs[1]+1e-10));
+    my $altra = sprintf("%.5lf",($nALTs[0]+1e-10)/($nALTs[1]+1e-10));
+    my $hethet = sprintf("%.5lf",($nHETs[1]+1e-10)/($nHETs[0]+$nHETs[2]+1e-10));
+    my $hetra = sprintf("%.5lf",($nHETs[0]+1e-10)/($nHETs[2]+1e-10));
+    if ( $hetdisc > $trioThres ) {  ## if the discordance exceed the threshold, remove
+	$hdel{$dad} = 1;
+	$hdel{$mom} = 1;
+	$hdel{$kid} = 1;
+    }
+}
+close IN;
+
+### This is a routine to read a pedigree -- need to make a submodule eventually
+my %hfam = ();
+my %hdup = ();
+my %hsex = ();
+open(IN,$ped) || die "Cannot open file\n";
+while(<IN>) {
+    my ($fam,$ind,$dad,$mom,$sex,$pheno) = split;
+    my @inds = split(/,/,$ind);
+    $hdup{$inds[0]} = \@inds if ( $#inds > 0 );
+    $hsex{$inds[0]} = $sex;
+    if ( !defined($hfam{$fam}) ) {
+	$hfam{$fam} = [ "", "" ];
+    }
+    if ( ( $mom eq "0" ) && ( $dad eq "0" ) ) {
+	if ( $hfam{$fam}->[$sex-1] ne "" ) {
+	    die "Conflicing parents: ".join("\t",$fam,$sex,$hfam{$fam}->[$sex-1],@inds)."\n";
+	}
+	else {
+	    $hfam{$fam}->[$sex-1] = $inds[0];	    
+	}
+    }
+    elsif ( ( $mom eq "0" ) || ( $dad eq "0" ) ) {
+	die $_;
+    }
+    else {
+	push(@{$hfam{$fam}},$inds[0]);
+    }
+}
+close IN;
+
+open(OUT,">$out") || die "Cannot open $out for writing\n";
+## Scan pedigree and see if anyone disqualfies
+foreach my $fam (sort keys %hfam) {
+    ## scan the family
+    my @ids = @{$hfam{$fam}};
+    my $pass = 1;
+
+    foreach my $id (@ids) {
+	next if ( $id eq "" );
+	$pass = 0 if ( defined($hexcl{$id}) );
+	$pass = 0 if ( defined($hdel{$id}) );
+    }
+    if ( $pass == 1 ) {
+	for(my $i=0; $i < @ids; ++$i) {
+	    next if ( $ids[$i] eq "" );
+	    my $sex = $hsex{$ids[$i]};
+	    my $id = defined($hdup{$ids[$i]}) ? join(",",@{$hdup{$ids[$i]}}) : $ids[$i];
+	    if ( $i < 2 ) {
+		print OUT join("\t",$fam,$id,0,0,$sex,-9)."\n";
+	    }
+	    else {
+		print OUT join("\t",$fam,$id,$ids[0] ? $ids[0] : 0,$ids[1] ? $ids[1] : 0,$sex,-9)."\n";		
+	    }
+	}
+    }
+    else {
+	print STDERR "Skipping family $fam..\n";
+    }
+}
+close OUT;
+
+sub min {
+    my $ret = 1e100;
+    foreach my $f (@_) {
+	$ret = $f if ( $ret > $f );
+    }
+    return $ret;
+}
+
+
+sub max {
+    my $ret = -1e100;
+    foreach my $f (@_) {
+	$ret = $f if ( $ret < $f );
+    }
+    return $ret;
+}
+
+sub catcon {
+    my %h = ();
+    foreach my $f (@_) {
+	$h{$f} = 1;
+    }
+    return join(",",sort keys %h);
+}

@@ -44,16 +44,17 @@ wGetOptions(
     "--Additional Options (common to local and cloud)",
     "out-dir=s",[\$outDir,"Directory to store intermediate output files and scripts"],
     "job-name=s",[\$jobName,"Name of the jobs"],
-    "sleep-sec=f", [\$sleepSecs, "Number of seconds to sleep between the launches jobs"],    
+    "sleep-sec=f", [\$sleepSecs, "Number of seconds to sleep between the launches jobs"],
+    "preemptible=s", [\$preemptible, "(GCP only) true/false variables indicating preemptibility of the machine"],
     "--Options for Google Cloud environment",    
     "image-name=s",[\$imageName,"Name of the cloud-based image (cloud computing only, required)"],
     "zone=s",[\@zones,"Zones to run the scripts (cloud computing only)"],
     "opt=s",[\$opts,"Options when creating cloud compute instance (cloud computing only)"],
     "disk=i",[\$disk,"Size of disk to be created in GB(cloud computing only)"],
     "gs-dir=s",[\$gsdir, "GCS bucket directory to store metadata and scripts"],
-    "keep=s", [\$keepInstance, "Keep GC instances after completeing the task"],
+    "keep=s", [\$keepInstance, "(GCP only) Keep GCP instances after completeing the task"],
     "cwd=s", [\$cwd, "Current working directory on the cloud machine"],
-    "chk-sec=s", [\$checkpointSecs, "Period of checkpointing in seconds"],
+    "checkpoint-secs=s", [\$checkpointSecs, "Period of checkpointing in seconds"],
     "max-hours=f", [\$maxHours, "Maximum number of hours to keep the GC instance"],
     ) || wpod2usage(2);
 
@@ -103,79 +104,30 @@ while(<CMD>) {
 		}
 		else { @targetFiles = split(/\s+/,$value); }
 	    }	    
-	    elsif ( $key eq "out" ) {
-		if ( $outDir ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: $outDir)...\n"; }
-		else { $outDir = $value; }
-	    }
-	    elsif ( $key eq "name" ) {
-		if ( $jobName ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: $jobName)...\n"; }
-		else { $jobName = $value; }
-	    }
-	    elsif ( $key eq "image" ) {
-		if ( $imageName ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: $imageName)...\n"; }
-		else { $imageName = $value; }		
-	    }
-	    elsif ( $key eq "gsdir" ) {
-		if ( $gsdir ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: $gsdir)...\n"; }
-		else { $gsdir = $value; }		
-	    }
-	    elsif ( $key eq "disk" ) {
-		if ( $disk > 0 ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: $disk)...\n"; }
-		else { $disk = $value; }
-	    }
+	    elsif ( $key eq "out" ) { $outDir = &overrideParam($key, $outDir, $value, $cmdFile); }
+	    elsif ( $key eq "name" ) { $jobName = &overrideParam($key, $jobName, $value, $cmdFile); }
+	    elsif ( $key eq "image" ) { $imageName = &overrideParam($key, $imageName, $value, $cmdFile); }
+	    elsif ( $key eq "gsdir" ) { $gsdir = &overrideParam($key, $gsdir, $value, $cmdFile); }
+	    elsif ( $key eq "disk" ) { $disk = &overrideParam($key, $disk, $value, $cmdFile); }
 	    elsif ( $key eq "zone" ) {
 		if ( $#zones >= 0 ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: @zones)...\n"; }
 		else { @zones = split(/\s+/,$value); }
 	    }
-	    elsif ( $key eq "cwd" ) {
-		if ( $cwd > 0 ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: $cwd)...\n"; }
-		else { $cwd = $value; }
-	    }
+	    elsif ( $key eq "cwd" ) { $keepInstance = &overrideParam($key, $cwd, $value, $cmdFile); }
 	    elsif ( $key eq "mount" ) {
 		if ( $#mounts >= 0 ) { print STDERR "WARNING: IGNORING out argument (VALUE: $value) in $cmdFile to OVERRIDE the command line argument (VALUE: @zones)...\n"; }
 		else { @zones = split(/\s+/,$value); }
 		
 		my @values = split(/\s+/,$value);
-		if ( $#mounts >= 0 ) { print STDERR "Overriding --mount argument to @values (array) ...\n"; }
+		#if ( $#mounts >= 0 ) { print STDERR "Overriding --mount argument to @values (array) ...\n"; }
 		@mounts = @values;
 	    }
-	    elsif ( $key eq "opts" ) {
-		if ( $opts ) { print STDERR "Overriding --name argument to $value...\n"; }
-		$opts = $value;		    		    		    		    
-	    }
-	    elsif ( $key eq "preemptible" ) {
-		if ( ( $value eq "true" ) || ( $value eq "TRUE" ) ) { $value = 1; }
-		elsif ( ( $value eq "false" ) || ( $value eq "FALSE" ) ) { $value = 0; }
-		elsif ( ( $value ne 0 ) && ( $value ne 1 ) ) {
-		    die "--preemptible argument must be either true or false, but the current value is '$value'\n";
-		}
-		if ( $preemptible ) { print STDERR "Overriding --preemtible argument to $value...\n"; }
-		$preemptible = $value;		    		    		    		    
-	    }
-	    elsif ( $key eq "checkpoint-secs" ) {
-		if ( $checkpointSecs ) { print STDERR "Overriding --checkpoint-secs argument to $value...\n"; }
-		unless ( $value =~ /^\d+$/ ) { die "--checkpoint-secs parameter must be integer (in GB) in $cmds[0]\n"; }
-		$checkpointSecs = $value;		    		    		    
-	    }
-	    elsif ( $key eq "max-hours" ) {
-		if ( $maxHours ) { print STDERR "Overriding --max-hours argument to $value...\n"; }
-		unless ( $value =~ /^\d+$/ ) { die "--max-hours parameter must be integer in $cmds[0]\n"; }
-		$maxHours = $value;		    		    		    
-	    }
-	    elsif ( $key eq "sleep-secs" ) {
-		if ( $sleepSecs ) { print STDERR "Overriding --sleep-secs argument to $value...\n"; }
-		unless ( $value =~ /^\d+$/ ) { die "--sleep-secs parameter must be integer in $cmds[0]\n"; }
-		$sleepSecs = $value;		    		    		    
-	    }		    
-	    elsif ( $key eq "keep" ) {
-		if ( ( $value eq "true" ) || ( $value eq "TRUE" ) ) { $value = 1; }
-		elsif ( ( $value eq "false" ) || ( $value eq "FALSE" ) ) { $value = 0; }
-		elsif ( ( $value != 0 ) && ( $value != 1 ) ) {
-		    die "--keep argument must be either true or false in $cmds[0]\n";
-		}
-		if ( $keepInstance ) { print STDERR "Overriding --keep argument to $value...\n"; }
-		$keepInstance = $value;		    		    		    		    		    
-	    }
+	    elsif ( $key eq "opts" ) { $opts = &overrideParam($key, $opts, $value, $cmdFile); }
+	    elsif ( $key eq "preemptible" ) { $preemptible = &overrideParam($key, $preemptible, $value, $cmdFile); }
+	    elsif ( $key eq "checkpoint-secs" ) { $checkpointSecs = &overrideParam($key, $checkpointSecs, $value, $cmdFile); }
+	    elsif ( $key eq "max-hours" ) { $maxHours = &overrideParam($key, $maxHours, $value, $cmdFile); }
+	    elsif ( $key eq "sleep-secs" ) { $sleepSecs = &overrideParam($key, $sleepSecs, $value, $cmdFile); }
+	    elsif ( $key eq "keep" ) { $keepInstance = &overrideParam($key, $keepInstance, $value, $cmdFile); }
 	    else {	
 		#print STDERR "Cannot recognize --$key argument to replace into the value $value. Skipping...\n";
 		die "FATAL ERROR: Cannot recognize --$key argument to replace into the value $value\n";		
@@ -219,6 +171,10 @@ else {
     }    
 }
 
+## validate shared parameters
+$maxHours = &validateParam("max-hours",$maxHours,"int");
+$checkpointSecs = &validateParam("checkpoint-secs",$checkpointSecs,"int");
+
 if ( $runlocal ) {
     print STDERR "------------------------------------------------\n";
     print STDERR "Parameters in effect:\n";
@@ -238,24 +194,26 @@ elsif ( $rungoogle ) {
     print STDERR "------------------------------------------------\n";
     print STDERR "Parameters in effect:\n";
     print STDERR "------------------------------------------------\n";
-    print STDERR "name:\t$jobName\n";
-    print STDERR "image:\t$imageName\n";
+    print STDERR "name:\t".&validateParam("job-name",$jobName,"str")."\n";
+    print STDERR "image:\t".&validateParam("image-name",$imageName,"str")."\n";
     print STDERR "cmd:\t(Total ".($#cmds+1).")\n";
     for(my $i=0; $i < @cmds; ++$i) {
 	print STDERR "  ".($i+1).": $cmds[$i]\n";
     }
-    print STDERR "gs:\t$gsdir\n";
-    print STDERR "disk:\t$disk GB\n";
+    print STDERR "gs:\t".&validateParam("gs-dir",$gsdir,"str")."\n";
+    print STDERR "disk:\t".&validateParam("disk",$disk,"int")." GB\n";
     print STDERR "zones:\t@zones\n";
     print STDERR "cwd:\t$cwd\n";
     print STDERR "mount:\t(Total ".($#mounts+1).")\n";
     for(my $i=0; $i < @mounts; ++$i) {
 	print STDERR "  ".($i+1).": $mounts[$i]\n";
     }
-    print STDERR "opts:\t$opts\n";
-    print STDERR "checkpoint-secs:\t$checkpointSecs seconds\n";
-    print STDERR "max-hours:\t$maxHours hours\n";
+    print STDERR "opts:\t".&validateParam("opts",$opts,"str")."\n";
+    print STDERR "checkpoint-secs:\t".&validateParam("checkpoint-secs",$checkpointSecs,"int")." seconds\n";
+    print STDERR "max-hours:\t".&validateParam("max-hours",$maxHours,"int")." hours\n";
+    $preemptible = &validateParam("preemptible",$preemptible,"bool");
     print STDERR "preemptible:\t".($preemptible ? "true" : "false")."\n";
+    $keepInstance = &validateParam("keep",$keepInstance,"bool");    
     print STDERR "keep:\t".($keepInstance ? "true" : "false")."\n";
     print STDERR "------------------------------------------------\n";
 }
@@ -671,4 +629,39 @@ sub subst_lists {
 	}
     }
     return $msg;
+}
+
+## validate value and return
+sub validateParam {
+    my ($param, $value, $type) = @_;
+    die "--$param argument must be defined\n" unless ( defined($value) && ( $value ne "" ) );
+    if ( $type eq "bool" ) {
+	if ( ( $value eq "true" ) || ( $value eq "TRUE" ) ) { $value = 1; }
+	elsif ( ( $value eq "false" ) || ( $value eq "FALSE" ) ) { $value = 0; }
+	elsif ( ( $value != 0 ) && ( $value != 1 ) ) {
+	    die "--$param argument must be either true or false\n";
+	}
+	return ($value);
+    }
+    elsif ( $type eq "int" ) {
+	unless ( $value =~ /^\d+$/ ) { die "--$param parameter must be integer\n"; }
+	return ($value);
+    }
+    elsif ( $type eq "str") {
+	return ($value);
+    }
+    else {
+	die "Cannot recognize $type in validateParam()\n";
+    }
+}
+
+sub overrideParam {
+    my ($name, $param, $value, $cmd) = @_;
+    if ( $param ) {
+	print STDERR "WARNING: IGNORING $name argument (VALUE: $value) in $cmd to OVERRIDE the command line argument (VALUE: $param)...\n";
+	return $param;
+    }
+    else {
+	return $value;
+    }
 }

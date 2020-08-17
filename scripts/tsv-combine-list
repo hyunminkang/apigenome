@@ -1,0 +1,58 @@
+#!/usr/bin/perl -w
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+use wGetOptions qw(wpod2usage wGetOptions);    
+use hyunlib qw(makeMake forkExecWait zopen wopen);
+
+my @ins = ();
+my $delim = " ";
+
+#This program takes multiple files specified with --in parameters, and creates a larger list that contains all the possible combinations of possible items. The output"
+
+wGetOptions(
+    "-Combine multiple list of files to make a list with all possible combinations",
+    "--Required Options",
+    "in=s" => [\@ins, "Input text files, or a comma-spearated string starting with comma"],
+    
+    "--Additional Options",    
+    "delim=s" => [\$delim, "Delimiter to separate the tokens (may need to use quotation marks)"],    
+    ) || wpod2usage(2);
+
+if ( $#ins < 0 ) {
+    print STDERR "Missing required input --in\n";
+    wpod2usage(2);
+}
+
+my @lists = ();
+for(my $i=0; $i < @ins; ++$i) {
+    my @items = ();
+    if ( $ins[$i] =~ /^,/ ) {
+	$ins[$i] =~ s/^,//;
+	@items = split(/,/,$ins[$i]);
+    }
+    else {
+	open(IN,$ins[$i]) || die "Cannot open $ARGV[$i]\n";
+	while(<IN>) {
+	    chomp;
+	    push(@items,$_);
+	}
+	close IN;
+    }
+    push(@lists,\@items);
+}
+
+&dfs(0,@lists);
+
+sub dfs {
+    my ($n,@elems) = @_;
+    if ( $n > $#elems ) {
+	print join($delim,@elems)."\n"; ## print the combination of items
+    }
+    else {
+	foreach my $e (@{$elems[$n]}) {
+	    &dfs($n+1,@elems[0..($n-1)],$e,@elems[($n+1)..$#elems]);
+	}
+    }
+}
