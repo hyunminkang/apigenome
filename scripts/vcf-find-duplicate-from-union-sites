@@ -681,7 +681,7 @@ if ( $chr eq $xLabel ) {
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n") unless ( defined($extHdrs{"CEN"}) );
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXTSVM,Description=\"Variant failed SVM filter from externally provided VCF\">\n") unless ( defined($extHdrs{"EXTSVM"}) );
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n") unless ( defined($extHdrs{"EXHET"}) );
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n") unless ( defined($extHdrs{"EXHET"}) );
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter from new training model\">\n") unless ( defined($extHdrs{"SVM"}) );    
     foreach my $key (keys %extHdrs) {
 	splice(@hdrs,$#hdrs,0,$extHdrs{$key});
@@ -925,7 +925,7 @@ else {
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n") unless ( defined($extHdrs{"CEN"}) );
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXTSVM,Description=\"Variant failed SVM filter from externally provided VCF\">\n") unless ( defined($extHdrs{"EXTSVM"}) );
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n") unless ( defined($extHdrs{"EXHET"}) );
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n") unless ( defined($extHdrs{"EXHET"}) );
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter from new training model\">\n") unless ( defined($extHdrs{"SVM"}) );
     foreach my $key (keys %extHdrs) {
 	splice(@hdrs,$#hdrs,0,$extHdrs{$key});

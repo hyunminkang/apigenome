@@ -518,9 +518,9 @@ if ( $chr eq $xLabel ) {
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\"\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\"\n");  
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\">\n");  
     print OUT join("",@hdrs);
     
     my $maxan = 0; 
@@ -726,8 +726,8 @@ else {
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\"\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
 
     print OUT join("",@hdrs);
         
