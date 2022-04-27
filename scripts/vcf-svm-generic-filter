@@ -370,8 +370,8 @@ if ( 1 > 0 ) {  ## this is a placeholder for adding chrX condition later on
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=NEG,Description=\"Negatively labeled variants from external source\"\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=NEG,Description=\"Negatively labeled variants from external source\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
 
     print OUT join("",@hdrs);
         

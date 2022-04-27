@@ -543,13 +543,13 @@ foreach my $chr (@chrs) {
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
 	splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\"\n");
-	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC10,Description=\"Mendelian or duplicate genotype discordance is high (11 or more)\"\n");    
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\"\n"); 	
-	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHOM,Description=\"Excess homozygosity with HWE p-value < 1e-6\"\n");    
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
+	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC10,Description=\"Mendelian or duplicate genotype discordance is high (11 or more)\">\n");    
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\">\n"); 	
+	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHOM,Description=\"Excess homozygosity with HWE p-value < 1e-6\">\n");    
 	print OUT join("",@hdrs);
-	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CONFLICT,Description=\"Variant position conflicts with other variants with higher SVM score\"\n");
+	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CONFLICT,Description=\"Variant position conflicts with other variants with higher SVM score\">\n");
     #print OUTU join("",@hdrs);    
 	
 	#my %hbest = ();
@@ -759,12 +759,12 @@ foreach my $chr (@chrs) {
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CEN,Description=\"Variant overlaps with centromeric region\">\n");    
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
 	splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\"\n");
-	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC10,Description=\"Mendelian or duplicate genotype discordance is high (11 or more)\"\n");    
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\"\n");
-	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHOM,Description=\"Excess homozygosity with HWE p-value < 1e-6\"\n");    
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
+	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC10,Description=\"Mendelian or duplicate genotype discordance is high (11 or more)\">\n");    
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHOM,Description=\"Excess homozygosity with HWE p-value < 1e-6\">\n");    
 	print OUT join("",@hdrs);
-	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CONFLICT,Description=\"Variant position conflicts with other variants with higher SVM score\"\n");
+	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CONFLICT,Description=\"Variant position conflicts with other variants with higher SVM score\">\n");
     #print OUTU join("",@hdrs);    
 	
 	#my %hbest = ();
