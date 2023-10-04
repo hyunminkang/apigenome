@@ -545,7 +545,7 @@ foreach my $chr (@chrs) {
 	splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
 	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC10,Description=\"Mendelian or duplicate genotype discordance is high (11 or more)\">\n");    
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-10\">\n");
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\">\n"); 	
 	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHOM,Description=\"Excess homozygosity with HWE p-value < 1e-6\">\n");    
 	print OUT join("",@hdrs);
@@ -615,7 +615,7 @@ foreach my $chr (@chrs) {
 	    if ( ( ( $ndisc > 2 ) && ( $ndisc > $nconc * 0.05 ) ) || ( ( $ddisc > 2 ) && ( $ddisc > $dconc * 0.05 ) ) ) {
 		push(@filts,"DISC");	    
 	    }
-	    if ( $hweslp < -13.81551 ) {
+	    if ( $hweslp < -10 ) {
 		push(@filts,"EXHET");	    
 	    }
 	    if ( ( defined($chrx) && ( $chrx < -3 ) ) ) {
@@ -761,7 +761,7 @@ foreach my $chr (@chrs) {
 	splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
 	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
 	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC10,Description=\"Mendelian or duplicate genotype discordance is high (11 or more)\">\n");    
-	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+	splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-10\">\n");
 	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHOM,Description=\"Excess homozygosity with HWE p-value < 1e-6\">\n");    
 	print OUT join("",@hdrs);
 	#splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CONFLICT,Description=\"Variant position conflicts with other variants with higher SVM score\">\n");
@@ -827,7 +827,7 @@ foreach my $chr (@chrs) {
 	    if ( ( ( $ndisc > 2 ) && ( $ndisc > $nconc * 0.05 ) ) || ( ( $ddisc > 2 ) && ( $ddisc > $dconc * 0.05 ) ) ) {
 		push(@filts,"DISC");	    
 	    }
-	    if ( $hweslp < -13.81551 ) {
+	    if ( $hweslp < -10 ) {
 		push(@filts,"EXHET");	    
 	    }
 	    

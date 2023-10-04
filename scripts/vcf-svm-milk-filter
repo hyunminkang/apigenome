@@ -519,7 +519,7 @@ if ( $chr eq $xLabel ) {
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-10\">\n");
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=CHRXHET,Description=\"Excess heterozygosity in chrX\">\n");  
     print OUT join("",@hdrs);
     
@@ -584,7 +584,7 @@ if ( $chr eq $xLabel ) {
         if ( ( ( $ndisc >= $minDiscCount ) && ( $ndisc > $nconc * $minDiscFrac ) ) || ( ( $ddisc >= $minDiscCount ) && ( $ddisc > $dconc * $minDiscFrac ) ) ) {  
 	    push(@filts,"DISC");        
 	}
-	if ( $hweslp < -13.81551 ) {
+	if ( $hweslp < -10 ) {
 	    push(@filts,"EXHET");       
 	}
 	if ( ( defined($chrx) && ( $chrx < -3 ) ) ) {
@@ -727,7 +727,7 @@ else {
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=SVM,Description=\"Variant failed SVM filter\">\n");
     splice(@hdrs,$#hdrs,0,"##INFO=<ID=OVERLAP,Number=.,Type=String,Description=\"Overlap with possible variant types\">\n");
     splice(@hdrs,$#hdrs,0,"##FILTER=<ID=DISC,Description=\"Mendelian or duplicate genotype discordance is high (3/5% or more)\">\n");
-    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-6\">\n");
+    splice(@hdrs,$#hdrs,0,"##FILTER=<ID=EXHET,Description=\"Excess heterozygosity with HWE p-value < 1e-10\">\n");
 
     print OUT join("",@hdrs);
         
@@ -779,7 +779,7 @@ else {
         if ( ( ( $ndisc >= $minDiscCount ) && ( $ndisc > $nconc * $minDiscFrac ) ) || ( ( $ddisc >= $minDiscCount ) && ( $ddisc > $dconc * $minDiscFrac ) ) ) {  	
 	    push(@filts,"DISC");        
 	}
-	if ( $hweslp < -13.81551 ) {
+	if ( $hweslp < -10 ) {
 	    push(@filts,"EXHET");       
 	}
 	
